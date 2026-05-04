@@ -5,7 +5,7 @@
 <h1 align="center">Pebble</h1>
 
 <p align="center">
-  A local-first desktop email client for people who want a calmer, more private inbox.
+  A local-first email client for people who want a calmer, more private inbox. Now runs as a self-hosted web service.
 </p>
 
 <p align="center">
@@ -20,12 +20,14 @@
   <a href="https://github.com/QingJ01/Pebble/releases"><img src="https://img.shields.io/github/v/release/QingJ01/Pebble?style=flat-square&color=d4714e" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License"></a>
   <a href="https://github.com/QingJ01/Pebble/actions"><img src="https://img.shields.io/github/actions/workflow/status/QingJ01/Pebble/ci.yml?style=flat-square&label=build" alt="Build"></a>
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square" alt="Platform">
+  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20VPS%20%7C%20Self--hosted-lightgrey?style=flat-square" alt="Platform">
 </p>
 
 ## Overview
 
-Pebble is a desktop mail client built with Rust, Tauri, and React. It keeps mail data, the search index, attachments, rules, and application settings on your device by default.
+Pebble is a self-hosted email client built with Rust and React. It has been re-architected from a Tauri desktop application into a **web service**: the Rust backend runs as a standalone HTTP server, and the React frontend is served as a standard web application that connects to it over HTTP.
+
+All mail data, the search index, attachments, rules, and application settings remain on your server.
 
 The app is designed around a few practical ideas:
 
@@ -36,14 +38,46 @@ The app is designed around a few practical ideas:
 
 Pebble currently supports Gmail, IMAP, and experimental Outlook accounts.
 
+## Architecture
+
+This fork replaces the original Tauri desktop shell with a client–server architecture:
+
+```
+Browser (React SPA)
+        │  HTTP fetch  /rpc/batch
+        │  SSE stream  /events
+        │  OAuth flow  /auth/login  /auth/callback
+        ▼
+Rust HTTP Server  (Axum, port 3000)
+        │
+        ├── pebble-store    SQLite database
+        ├── pebble-search   Tantivy full-text index
+        ├── pebble-mail     IMAP / Gmail / Outlook sync
+        ├── pebble-crypto   Credential encryption
+        ├── pebble-oauth    OAuth 2.0 + PKCE
+        ├── pebble-rules    Rules engine
+        ├── pebble-translate Translation providers
+        └── pebble-privacy  HTML sanitizing & tracker controls
+```
+
+### Key changes from upstream
+
+| Upstream (Tauri desktop) | This fork (web service) |
+| --- | --- |
+| Tauri IPC (`invoke`) | HTTP JSON-RPC via `POST /rpc/batch` |
+| Tauri event system | Server-Sent Events (SSE) via `GET /events` |
+| Desktop OAuth redirect | HTTP OAuth flow at `/auth/login` and `/auth/callback` |
+| App data in OS user dir | Local `./data/` directory (VPS-friendly) |
+| Platform-native keyring | File-based key at `./data/pebble.key` |
+
 ## Highlights
 
 ### Local-first privacy
 
 - Local SQLite database for messages, folders, labels, rules, and settings.
 - Local Tantivy full-text index for fast search.
-- Attachments are stored on disk under the app data directory.
-- OAuth tokens and credentials are encrypted with a per-device key.
+- Attachments are stored on disk under the `./data/attachments/` directory.
+- OAuth tokens and credentials are encrypted with a per-server key file.
 - No telemetry.
 - Network requests are limited to features you configure: mail sync, translation, and optional WebDAV settings backup.
 
@@ -83,13 +117,13 @@ Pebble currently supports Gmail, IMAP, and experimental Outlook accounts.
 
 | Layer | Technology |
 | --- | --- |
-| Desktop shell | Tauri 2 |
-| Backend | Rust |
+| Backend server | Rust + Axum |
+| Transport | JSON-RPC over HTTP, SSE for push events |
 | Frontend | React 19, TypeScript |
 | State | Zustand, TanStack Query |
 | Database | SQLite via rusqlite |
 | Search | Tantivy |
-| Styling | Tailwind CSS and app CSS |
+| Styling | Tailwind CSS |
 | Localization | i18next |
 
 ## Getting Started
@@ -99,7 +133,6 @@ Pebble currently supports Gmail, IMAP, and experimental Outlook accounts.
 - Rust stable
 - Node.js 18 or newer
 - pnpm 8 or newer
-- Tauri system dependencies for your platform
 
 ### Development Setup
 
@@ -109,55 +142,119 @@ cd Pebble
 
 pnpm install
 cp .env.example .env
-
-pnpm dev
+# Fill in your OAuth credentials in .env
 ```
 
-The development command starts the Vite frontend and the Tauri desktop app.
-
-### Build
+Start the backend server (terminal 1):
 
 ```bash
-pnpm build
-pnpm build:windows
-pnpm build:macos
-pnpm build:linux
+cargo run -p pebble
 ```
 
-Desktop bundles are written under `target/release/` and `target/release/bundle/`.
-On Linux, install the Tauri system dependencies first; `pnpm build:linux` produces an AppImage under `target/release/bundle/appimage/`.
-macOS bundles are unsigned unless you provide your own signing setup.
-After copying an unsigned macOS build to `/Applications`, run the following command before opening it:
+Start the frontend dev server (terminal 2):
 
 ```bash
-sudo xattr -cr /Applications/Pebble.app
+pnpm dev:frontend
+```
+
+Open `http://localhost:1420` in your browser. The Vite dev server automatically proxies `/rpc`, `/events`, and `/auth` to the backend at port 3000.
+
+### Production Deployment
+
+Build the frontend:
+
+```bash
+pnpm build:frontend
+```
+
+The static files are written to `dist/`. Serve them with any web server (nginx, caddy, etc.) and proxy the `/rpc`, `/events`, and `/auth` paths to the Rust backend.
+
+Build and run the backend:
+
+```bash
+cargo build --release -p pebble
+./target/release/pebble
+```
+
+Data is stored in `./data/` relative to the working directory. Point the backend at a persistent directory and keep `./data/pebble.key` safe — losing it means losing access to stored credentials.
+
+Example nginx snippet (assuming backend on port 3000, frontend served from `dist/`):
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name mail.example.com;
+
+    root /path/to/Pebble/dist;
+    index index.html;
+
+    # Frontend SPA — fall back to index.html for client-side routing
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Backend API and SSE
+    location ~ ^/(rpc|events|auth) {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+
+        # Required for SSE connections
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+    }
+}
 ```
 
 ## OAuth Configuration
 
 Pebble can connect to Gmail and Outlook through OAuth. IMAP accounts use the IMAP/SMTP credentials configured in the app.
 
-Copy `.env.example` to `.env`, then fill the provider values you need.
+Copy `.env.example` to `.env`, then fill the provider values you need. The environment variables must be set **at compile time** so they are embedded into the release binary.
 
 | Variable | Description |
 | --- | --- |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID. Use a Desktop app client when possible. |
-| `GOOGLE_CLIENT_SECRET` | Optional for PKCE flows. Add it if Google rejects token exchange with `client_secret is missing`. |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID. Use a Web application client and add `http://localhost:3000/auth/callback` as an authorized redirect URI. |
+| `GOOGLE_CLIENT_SECRET` | Required for web application clients. |
 | `MICROSOFT_CLIENT_ID` | Microsoft public/native app client ID. |
 | `MICROSOFT_CLIENT_SECRET` | Optional. Leave empty for public/native Microsoft apps. |
+
+> **Note**: Because the OAuth callback is now handled by the HTTP server at `/auth/callback`, you must configure `http://<your-host>/auth/callback` (or `http://localhost:3000/auth/callback` for local dev) as the authorized redirect URI in your Google/Microsoft app settings.
+
+## API Reference
+
+The backend exposes three endpoint groups:
+
+### `POST /rpc`
+
+Single JSON-RPC call. Request body: `{ "method": "<command>", "params": { ... } }`. Returns the result directly or `{ "error": "<message>" }` on failure.
+
+### `POST /rpc/batch`
+
+Array of JSON-RPC calls processed in order. Request body: `[{ "method": "...", "params": {...} }, ...]`. Returns a matching array of results.
+
+### `GET /events`
+
+Server-Sent Events stream. The frontend connects here to receive push notifications for new mail, sync status, snooze wakeups, and other real-time updates. Each event has a named type and a JSON payload.
+
+### `GET /auth/login?provider=<google|microsoft>`
+
+Initiates the OAuth PKCE flow. Redirects the browser to the provider's authorization page.
+
+### `GET /auth/callback`
+
+OAuth redirect target. Exchanges the authorization code for tokens and creates the account. Redirects to `/` on success.
 
 ## Useful Scripts
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm dev` | Run the Tauri desktop app in development mode. |
-| `pnpm dev:frontend` | Run only the Vite frontend dev server. |
+| `cargo run -p pebble` | Run the backend HTTP server. |
+| `pnpm dev:frontend` | Run the Vite frontend dev server (proxies to backend). |
 | `pnpm test` | Run frontend tests with Vitest. |
-| `pnpm build:frontend` | Type-check and build the frontend. |
-| `pnpm build` | Build the desktop app for the current platform. |
-| `pnpm build:windows` | Build the Windows NSIS installer. |
-| `pnpm build:macos` | Build unsigned macOS `.app` and `.dmg` bundles. |
-| `pnpm build:linux` | Build the Linux `.AppImage` bundle. |
+| `pnpm build:frontend` | Type-check and build the frontend to `dist/`. |
+| `cargo build --release -p pebble` | Build the release backend binary. |
 | `cargo test -p pebble-mail` | Run the mail crate tests. |
 | `cargo check` | Check the Rust workspace. |
 
@@ -165,13 +262,21 @@ Copy `.env.example` to `.env`, then fill the provider values you need.
 
 ```text
 Pebble/
-|-- src/                    React frontend
+|-- src/                    React frontend (SPA)
 |   |-- components/         Shared UI components
 |   |-- features/           Inbox, compose, search, Kanban, settings
 |   |-- hooks/              React hooks and query helpers
-|   |-- lib/                IPC API, i18n, utilities
-|   `-- stores/             Zustand stores
-|-- src-tauri/              Tauri application and IPC commands
+|   |-- lib/                HTTP API client, i18n, utilities
+|   |-- stores/             Zustand stores
+|   `-- tauri-mock.ts       HTTP/SSE bridge (replaces Tauri IPC)
+|-- src-tauri/              Rust HTTP backend (Axum)
+|   `-- src/
+|       |-- main.rs         Server entry point, route registration
+|       |-- auth.rs         OAuth login & callback handlers
+|       |-- state.rs        Shared application state
+|       |-- realtime/       Background sync workers
+|       |-- snooze_watcher.rs  Snooze timer background task
+|       `-- rpc/            JSON-RPC command handlers
 |-- crates/                 Rust workspace crates
 |   |-- pebble-core/        Shared types and errors
 |   |-- pebble-store/       SQLite persistence

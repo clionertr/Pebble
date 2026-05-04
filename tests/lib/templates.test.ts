@@ -2,9 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { deleteTemplate, listTemplates, saveTemplate } from "../../src/lib/templates";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("../../src/tauri-mock", () => ({
   invoke: vi.fn(),
 }));
+
+
+
 
 const invokeMock = vi.mocked(invoke);
 

@@ -1,9 +1,7 @@
 mod pkce;
-pub mod redirect;
 mod tokens;
 
 pub use pkce::PkceState;
-pub use redirect::OAuthRedirect;
 pub use tokens::TokenPair;
 
 use oauth2::{
@@ -20,7 +18,8 @@ pub struct OAuthConfig {
     pub auth_url: String,
     pub token_url: String,
     pub scopes: Vec<String>,
-    pub redirect_port: u16,
+    pub redirect_url: String,
+    pub extra_auth_params: std::collections::HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -35,8 +34,6 @@ pub enum OAuthError {
     Request(String),
     #[error("Token exchange failed: {0}")]
     TokenExchange(String),
-    #[error("Redirect listener failed: {0}")]
-    Redirect(String),
     #[error("Invalid configuration: {0}")]
     Config(String),
     #[error("Token expired and no refresh token available")]
@@ -110,10 +107,7 @@ impl OAuthManager {
             .map_err(|e| OAuthError::Config(format!("Invalid auth URL: {}", e)))?;
         let token_url = TokenUrl::new(self.config.token_url.clone())
             .map_err(|e| OAuthError::Config(format!("Invalid token URL: {}", e)))?;
-        let redirect_url = RedirectUrl::new(format!(
-            "http://127.0.0.1:{}/callback",
-            self.config.redirect_port
-        ))
+        let redirect_url = RedirectUrl::new(self.config.redirect_url.clone())
         .map_err(|e| OAuthError::Config(format!("Invalid redirect URL: {}", e)))?;
         Ok(ParsedUrls {
             auth_url,
@@ -145,6 +139,10 @@ impl OAuthManager {
 
         for scope in &self.config.scopes {
             auth_request = auth_request.add_scope(Scope::new(scope.clone()));
+        }
+
+        for (k, v) in &self.config.extra_auth_params {
+            auth_request = auth_request.add_extra_param(k, v);
         }
 
         let (auth_url, csrf_token) = auth_request.url();
@@ -204,19 +202,6 @@ impl OAuthManager {
             .map_err(|e| OAuthError::TokenExchange(format!("Refresh failed: {}", e)))?;
 
         Ok(token_response_to_pair(&token_result, Some(refresh_token)))
-    }
-
-    /// Bind the redirect listener. Returns the bound listener with the actual port.
-    pub async fn bind_redirect_listener(
-        &self,
-    ) -> Result<redirect::BoundRedirectListener, OAuthError> {
-        redirect::bind_redirect_listener(self.config.redirect_port).await
-    }
-
-    /// Wait for the OAuth redirect on the configured port and return the
-    /// authorization code together with the callback state.
-    pub async fn wait_for_redirect(&self) -> Result<OAuthRedirect, OAuthError> {
-        redirect::wait_for_redirect(self.config.redirect_port).await
     }
 }
 
@@ -280,7 +265,8 @@ mod tests {
             auth_url: "https://accounts.google.com/o/oauth2/v2/auth".into(),
             token_url: "https://oauth2.googleapis.com/token".into(),
             scopes: vec!["https://mail.google.com/".into()],
-            redirect_port: 8765,
+            redirect_url: "http://127.0.0.1:8765/callback".into(),
+            extra_auth_params: std::collections::HashMap::new(),
         }
     }
 
@@ -395,7 +381,8 @@ mod tests {
             auth_url: format!("http://{addr}/auth"),
             token_url: format!("http://{addr}/token"),
             scopes: vec![],
-            redirect_port: 8765,
+            redirect_url: "http://127.0.0.1:8765/callback".into(),
+            extra_auth_params: std::collections::HashMap::new(),
         });
         let token_pair = manager
             .complete_auth(

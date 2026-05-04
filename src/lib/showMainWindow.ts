@@ -1,4 +1,4 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "../tauri-mock";
 import { logStartupTiming } from "@/lib/startupTiming";
 
 export async function showMainWindow() {

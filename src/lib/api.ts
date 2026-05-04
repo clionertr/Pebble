@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../tauri-mock";
 
 // Re-export all IPC types so existing `import { Foo } from "@/lib/api"` keeps working.
 export type {
@@ -20,7 +20,6 @@ export type {
   Label,
   Message,
   MessageSummary,
-  NotificationStatus,
   PendingMailOp,
   PendingMailOpsSummary,
   PrivacyMode,
@@ -52,7 +51,6 @@ import type {
   Label,
   Message,
   MessageSummary,
-  NotificationStatus,
   PendingMailOp,
   PendingMailOpsSummary,
   PrivacyMode,
@@ -355,18 +353,6 @@ export async function setRealtimePreference(mode: RealtimePreference): Promise<v
 
 export async function setNotificationsEnabled(enabled: boolean): Promise<void> {
   return invoke<void>("set_notifications_enabled", { enabled });
-}
-
-export async function getNotificationStatus(): Promise<NotificationStatus> {
-  return invoke<NotificationStatus>("get_notification_status");
-}
-
-export async function showTestNotification(): Promise<void> {
-  return invoke<void>("show_test_notification");
-}
-
-export async function clearNotificationAttention(): Promise<void> {
-  return invoke<void>("clear_notification_attention");
 }
 
 export async function setTrayMenuLabels(showLabel: string, hideLabel: string, quitLabel: string): Promise<void> {

@@ -1,0 +1,427 @@
+pub mod flags;
+pub mod lifecycle;
+pub mod provider_dispatch;
+pub mod query;
+pub mod rendering;
+
+// Shared helpers used by flags and lifecycle submodules.
+
+use crate::rpc::network::{
+    account_proxy_mode_from_auth_value, resolve_mail_proxy_from_mode, AccountProxyMode,
+};
+use crate::rpc::oauth::{ensure_account_oauth_auth, refresh_account_oauth_auth};
+use crate::state::AppState;
+use pebble_core::traits::LabelProvider;
+use pebble_core::{FolderRole, Message, PebbleError};
+use pebble_crypto::CryptoService;
+use pebble_mail::{GmailProvider, ImapConfig, ImapProvider, OutlookProvider};
+use pebble_search::TantivySearch;
+use pebble_store::Store;
+use serde_json::json;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum RemoteMutationOutcome {
+    Applied,
+    Queued,
+    QueuedLocalCommit,
+    LocalOnly,
+    #[allow(dead_code)]
+    Failed,
+}
+
+pub(super) fn remote_mutation_allows_local_commit(outcome: RemoteMutationOutcome) -> bool {
+    matches!(
+        outcome,
+        RemoteMutationOutcome::Applied
+            | RemoteMutationOutcome::QueuedLocalCommit
+            | RemoteMutationOutcome::LocalOnly
+    )
+}
+
+pub(super) fn queue_pending_remote_op(
+    state: &AppState,
+    message: &Message,
+    op_type: &str,
+    payload: serde_json::Value,
+    error: &str,
+) -> std::result::Result<RemoteMutationOutcome, PebbleError> {
+    let payload = json!({
+        "provider_account_id": message.account_id,
+        "remote_id": message.remote_id,
+        "op": op_type,
+        "payload": payload,
+    });
+    let op_id = state.store.insert_pending_mail_op(
+        &message.account_id,
+        &message.id,
+        op_type,
+        &payload.to_string(),
+    )?;
+    state.store.mark_pending_mail_op_failed(&op_id, error)?;
+    Ok(RemoteMutationOutcome::Queued)
+}
+
+pub(super) fn queue_pending_remote_op_for_local_commit(
+    state: &AppState,
+    message: &Message,
+    op_type: &str,
+    payload: serde_json::Value,
+    error: &str,
+) -> std::result::Result<RemoteMutationOutcome, PebbleError> {
+    let outcome = queue_pending_remote_op(state, message, op_type, payload, error)?;
+    debug_assert_eq!(outcome, RemoteMutationOutcome::Queued);
+    Ok(RemoteMutationOutcome::QueuedLocalCommit)
+}
+
+pub(super) fn queued_remote_error(op_type: &str, error: &str) -> PebbleError {
+    PebbleError::Network(format!(
+        "Remote {op_type} failed and was queued for retry: {error}"
+    ))
+}
+
+pub(super) async fn connect_gmail(
+    state: &AppState,
+    account_id: &str,
+) -> std::result::Result<GmailProvider, PebbleError> {
+    let auth = ensure_account_oauth_auth(state, account_id, "gmail").await?;
+    GmailProvider::new_with_proxy(auth.tokens.access_token, auth.proxy)
+}
+
+pub(super) async fn modify_gmail_labels_with_auth_retry(
+    state: &AppState,
+    account_id: &str,
+    provider: &GmailProvider,
+    remote_id: &str,
+    add: &[String],
+    remove: &[String],
+) -> std::result::Result<(), PebbleError> {
+    retry_gmail_auth_error_once(
+        || {
+            let provider = provider;
+            async move { provider.modify_labels(remote_id, add, remove).await }
+        },
+        || {
+            let provider = provider;
+            async move {
+                let auth = refresh_account_oauth_auth(state, account_id, "gmail").await?;
+                provider.set_access_token(auth.tokens.access_token);
+                Ok(())
+            }
+        },
+    )
+    .await
+}
+
+async fn retry_gmail_auth_error_once<Attempt, AttemptFuture, Refresh, RefreshFuture>(
+    mut attempt: Attempt,
+    mut refresh: Refresh,
+) -> std::result::Result<(), PebbleError>
+where
+    Attempt: FnMut() -> AttemptFuture,
+    AttemptFuture: std::future::Future<Output = std::result::Result<(), PebbleError>>,
+    Refresh: FnMut() -> RefreshFuture,
+    RefreshFuture: std::future::Future<Output = std::result::Result<(), PebbleError>>,
+{
+    match attempt().await {
+        Err(error) if is_gmail_auth_error(&error) => {
+            refresh().await?;
+            attempt().await
+        }
+        other => other,
+    }
+}
+
+fn is_gmail_auth_error(error: &PebbleError) -> bool {
+    match error {
+        PebbleError::Auth(_) | PebbleError::TokenExpired(_) => true,
+        PebbleError::Network(message) => message.contains("status 401"),
+        _ => false,
+    }
+}
+
+pub(super) async fn connect_outlook(
+    state: &AppState,
+    account_id: &str,
+) -> std::result::Result<OutlookProvider, PebbleError> {
+    let auth = ensure_account_oauth_auth(state, account_id, "outlook").await?;
+    OutlookProvider::new_with_proxy(auth.tokens.access_token, account_id.to_string(), auth.proxy)
+}
+
+pub(crate) fn refresh_search_document(
+    state: &AppState,
+    message_id: &str,
+) -> std::result::Result<(), PebbleError> {
+    refresh_search_document_with_store(&state.store, &state.search, message_id)
+}
+
+pub(crate) fn refresh_search_document_with_store(
+    store: &Store,
+    search: &TantivySearch,
+    message_id: &str,
+) -> std::result::Result<(), PebbleError> {
+    let ids = vec![message_id.to_string()];
+    store.add_search_pending(&ids, "index")?;
+
+    match store.get_message(message_id)? {
+        Some(message) if !message.is_deleted => {
+            let folder_ids = store.get_message_folder_ids(message_id)?;
+            if folder_ids.is_empty() {
+                search.remove_message(message_id)?;
+            } else {
+                search.index_message(&message, &folder_ids)?;
+            }
+        }
+        Some(_) | None => {
+            search.remove_message(message_id)?;
+        }
+    }
+
+    search.commit()?;
+    store.clear_search_pending(&ids)?;
+    Ok(())
+}
+
+pub(super) fn remove_search_documents(
+    state: &AppState,
+    message_ids: &[String],
+) -> std::result::Result<(), PebbleError> {
+    if message_ids.is_empty() {
+        return Ok(());
+    }
+    state.store.add_search_pending(message_ids, "remove")?;
+    for message_id in message_ids {
+        state.search.remove_message(message_id)?;
+    }
+    state.search.commit()?;
+    state.store.clear_search_pending(message_ids)?;
+    Ok(())
+}
+
+/// Refresh multiple search documents with a single index commit at the end.
+/// Use this instead of calling `refresh_search_document` in a loop: one commit
+/// for N messages is dramatically cheaper than N commits (segment flush +
+/// reader reload per doc).
+pub(super) fn refresh_search_documents(
+    state: &AppState,
+    message_ids: &[String],
+) -> std::result::Result<(), PebbleError> {
+    if message_ids.is_empty() {
+        return Ok(());
+    }
+    state.store.add_search_pending(message_ids, "index")?;
+    for message_id in message_ids {
+        match state.store.get_message(message_id)? {
+            Some(message) if !message.is_deleted => {
+                let folder_ids = state.store.get_message_folder_ids(message_id)?;
+                if folder_ids.is_empty() {
+                    state.search.remove_message(message_id)?;
+                } else {
+                    state.search.index_message(&message, &folder_ids)?;
+                }
+            }
+            Some(_) | None => {
+                state.search.remove_message(message_id)?;
+            }
+        }
+    }
+    state.search.commit()?;
+    state.store.clear_search_pending(message_ids)?;
+    Ok(())
+}
+
+/// Extract the IMAP config for an account (without connecting). Takes
+/// `&Store`/`&CryptoService` rather than `&AppState` so it's callable from
+/// inside `spawn_blocking` closures that only hold cloned `Arc`s.
+pub(super) fn load_imap_config(
+    store: &Store,
+    crypto: &CryptoService,
+    account_id: &str,
+) -> std::result::Result<ImapConfig, PebbleError> {
+    let (mut config, proxy_mode): (ImapConfig, AccountProxyMode) = if let Some(encrypted) =
+        store.get_auth_data(account_id)?
+    {
+        let decrypted = crypto.decrypt(&encrypted)?;
+        let value: serde_json::Value = serde_json::from_slice(&decrypted)
+            .map_err(|e| PebbleError::Internal(format!("Failed to parse config: {e}")))?;
+        let proxy_mode = account_proxy_mode_from_auth_value(&value);
+        let config = serde_json::from_value(value.get("imap").cloned().unwrap_or(value.clone()))
+            .map_err(|e| {
+                PebbleError::Internal(format!("Failed to deserialize IMAP config: {e}"))
+            })?;
+        (config, proxy_mode)
+    } else {
+        // Legacy path: IMAP config used to live inline in sync_state.
+        let sync_state = store
+            .get_sync_state(account_id)?
+            .ok_or_else(|| PebbleError::Internal(format!("No config for account {account_id}")))?;
+        let imap_value = sync_state.imap.ok_or_else(|| {
+            PebbleError::Internal(format!("No IMAP config for account {account_id}"))
+        })?;
+        let config = serde_json::from_value(imap_value).map_err(|e| {
+            PebbleError::Internal(format!("Failed to deserialize IMAP config: {e}"))
+        })?;
+        (config, AccountProxyMode::Inherit)
+    };
+
+    config.proxy = resolve_mail_proxy_from_mode(crypto, store, proxy_mode, config.proxy)?;
+
+    Ok(config)
+}
+
+/// Resolve an IMAP connection from the account's auth data.
+pub(super) async fn connect_imap(
+    state: &AppState,
+    account_id: &str,
+) -> std::result::Result<ImapProvider, PebbleError> {
+    let imap_config = load_imap_config(&state.store, &state.crypto, account_id)?;
+    let provider = ImapProvider::new(imap_config);
+    provider.connect().await?;
+    Ok(provider)
+}
+
+/// Find the folder with a given role for an account.
+pub(super) fn find_folder_by_role(
+    state: &AppState,
+    account_id: &str,
+    role: FolderRole,
+) -> std::result::Result<pebble_core::Folder, PebbleError> {
+    let folders = state.store.list_folders(account_id)?;
+    folders
+        .into_iter()
+        .find(|f| f.role == Some(role.clone()))
+        .ok_or_else(|| PebbleError::Internal(format!("No {:?} folder found", role)))
+}
+
+/// Find the folder containing a given message (via the message_folders junction table).
+pub(super) fn find_message_folder(
+    state: &AppState,
+    message_id: &str,
+    account_id: &str,
+) -> std::result::Result<pebble_core::Folder, PebbleError> {
+    let folder_ids = state.store.get_message_folder_ids(message_id)?;
+    if folder_ids.is_empty() {
+        return Err(PebbleError::Internal(
+            "Message not found in any folder".to_string(),
+        ));
+    }
+    let folders = state.store.list_folders(account_id)?;
+    // Return the first matching folder (prefer inbox-like folders)
+    for fid in &folder_ids {
+        if let Some(folder) = folders.iter().find(|f| &f.id == fid) {
+            return Ok(folder.clone());
+        }
+    }
+    Err(PebbleError::Internal(
+        "Message folder not found".to_string(),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_gmail_auth_error, retry_gmail_auth_error_once};
+    use pebble_core::PebbleError;
+    use std::cell::Cell;
+    use std::rc::Rc;
+
+    #[tokio::test]
+    async fn gmail_auth_retry_refreshes_once_and_retries_operation() {
+        let attempts = Rc::new(Cell::new(0));
+        let refreshes = Rc::new(Cell::new(0));
+
+        let result = retry_gmail_auth_error_once(
+            || {
+                let attempts = Rc::clone(&attempts);
+                async move {
+                    let attempt = attempts.get() + 1;
+                    attempts.set(attempt);
+                    if attempt == 1 {
+                        Err(PebbleError::Auth("Gmail returned 401".to_string()))
+                    } else {
+                        Ok(())
+                    }
+                }
+            },
+            || {
+                let refreshes = Rc::clone(&refreshes);
+                async move {
+                    refreshes.set(refreshes.get() + 1);
+                    Ok(())
+                }
+            },
+        )
+        .await;
+
+        assert!(result.is_ok());
+        assert_eq!(attempts.get(), 2);
+        assert_eq!(refreshes.get(), 1);
+    }
+
+    #[tokio::test]
+    async fn gmail_auth_retry_does_not_loop_after_second_auth_failure() {
+        let attempts = Rc::new(Cell::new(0));
+        let refreshes = Rc::new(Cell::new(0));
+
+        let result = retry_gmail_auth_error_once(
+            || {
+                let attempts = Rc::clone(&attempts);
+                async move {
+                    attempts.set(attempts.get() + 1);
+                    Err(PebbleError::Auth("still unauthorized".to_string()))
+                }
+            },
+            || {
+                let refreshes = Rc::clone(&refreshes);
+                async move {
+                    refreshes.set(refreshes.get() + 1);
+                    Ok(())
+                }
+            },
+        )
+        .await;
+
+        assert!(matches!(result, Err(PebbleError::Auth(_))));
+        assert_eq!(attempts.get(), 2);
+        assert_eq!(refreshes.get(), 1);
+    }
+
+    #[tokio::test]
+    async fn gmail_auth_retry_leaves_non_auth_errors_untouched() {
+        let attempts = Rc::new(Cell::new(0));
+        let refreshes = Rc::new(Cell::new(0));
+
+        let result = retry_gmail_auth_error_once(
+            || {
+                let attempts = Rc::clone(&attempts);
+                async move {
+                    attempts.set(attempts.get() + 1);
+                    Err(PebbleError::Network("status 500".to_string()))
+                }
+            },
+            || {
+                let refreshes = Rc::clone(&refreshes);
+                async move {
+                    refreshes.set(refreshes.get() + 1);
+                    Ok(())
+                }
+            },
+        )
+        .await;
+
+        assert!(matches!(result, Err(PebbleError::Network(_))));
+        assert_eq!(attempts.get(), 1);
+        assert_eq!(refreshes.get(), 0);
+    }
+
+    #[test]
+    fn gmail_auth_error_recognizes_provider_auth_and_legacy_401_network_errors() {
+        assert!(is_gmail_auth_error(&PebbleError::Auth(
+            "unauthorized".to_string()
+        )));
+        assert!(is_gmail_auth_error(&PebbleError::Network(
+            "Failed to modify labels (status 401)".to_string()
+        )));
+        assert!(!is_gmail_auth_error(&PebbleError::Network(
+            "Failed to modify labels (status 403)".to_string()
+        )));
+    }
+}

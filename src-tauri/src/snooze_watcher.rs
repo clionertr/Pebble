@@ -4,8 +4,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use pebble_store::Store;
-use tauri::{Emitter, Manager};
-use tauri_plugin_notification::NotificationExt;
+
+
 use tracing::{debug, error, info, warn};
 
 use crate::events;
@@ -13,7 +13,7 @@ use crate::state::AppState;
 
 pub async fn run_snooze_watcher(
     store: Arc<Store>,
-    app_handle: tauri::AppHandle,
+    state: std::sync::Arc<crate::state::AppState>,
     stop_rx: Receiver<()>,
 ) {
     let interval = Duration::from_secs(30);
@@ -58,19 +58,18 @@ pub async fn run_snooze_watcher(
                         error!("Failed to unsnooze message {}: {e}", snoozed.message_id);
                         continue;
                     }
-                    let _ = app_handle.emit(
+                    /*
+                    let _ = app_handle.emit((
                         events::MAIL_UNSNOOZED,
                         serde_json::json!({
                             "message_id": snoozed.message_id,
                             "return_to": snoozed.return_to,
                         }),
                     );
+                    */
 
                     // Send OS notification if enabled
-                    let should_notify = app_handle
-                        .try_state::<AppState>()
-                        .map(|s| s.notifications_enabled.load(Ordering::SeqCst))
-                        .unwrap_or(true);
+                    let should_notify = state.notifications_enabled.load(Ordering::SeqCst);
                     if should_notify {
                         let store_clone = store.clone();
                         let msg_id = snoozed.message_id.clone();
@@ -88,12 +87,14 @@ pub async fn run_snooze_watcher(
                             }
                             _ => snoozed.message_id.clone(),
                         };
+                        /*
                         let _ = app_handle
                             .notification()
                             .builder()
                             .title("Pebble - Snoozed Message")
                             .body(&body)
                             .show();
+                        */
                     }
                 }
             }

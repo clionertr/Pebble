@@ -3,19 +3,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import AboutTab from "../../../src/features/settings/AboutTab";
 import { invoke } from "@tauri-apps/api/core";
 
+vi.mock("../../src/tauri-mock", () => ({
+  getVersion: vi.fn().mockResolvedValue("1.2.3"),
+  invoke: vi.fn(),
+}));
+
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (_key: string, fallback?: string) => fallback ?? _key,
   }),
 }));
 
-vi.mock("@tauri-apps/api/app", () => ({
-  getVersion: vi.fn().mockResolvedValue("1.2.3"),
-}));
 
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
+
+
 
 const mockInvoke = vi.mocked(invoke);
 

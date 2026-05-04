@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "../tauri-mock";
 import { useUIStore } from "@/stores/ui.store";
 
 export function useCloseToBackground() {

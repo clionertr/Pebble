@@ -4,9 +4,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MessageSummary } from "../../src/lib/api";
 
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
+
 
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -14,6 +12,11 @@ import {
   starredMessagesQueryKey,
   useStarredMessagesQuery,
 } from "../../src/hooks/queries/useStarredMessagesQuery";
+
+vi.mock("../../src/tauri-mock", () => ({
+  invoke: vi.fn(),
+}));
+
 
 const mockInvoke = vi.mocked(invoke);
 

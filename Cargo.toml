@@ -21,8 +21,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 tracing = "0.1"
 tokio = { version = "1", features = ["full"] }
 rusqlite = { version = "0.39", features = ["bundled"] }
-tauri = { version = "2", features = ["tray-icon"] }
-tauri-build = { version = "2", features = [] }
+axum = "0.7"
 async-imap = { version = "0.10", default-features = false, features = ["runtime-tokio"] }
 tokio-rustls = "0.26"
 rustls = { version = "0.23", features = ["aws_lc_rs"] }
@@ -36,7 +35,7 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 tokio-socks = "0.5"
 aes-gcm = "0.10"
 rand = "0.8"
-keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
 semver = "1"
 
 [profile.release]

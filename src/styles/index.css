@@ -1,5 +1,4 @@
-@import "tailwindcss" source(none);
-@source "../**/*.{ts,tsx}";
+@import "tailwindcss";
 
 :root {
   --color-sidebar-bg: #f8f7f5;

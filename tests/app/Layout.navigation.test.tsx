@@ -5,6 +5,11 @@ import { useUIStore } from "../../src/stores/ui.store";
 
 const mocks = vi.hoisted(() => {
   const settingsViewPromise = new Promise<{ default: () => JSX.Element }>(() => {});
+
+vi.mock("../../src/tauri-mock", () => ({
+  listen: vi.fn().mockResolvedValue(vi.fn()),
+}));
+
   return {
     settingsViewPromise,
     invalidateQueries: vi.fn(),
@@ -37,9 +42,7 @@ vi.mock("@tanstack/react-query", () => ({
   }),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
-  listen: vi.fn().mockResolvedValue(vi.fn()),
-}));
+
 
 vi.mock("../../src/lib/api", () => ({
   setNotificationsEnabled: mocks.setNotificationsEnabled,

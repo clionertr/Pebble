@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
+
 
 import { invoke } from "@tauri-apps/api/core";
 const mockInvoke = vi.mocked(invoke);
@@ -17,6 +15,11 @@ import {
   updateOAuthAccountProxy,
   updateAccount,
 } from "../../src/lib/api";
+
+vi.mock("../../src/tauri-mock", () => ({
+  invoke: vi.fn(),
+}));
+
 
 describe("useAccountsQuery", () => {
   beforeEach(() => {

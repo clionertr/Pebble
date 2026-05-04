@@ -53,9 +53,9 @@ export default function App() {
     logStartupTiming("react app mounted");
     const splash = document.getElementById("splash");
     if (!splash) return;
-    // Ensure the full animation plays (draw 1.2s + fill 0.8s delay + 0.6s)
+    // Reduce minimum display time to ensure users can interact faster
     const splashStart = (window as unknown as Record<string, number>).__splashStart || Date.now();
-    const minDisplay = 2200;
+    const minDisplay = 1200;
     const elapsed = Date.now() - splashStart;
     const remaining = Math.max(0, minDisplay - elapsed);
     setTimeout(() => {

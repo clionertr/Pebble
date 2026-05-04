@@ -20,14 +20,42 @@ export default defineConfig({
     host: host || "127.0.0.1",
     hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
     watch: {
-      ignored: [
-        "**/.git/**",
-        "**/.worktrees/**",
-        "**/dist/**",
-        "**/node_modules/**",
-        "**/src-tauri/**",
-        "**/target/**",
-      ],
+      ignored: ["**/src-tauri/**"],
+    },
+    proxy: {
+      "/rpc": {
+        target: "http://127.0.0.1:3000",
+        changeOrigin: true,
+      },
+      "/events": {
+        target: "http://127.0.0.1:3000",
+        changeOrigin: true,
+      },
+      "/auth": {
+        target: "http://127.0.0.1:3000",
+        changeOrigin: true,
+      },
+    },
+  },
+  build: {
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/scheduler/')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/@tanstack/react-query')) {
+            return 'vendor-query';
+          }
+          if (id.includes('node_modules/i18next') || id.includes('node_modules/react-i18next')) {
+            return 'vendor-i18n';
+          }
+          if (id.includes('node_modules/@tiptap') || id.includes('node_modules/prosemirror-') || id.includes('node_modules/tiptap-markdown')) {
+            return 'vendor-editor';
+          }
+        },
+      },
     },
   },
   test: {

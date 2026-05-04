@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
+
 
 import { invoke } from "@tauri-apps/api/core";
 const mockInvoke = vi.mocked(invoke);
@@ -11,6 +9,11 @@ import {
   pendingMailOpsSummaryQueryKey,
 } from "../../src/hooks/queries/usePendingMailOpsSummary";
 import { getPendingMailOpsSummary } from "../../src/lib/api";
+
+vi.mock("../../src/tauri-mock", () => ({
+  invoke: vi.fn(),
+}));
+
 
 describe("usePendingMailOpsSummary", () => {
   beforeEach(() => {

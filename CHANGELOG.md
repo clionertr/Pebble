@@ -6,26 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-## [0.0.5] - 2026-05-04
-
 ### Added
 
-- Added `mailto:` deep-link support so email links can open Pebble compose with parsed recipients, subject, and body.
-- Linkified plain-text URLs and email addresses in rendered message bodies.
-- Added Linux AppImage packaging, Ubuntu CI package builds, tagged-release AppImage uploads, and Linux native credential storage support.
+- Re-architected Pebble from a Tauri desktop application to a self-hosted web service using an Axum backend and a React SPA.
+- Added a `/rpc/batch` endpoint in the Axum backend to queue and batch JSON-RPC requests, minimizing HTTP overhead in high-latency environments.
+- Implemented Server-Sent Events (SSE) at the `/events` endpoint to push real-time updates (new mail, sync status) to the web frontend, replacing Tauri events.
+- Added standard web-based OAuth redirect flows (`/auth/login` and `/auth/callback`) to handle Google and Microsoft authentication natively in a headless environment.
+- Enabled HTTP compression (Gzip/Brotli) on the Axum backend to reduce response payloads.
 
 ### Changed
 
-- Improved desktop notification setup and status reporting, including Windows toast environment handling and development loading behavior.
-- Refined the sidebar account selector width, alignment, and spacing.
+- Replaced Tauri IPC `invoke` calls with standard HTTP `fetch` to the JSON-RPC backend.
+- Migrated local data storage (SQLite database, Tantivy index, attachments) to a VPS-friendly `./data/` directory.
+- Switched credential encryption from the platform-native keyring to a file-based key (`./data/pebble.key`).
 
 ### Fixed
 
-- Fixed sending compose messages while contact recipient selection is still pending.
-- Fixed opening links from rendered email bodies, including browser links and email-address links.
-- Kept the new-notification red dot on the tray icon only.
-- Clarified invalid WebDAV backup errors when a server returns an empty or HTML response instead of a Pebble backup file.
-- Fixed CI issues that blocked Linux AppImage artifact generation.
+- Fixed a bug where adding a new Gmail account via OAuth would cause the frontend to not display emails by optimizing the initial sync and token refresh mechanics.
+- Fixed an issue where Gmail remote writebacks (e.g., marking as read/unread) would get stuck pending after receiving a 401 Unauthorized error by ensuring the access token is refreshed and the operation retried correctly.
+
+### Documentation
+
+- Updated `README.md` and `README.zh-CN.md` to reflect the new client-server webmail architecture, self-hosted deployment instructions, and API endpoint references.
 
 ## [0.0.4] - 2026-05-01
 
@@ -132,8 +134,7 @@ This release includes:
 - Windows installers are not code-signed yet, so Windows SmartScreen may show a warning.
 - Outlook support is still experimental and depends on Microsoft Graph permissions configured by the user.
 
-[Unreleased]: https://github.com/QingJ01/Pebble/compare/v0.0.5...HEAD
-[0.0.5]: https://github.com/QingJ01/Pebble/compare/v0.0.4...v0.0.5
+[Unreleased]: https://github.com/QingJ01/Pebble/compare/v0.0.4...HEAD
 [0.0.4]: https://github.com/QingJ01/Pebble/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/QingJ01/Pebble/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/QingJ01/Pebble/compare/v0.0.1...v0.0.2

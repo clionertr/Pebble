@@ -10,9 +10,9 @@ pub struct CryptoService {
 }
 
 impl CryptoService {
-    /// Initialize by loading (or creating) the DEK from the OS credential store.
-    pub fn init() -> Result<Self> {
-        let dek = keystore::KeyStore::get_or_create_dek()?;
+    /// Initialize by loading (or creating) the DEK from the given file path.
+    pub fn init(key_path: &std::path::Path) -> Result<Self> {
+        let dek = keystore::KeyStore::get_or_create_dek(key_path)?;
         Ok(Self { dek })
     }
 
@@ -32,16 +32,18 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore] // Requires OS credential store access
     fn test_crypto_service_init() {
-        let service = CryptoService::init();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let key_path = temp_dir.path().join("test.key");
+        let service = CryptoService::init(&key_path);
         assert!(service.is_ok());
     }
 
     #[test]
-    #[ignore] // Requires OS credential store access
     fn test_crypto_service_round_trip() {
-        let service = CryptoService::init().unwrap();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let key_path = temp_dir.path().join("test.key");
+        let service = CryptoService::init(&key_path).unwrap();
         let plaintext = b"test credentials json";
         let encrypted = service.encrypt(plaintext).unwrap();
         let decrypted = service.decrypt(&encrypted).unwrap();

@@ -15,7 +15,7 @@ import { useKeyboard } from "../hooks/useKeyboard";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { buildCommands } from "../features/command-palette/commands";
 import { useEffect, lazy, Suspense, Component, type ReactNode, type ErrorInfo } from "react";
-import { createLazyViewPreloader, scheduleLazyViewPreload } from "./lazyViewPreload";
+import { scheduleLazyViewPreload } from "./lazyViewPreload";
 import { useRealtimePreferenceSync } from "./useRealtimePreferenceSync";
 import { useRealtimeSyncTriggers } from "./useRealtimeSyncTriggers";
 import { useNotificationOpenNavigation } from "./useNotificationOpenNavigation";
@@ -29,15 +29,6 @@ const loadKanbanView = () => import("../features/kanban/KanbanView");
 const loadSearchView = () => import("../features/search/SearchView");
 const loadSnoozedView = () => import("../features/snoozed/SnoozedView");
 const loadStarredView = () => import("../features/starred/StarredView");
-const preloadLazyViews = createLazyViewPreloader([
-  loadSettingsView,
-  loadComposeView,
-  loadKanbanView,
-  loadSearchView,
-  loadSnoozedView,
-  loadStarredView,
-]);
-
 const SettingsView = lazy(loadSettingsView);
 const ComposeView = lazy(loadComposeView);
 const KanbanView = lazy(loadKanbanView);
@@ -47,7 +38,7 @@ const StarredView = lazy(loadStarredView);
 import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import { WifiOff } from "lucide-react";
-import { listen } from "@tauri-apps/api/event";
+import { listen } from "../tauri-mock";
 import { useQueryClient } from "@tanstack/react-query";
 import { setNotificationsEnabled as setBackendNotificationsEnabled } from "@/lib/api";
 
@@ -68,7 +59,21 @@ export default function Layout() {
     useKanbanStore.getState().fetchCards();
   }, []);
 
-  useEffect(() => scheduleLazyViewPreload(preloadLazyViews), []);
+  useEffect(() => {
+    // Priority 1: ComposeView (might be opened anytime)
+    const cleanup1 = scheduleLazyViewPreload(loadComposeView, window, 500);
+    // Priority 2: Settings, Search (likely to be used, but not as urgent)
+    const cleanup2 = scheduleLazyViewPreload(() => {
+      void loadSettingsView();
+      void loadSearchView();
+      return Promise.resolve();
+    }, window, 3000);
+    
+    return () => {
+      cleanup1();
+      cleanup2();
+    };
+  }, []);
 
   useNetworkStatus();
   useRealtimePreferenceSync();

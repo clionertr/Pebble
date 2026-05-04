@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listen } from "@tauri-apps/api/event";
+import { listen } from "../tauri-mock";
 import { File, FileText, Image, FileArchive, Film, Music, Download, Loader, Check } from "lucide-react";
 import { listAttachments, downloadAttachment } from "@/lib/api";
 import type { Attachment } from "@/lib/api";
@@ -81,7 +81,7 @@ export default function AttachmentList({ messageId }: Props) {
   async function handleDownload(attachment: Attachment) {
     setDownloadingId(attachment.id);
     try {
-      const { downloadDir } = await import("@tauri-apps/api/path");
+      const { downloadDir } = await import("../tauri-mock");
       const dir = await downloadDir();
       const safeName = sanitizeFilename(attachment.filename);
       const savePath = `${dir}/${safeName}`;

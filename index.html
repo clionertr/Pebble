@@ -64,12 +64,12 @@
         stroke-linejoin: round;
         stroke-dasharray: 200;
         stroke-dashoffset: 200;
-        animation: splash-draw 1.2s ease-out forwards;
+        animation: splash-draw 0.8s ease-out forwards;
       }
       #splash .pebble-fill {
         fill: #d4714e;
         fill-opacity: 0;
-        animation: splash-fill .6s ease-out .8s forwards;
+        animation: splash-fill 0.4s ease-out 0.5s forwards;
       }
       #splash .app-name {
         font-size: 18px;
@@ -78,7 +78,7 @@
         color: #e0e0e0;
         text-transform: uppercase;
         opacity: 0;
-        animation: splash-fade-in .6s ease-out .6s forwards;
+        animation: splash-fade-in 0.4s ease-out 0.4s forwards;
       }
       #splash .loading-bar {
         margin-top: 24px;
@@ -88,7 +88,7 @@
         background: rgba(255,255,255,.08);
         overflow: hidden;
         opacity: 0;
-        animation: splash-fade-in .4s ease-out 1s forwards;
+        animation: splash-fade-in 0.3s ease-out 0.6s forwards;
       }
       #splash .loading-bar::after {
         content: '';
@@ -97,7 +97,7 @@
         height: 100%;
         border-radius: 1px;
         background: #d4714e;
-        animation: splash-slide 1.2s ease-in-out .8s infinite;
+        animation: splash-slide 1.2s ease-in-out 0.5s infinite;
       }
       @keyframes splash-slide {
         0%   { transform: translateX(-100%); }
@@ -114,7 +114,7 @@
         <path class="pebble-fill" d="M32 8C18 8 8 20 10 34c2 12 12 22 22 22s20-10 22-22C56 20 46 8 32 8z"/>
         <path class="pebble-outline" d="M32 8C18 8 8 20 10 34c2 12 12 22 22 22s20-10 22-22C56 20 46 8 32 8z"/>
         <ellipse cx="24" cy="22" rx="8" ry="5" fill="rgba(255,255,255,.15)" transform="rotate(-20 24 22)"
-          style="opacity:0; animation: splash-fill .4s ease-out 1.2s forwards;"/>
+          style="opacity:0; animation: splash-fill .3s ease-out .7s forwards;"/>
       </svg>
       <div class="app-name">Pebble</div>
       <div class="loading-bar"></div>

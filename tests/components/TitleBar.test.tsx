@@ -2,15 +2,18 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import TitleBar from "../../src/components/TitleBar";
 
+vi.mock("../../src/tauri-mock", () => ({
+  getCurrentWindow: () => windowMock,
+}));
+
+
 const windowMock = {
   close: vi.fn(),
   minimize: vi.fn(),
   toggleMaximize: vi.fn(),
 };
 
-vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => windowMock,
-}));
+
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({

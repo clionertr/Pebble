@@ -12,11 +12,8 @@ const mocks = vi.hoisted(() => ({
   addToast: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("../../src/tauri-mock", () => ({
   invoke: mocks.invoke,
-}));
-
-vi.mock("@tauri-apps/api/event", () => ({
   listen: mocks.listen,
 }));
 

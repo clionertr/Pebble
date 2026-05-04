@@ -13,12 +13,15 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@tauri-apps/api/window", () => ({
+
+vi.mock("../../src/tauri-mock", () => ({
   getCurrentWindow: () => ({
     hide: mocks.hide,
     onCloseRequested: mocks.onCloseRequested,
   }),
 }));
+
+
 
 vi.mock("../../src/stores/ui.store", () => ({
   useUIStore: {

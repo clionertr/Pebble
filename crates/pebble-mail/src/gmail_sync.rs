@@ -95,9 +95,15 @@ where
     let mut page_token = None;
 
     loop {
+        let page_limit = limit.saturating_sub(all_refs.len() as u32).max(1);
         let (mut refs, next_page) =
-            fetch_page(label_id.to_string(), limit, page_token.take()).await?;
+            fetch_page(label_id.to_string(), page_limit, page_token.take()).await?;
         all_refs.append(&mut refs);
+
+        if all_refs.len() >= limit as usize {
+            all_refs.truncate(limit as usize);
+            break;
+        }
 
         match next_page {
             Some(token) if !token.is_empty() => page_token = Some(token),
@@ -1068,7 +1074,7 @@ mod tests {
             requested_tokens,
             vec![
                 ("INBOX".to_string(), 2, None),
-                ("INBOX".to_string(), 2, Some("page-2".to_string())),
+                ("INBOX".to_string(), 1, Some("page-2".to_string())),
             ]
         );
     }

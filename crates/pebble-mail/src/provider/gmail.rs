@@ -1,7 +1,7 @@
 use std::sync::RwLock;
 
 use async_trait::async_trait;
-use reqwest::Client;
+use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 
@@ -218,6 +218,21 @@ impl GmailProvider {
             .send()
             .await
             .map_err(|e| PebbleError::Network(format!("Gmail API DELETE failed: {e}")))
+    }
+
+    fn modify_labels_status_error(status: StatusCode, body: &str) -> PebbleError {
+        let body = body.trim();
+        let detail = if body.is_empty() {
+            format!("Failed to modify labels (status {status})")
+        } else {
+            format!("Failed to modify labels (status {status}): {body}")
+        };
+
+        if status == StatusCode::UNAUTHORIZED {
+            PebbleError::Auth(detail)
+        } else {
+            PebbleError::Network(detail)
+        }
     }
 
     fn get_header<'a>(headers: &'a [GmailHeader], name: &str) -> Option<&'a str> {
@@ -742,9 +757,8 @@ impl LabelProvider for GmailProvider {
         let resp = self.post_json(&url, &body).await?;
         if !resp.status().is_success() {
             let status = resp.status();
-            return Err(PebbleError::Network(format!(
-                "Failed to modify labels (status {status})"
-            )));
+            let text = resp.text().await.unwrap_or_default();
+            return Err(Self::modify_labels_status_error(status, &text));
         }
         Ok(())
     }
@@ -1749,5 +1763,23 @@ mod tests {
         assert_eq!(provider.token(), "initial");
         provider.set_access_token("updated".to_string());
         assert_eq!(provider.token(), "updated");
+    }
+
+    #[test]
+    fn modify_labels_status_error_maps_401_to_auth() {
+        let error = GmailProvider::modify_labels_status_error(
+            StatusCode::UNAUTHORIZED,
+            r#"{"error":"invalid_token"}"#,
+        );
+
+        assert!(matches!(error, PebbleError::Auth(message) if message.contains("401")));
+    }
+
+    #[test]
+    fn modify_labels_status_error_keeps_non_auth_failures_network() {
+        let error =
+            GmailProvider::modify_labels_status_error(StatusCode::INTERNAL_SERVER_ERROR, "");
+
+        assert!(matches!(error, PebbleError::Network(message) if message.contains("500")));
     }
 }

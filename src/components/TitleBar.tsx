@@ -1,4 +1,4 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "../tauri-mock";
 import { useTranslation } from "react-i18next";
 import iconUrl from "@/assets/app-icon.png";
 import { isComposeDirty } from "@/stores/compose.store";

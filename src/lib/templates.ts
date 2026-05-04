@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../tauri-mock";
 
 const LEGACY_STORAGE_KEY = "pebble-templates";
 

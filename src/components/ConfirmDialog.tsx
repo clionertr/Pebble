@@ -109,10 +109,8 @@ export default function ConfirmDialog({
         ref={dialogRef}
         style={{
           width: "380px",
-          backgroundColor: "var(--color-sidebar-bg)",
-          color: "var(--color-text-primary)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "8px",
+          backgroundColor: "var(--color-bg)",
+          borderRadius: "10px",
           boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
           padding: "24px",
           display: "flex",

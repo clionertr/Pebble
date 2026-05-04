@@ -9,12 +9,15 @@ const mocks = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
+
+vi.mock("../../src/tauri-mock", () => ({
   listen: vi.fn((eventName: string, handler: (event: { payload: { account_id?: string; message_id?: string } }) => void) => {
     mocks.listeners.set(eventName, handler);
     return Promise.resolve(vi.fn());
   }),
 }));
+
+
 
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({

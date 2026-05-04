@@ -28,6 +28,14 @@ const mocks = vi.hoisted(() => ({
   syncMutateAsync: vi.fn(() => Promise.resolve()),
 }));
 
+
+vi.mock("../../src/tauri-mock", () => ({
+  listen: vi.fn((eventName: string, handler: (event: { payload: unknown }) => void) => {
+    mocks.listeners.set(eventName, handler);
+    return Promise.resolve(vi.fn());
+  }),
+}));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, fallback?: string) => {
@@ -40,12 +48,7 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
-  listen: vi.fn((eventName: string, handler: (event: { payload: unknown }) => void) => {
-    mocks.listeners.set(eventName, handler);
-    return Promise.resolve(vi.fn());
-  }),
-}));
+
 
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({

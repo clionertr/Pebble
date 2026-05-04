@@ -1,20 +1,16 @@
 [package]
 name = "pebble"
-version = "0.0.5"
+version = "0.0.4"
 edition = "2021"
 
-[lib]
-name = "pebble_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
-
 [dependencies]
-tauri = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
 tokio = { workspace = true }
+axum = { workspace = true }
 opener = "0.7"
 pebble-core = { path = "../crates/pebble-core" }
 pebble-store = { path = "../crates/pebble-store" }
@@ -25,18 +21,8 @@ pebble-rules = { path = "../crates/pebble-rules" }
 pebble-translate = { path = "../crates/pebble-translate" }
 pebble-crypto = { path = "../crates/pebble-crypto" }
 pebble-oauth = { path = "../crates/pebble-oauth" }
-tauri-plugin-notification = "2"
-tauri-plugin-deep-link = "2"
 lettre = { workspace = true }
 reqwest = { workspace = true }
 semver = { workspace = true }
-
-[target.'cfg(windows)'.dependencies]
-tauri-winrt-notification = "0.7"
-windows-registry = "0.5"
-
-[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
-tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
-
-[build-dependencies]
-tauri-build = { workspace = true }
+tower-http = { version = "0.6.8", features = ["cors", "compression-full"] }
+tokio-stream = { version = "0.1.18", features = ["sync"] }

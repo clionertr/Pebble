@@ -1,11 +1,14 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
+
 
 import { invoke } from "@tauri-apps/api/core";
 import { useKanbanStore } from "../../src/stores/kanban.store";
+
+vi.mock("../../src/tauri-mock", () => ({
+  invoke: vi.fn(),
+}));
+
 
 const mockedInvoke = vi.mocked(invoke);
 

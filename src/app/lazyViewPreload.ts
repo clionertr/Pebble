@@ -5,31 +5,39 @@ type IdleWindow = Window & {
   cancelIdleCallback?: (handle: number) => void;
 };
 
-export function createLazyViewPreloader(importers: readonly LazyViewImporter[]) {
-  let preloadPromise: Promise<PromiseSettledResult<unknown>[]> | null = null;
-
-  return function preloadLazyViews() {
-    if (!preloadPromise) {
-      preloadPromise = Promise.allSettled(importers.map((importer) => importer()));
-    }
-    return preloadPromise;
-  };
-}
-
 export function scheduleLazyViewPreload(
-  preload: () => Promise<PromiseSettledResult<unknown>[]>,
+  preload: () => Promise<unknown>,
   win: Window = window,
+  delayMs: number = 0
 ) {
   const idleWindow = win as IdleWindow;
+  let handle: number;
+  let isIdleHandle = false;
+
   const run = () => {
     void preload();
   };
 
-  if (idleWindow.requestIdleCallback) {
-    const handle = idleWindow.requestIdleCallback(run, { timeout: 1200 });
-    return () => idleWindow.cancelIdleCallback?.(handle);
+  const scheduleRun = () => {
+    if (idleWindow.requestIdleCallback) {
+      isIdleHandle = true;
+      handle = idleWindow.requestIdleCallback(run, { timeout: 2000 });
+    } else {
+      handle = win.setTimeout(run, 0);
+    }
+  };
+
+  if (delayMs > 0) {
+    handle = win.setTimeout(scheduleRun, delayMs);
+  } else {
+    scheduleRun();
   }
 
-  const handle = win.setTimeout(run, 0);
-  return () => win.clearTimeout(handle);
+  return () => {
+    if (isIdleHandle && idleWindow.cancelIdleCallback) {
+      idleWindow.cancelIdleCallback(handle);
+    } else {
+      win.clearTimeout(handle);
+    }
+  };
 }

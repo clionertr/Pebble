@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: vi.fn(),
-}));
+
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { showMainWindow } from "../../src/lib/showMainWindow";
+
+vi.mock("../../src/tauri-mock", () => ({
+  getCurrentWindow: vi.fn(),
+}));
+
 
 const mockGetCurrentWindow = vi.mocked(getCurrentWindow);
 

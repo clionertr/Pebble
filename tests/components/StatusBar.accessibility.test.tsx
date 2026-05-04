@@ -38,6 +38,11 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
+
+vi.mock("../../src/tauri-mock", () => ({
+  listen: mocks.listen,
+}));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, fallback?: string) => {
@@ -60,9 +65,7 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
-  listen: mocks.listen,
-}));
+
 
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({
