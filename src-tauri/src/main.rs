@@ -84,7 +84,13 @@ async fn main() {
         .layer(tower_http::compression::CompressionLayer::new())
         .with_state(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let host = std::env::var("PEBBLE_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let port = std::env::var("PEBBLE_PORT")
+        .map(|v| v.parse().unwrap_or(3000))
+        .unwrap_or(3000);
+
+    let addr_str = format!("{}:{}", host, port);
+    let addr: SocketAddr = addr_str.parse().expect("Invalid address");
     tracing::info!("listening on {}", addr);
     
     let listener = TcpListener::bind(addr).await.unwrap();
