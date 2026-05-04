@@ -56,9 +56,10 @@ const DEFAULT_FOLDERS: { role: string; labelKey: string }[] = [
 
 export default function Sidebar() {
   const { t } = useTranslation();
+  const isMobile = useUIStore((s) => s.isMobile);
   const activeView = useUIStore((s) => s.activeView);
   const setActiveView = useUIStore((s) => s.setActiveView);
-  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed) && !isMobile;
   const activeFolderId = useMailStore((s) => s.activeFolderId);
   const activeAccountId = useMailStore((s) => s.activeAccountId);
   const setActiveAccountId = useMailStore((s) => s.setActiveAccountId);

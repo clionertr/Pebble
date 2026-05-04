@@ -20,6 +20,7 @@ const COLUMN_IDS: { id: KanbanColumnType; titleKey: string }[] = [
 export default function KanbanView() {
   const { t } = useTranslation();
   const { cards, contextNotes, loading, fetchCards, moveCard, removeCard } = useKanbanStore();
+  const isMobile = useUIStore((s) => s.isMobile);
   const [messages, setMessages] = useState<Map<string, Message>>(new Map());
 
   const sensors = useSensors(
@@ -114,19 +115,33 @@ export default function KanbanView() {
   }
 
   return (
-    <div style={{ display: "flex", gap: "8px", padding: "16px", height: "100%", overflow: "hidden" }}>
+    <div style={{
+      display: "flex", gap: "8px", padding: isMobile ? "12px 8px" : "16px", height: "100%",
+      overflowX: isMobile ? "auto" : "hidden",
+      overflowY: "hidden",
+      scrollSnapType: isMobile ? "x mandatory" : "none",
+    }}>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         {COLUMN_IDS.map((col) => (
-          <KanbanColumn
-            key={col.id}
-            id={col.id}
-            title={t(col.titleKey)}
-            cardIds={cards.filter((c) => c.column === col.id).map((c) => c.message_id)}
-            contextNotes={contextNotes}
-            messages={messages}
-            onRemove={handleRemove}
-            onOpen={handleOpenMessage}
-          />
+          <div key={col.id} style={{
+            flex: isMobile ? "0 0 85%" : 1,
+            minWidth: isMobile ? "280px" : "240px",
+            maxWidth: isMobile ? "none" : "380px",
+            scrollSnapAlign: "center",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+          }}>
+            <KanbanColumn
+              id={col.id}
+              title={t(col.titleKey)}
+              cardIds={cards.filter((c) => c.column === col.id).map((c) => c.message_id)}
+              contextNotes={contextNotes}
+              messages={messages}
+              onRemove={handleRemove}
+              onOpen={handleOpenMessage}
+            />
+          </div>
         ))}
       </DndContext>
     </div>

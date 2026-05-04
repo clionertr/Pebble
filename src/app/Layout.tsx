@@ -48,11 +48,23 @@ export default function Layout() {
   const composeKey = useComposeStore((s) => s.composeKey);
   const setActiveView = useUIStore((s) => s.setActiveView);
   const theme = useUIStore((s) => s.theme);
+  const isMobile = useUIStore((s) => s.isMobile);
+  const setIsMobile = useUIStore((s) => s.setIsMobile);
   const notificationsEnabled = useUIStore((s) => s.notificationsEnabled);
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const drawerOpen = useUIStore((s) => s.drawerOpen);
+  const setDrawerOpen = useUIStore((s) => s.setDrawerOpen);
 
   useKeyboard();
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [setIsMobile]);
 
   // Load kanban cards at startup so MessageItem can show kanban indicators
   useEffect(() => {
@@ -138,8 +150,19 @@ export default function Layout() {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       <TitleBar />
-      <div className="flex flex-1 min-h-0">
-        <Sidebar />
+      <div className="flex flex-1 min-h-0 relative">
+        {!isMobile && <Sidebar />}
+        {isMobile && drawerOpen && (
+          <>
+            <div 
+              className="absolute inset-0 bg-black/20 z-40 transition-opacity fade-in" 
+              onClick={() => setDrawerOpen(false)}
+            />
+            <div className="absolute inset-y-0 left-0 z-50 shadow-2xl animate-slide-in-left">
+              <Sidebar />
+            </div>
+          </>
+        )}
         <main className="flex-1 min-w-0 overflow-auto scroll-region app-main-scroll" style={{ position: "relative" }}>
           <OfflineBanner />
           <ViewErrorBoundary key={displayedView}>

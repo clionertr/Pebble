@@ -32,8 +32,39 @@
       </li>
       <li><a href="#download" class="nav-btn" data-i18n="navDownload">Download</a></li>
     </ul>
+    <button class="mobile-menu-toggle" aria-label="Toggle Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
   </div>
 </nav>
+
+<!-- Mobile Menu overlay -->
+<div class="mobile-menu" id="mobileMenu">
+  <div class="mobile-menu-inner">
+    <div class="mobile-menu-header">
+      <a href="#" class="nav-logo">
+        <svg viewBox="0 0 64 64" fill="none"><path d="M32 8C18 8 8 20 10 34c2 12 12 22 22 22s20-10 22-22C56 20 46 8 32 8z" fill="#d4714e"/><ellipse cx="24" cy="22" rx="8" ry="5" fill="rgba(255,255,255,.2)" transform="rotate(-20 24 22)"/></svg>
+        Pebble
+      </a>
+      <button class="mobile-menu-close" aria-label="Close Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <ul class="mobile-nav-links">
+      <li><a href="#privacy" data-i18n="navPrivacy">Privacy</a></li>
+      <li><a href="#features" data-i18n="navFeatures">Features</a></li>
+      <li><a href="#preview" data-i18n="navPreview">Preview</a></li>
+      <li><a href="https://github.com/QingJ01/Pebble" target="_blank" data-i18n="navGitHub">GitHub</a></li>
+    </ul>
+    <div style="margin-top: auto; padding-top: 32px; border-top: 1px solid var(--border);">
+      <div class="lang-switch" style="margin-bottom: 24px;">
+        <button data-lang="en">EN</button>
+        <button data-lang="zh">中文</button>
+      </div>
+      <a href="#download" class="btn-primary" style="width: 100%; justify-content: center;" data-i18n="navDownload">Download</a>
+    </div>
+  </div>
+</div>
 
 <!-- Hero -->
 <section class="hero">

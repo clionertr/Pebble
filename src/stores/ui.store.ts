@@ -89,6 +89,11 @@ interface UIState {
   keepRunningInBackground: boolean;
   setKeepRunningInBackground: (enabled: boolean) => void;
   previousView: ActiveView;
+  isMobile: boolean;
+  drawerOpen: boolean;
+  setIsMobile: (isMobile: boolean) => void;
+  setDrawerOpen: (open: boolean) => void;
+  toggleDrawer: () => void;
   toggleSidebar: () => void;
   setActiveView: (view: ActiveView) => void;
   openMessageInInbox: (messageId: string) => void;
@@ -132,11 +137,19 @@ export const useUIStore = create<UIState>((set) => ({
     set({ keepRunningInBackground: enabled });
   },
   previousView: "inbox",
+  isMobile: window.innerWidth < 768,
+  drawerOpen: false,
+  setIsMobile: (isMobile) => set({ isMobile }),
+  setDrawerOpen: (open) => set({ drawerOpen: open }),
+  toggleDrawer: () => set((state) => ({ drawerOpen: !state.drawerOpen })),
   toggleSidebar: () =>
     set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setActiveView: (view) => {
     const state = useUIStore.getState();
     if (state.activeView === view) {
+      if (state.isMobile) {
+        set({ drawerOpen: false });
+      }
       return;
     }
 
@@ -153,11 +166,11 @@ export const useUIStore = create<UIState>((set) => ({
         composePrefill: null,
         composeDirty: false,
       });
-      set({ activeView: view });
+      set({ activeView: view, drawerOpen: false });
       return;
     }
 
-    set({ activeView: view });
+    set({ activeView: view, drawerOpen: false });
   },
   openMessageInInbox: (messageId) => {
     useMailStore.setState({

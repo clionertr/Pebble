@@ -26,12 +26,16 @@ function hasActiveFilters(filters: AdvancedSearchQuery): boolean {
 
 export default function SearchView() {
   const { t } = useTranslation();
+  const isMobile = useUIStore((s) => s.isMobile);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<AdvancedSearchQuery>(emptyFilters);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const storeSearchQuery = useUIStore((s) => s.searchQuery);
+
+  const showList = !isMobile || !selectedId;
+  const showDetail = !!selectedId;
 
   const trimmed = query.trim();
   const filtersActive = hasActiveFilters(filters);
@@ -155,17 +159,18 @@ export default function SearchView() {
       {/* Results + Detail split layout */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         {/* Results list */}
-        <div
-          ref={resultsParentRef}
-          className="scroll-region search-results-scroll"
-          style={{
-            width: selectedId ? "clamp(260px, 32%, 360px)" : "100%",
-            flexShrink: 0,
-            overflow: "auto",
-            borderRight: selectedId ? "1px solid var(--color-border)" : "none",
-            transition: "width 0.15s ease",
-          }}
-        >
+        {showList && (
+          <div
+            ref={resultsParentRef}
+            className="scroll-region search-results-scroll"
+            style={{
+              width: !isMobile && selectedId ? "clamp(260px, 32%, 360px)" : "100%",
+              flexShrink: 0,
+              overflow: "auto",
+              borderRight: !isMobile && selectedId ? "1px solid var(--color-border)" : "none",
+              transition: "width 0.15s ease",
+            }}
+          >
           {loading && (
             <div
               className="fade-in"
@@ -290,9 +295,10 @@ export default function SearchView() {
             </div>
           )}
         </div>
+        )}
 
         {/* Detail panel */}
-        {selectedId && (
+        {showDetail && selectedId && (
           <div style={{ flex: 1, overflow: "hidden" }}>
             <MessageDetail
               messageId={selectedId}

@@ -33,6 +33,7 @@ export default function StatusBar() {
   const { t } = useTranslation();
   const syncStatus = useUIStore((s) => s.syncStatus);
   const setSyncStatus = useUIStore((s) => s.setSyncStatus);
+  const isMobile = useUIStore((s) => s.isMobile);
   const networkStatus = useUIStore((s) => s.networkStatus);
   const lastMailError = useUIStore((s) => s.lastMailError);
   const setLastMailError = useUIStore((s) => s.setLastMailError);
@@ -168,7 +169,7 @@ export default function StatusBar() {
       ) : (
         <>
           <span role="status" aria-live="polite" aria-atomic="true">{syncText}</span>
-          {realtimeStatusText && (
+          {!isMobile && realtimeStatusText && (
             <span
               role="status"
               aria-live="polite"
@@ -205,7 +206,7 @@ export default function StatusBar() {
               }}
             />
           </button>
-          {pendingRemoteWrites > 0 && (
+          {!isMobile && pendingRemoteWrites > 0 && (
             <span
               role={failedRemoteWrites > 0 ? "alert" : "status"}
               aria-live={failedRemoteWrites > 0 ? "assertive" : "polite"}
@@ -238,38 +239,40 @@ export default function StatusBar() {
         </span>
       )}
 
-      <span className="ml-auto flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setKeepRunningInBackground(!keepRunningInBackground)}
-          aria-label={backgroundLabel}
-          aria-pressed={keepRunningInBackground}
-          title={backgroundLabel}
-          className="inline-flex items-center justify-center"
-          style={{
-            width: "20px",
-            height: "20px",
-            border: "1px solid transparent",
-            borderRadius: "4px",
-            background: keepRunningInBackground
-              ? "color-mix(in srgb, var(--color-accent) 16%, transparent)"
-              : "transparent",
-            color: keepRunningInBackground
-              ? "var(--color-accent)"
-              : "var(--color-text-secondary)",
-            cursor: "pointer",
-            padding: 0,
-          }}
-        >
-          <AppWindow aria-hidden="true" size={13} />
-        </button>
-        {notificationsEnabled && (
-          <svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
-        )}
-      </span>
+      {!isMobile && (
+        <span className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setKeepRunningInBackground(!keepRunningInBackground)}
+            aria-label={backgroundLabel}
+            aria-pressed={keepRunningInBackground}
+            title={backgroundLabel}
+            className="inline-flex items-center justify-center"
+            style={{
+              width: "20px",
+              height: "20px",
+              border: "1px solid transparent",
+              borderRadius: "4px",
+              background: keepRunningInBackground
+                ? "color-mix(in srgb, var(--color-accent) 16%, transparent)"
+                : "transparent",
+              color: keepRunningInBackground
+                ? "var(--color-accent)"
+                : "var(--color-text-secondary)",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            <AppWindow aria-hidden="true" size={13} />
+          </button>
+          {notificationsEnabled && (
+            <svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+          )}
+        </span>
+      )}
     </footer>
   );
 }

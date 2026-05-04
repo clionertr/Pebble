@@ -39,6 +39,7 @@ export default function InboxView() {
   const { data: folders = [] } = useFoldersForAccountsQuery(folderAccountIds);
   const queryClient = useQueryClient();
   const addToast = useToastStore((s) => s.addToast);
+  const isMobile = useUIStore((s) => s.isMobile);
   const [showTrashConfirm, setShowTrashConfirm] = useState(false);
 
   const activeFolderRole = roleForSelection(activeFolderId, folders);
@@ -73,6 +74,10 @@ export default function InboxView() {
   }, [queryClient]);
 
   const detailOpen = threadView ? selectedThreadId !== null : selectedMessageId !== null;
+
+  // On mobile, if detail is open, we only show the detail pane.
+  const showList = !isMobile || !detailOpen;
+  const showDetail = detailOpen;
 
   // No accounts or no folder selected — show welcome / setup prompt
   if (accounts.length === 0 || !activeFolderId) {
@@ -167,39 +172,41 @@ export default function InboxView() {
       </div>
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
         {/* List panel */}
-        <div
-          style={{
-            width: detailOpen ? "clamp(260px, 32%, 360px)" : "100%",
-            flexShrink: 0,
-            borderRight: detailOpen ? "1px solid var(--color-border)" : "none",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          {threadView ? (
-            <ThreadList
-              threads={threads}
-              selectedThreadId={selectedThreadId}
-              onSelectThread={setSelectedThreadId}
-              loading={loadingThreads}
-            />
-          ) : (
-            <MessageList
-              messages={messages}
-              selectedMessageId={selectedMessageId}
-              onSelectMessage={setSelectedMessage}
-              loading={loadingMessages}
-              onLoadMore={handleLoadMore}
-              hasNextPage={hasNextPage}
-              isFetchingNextPage={isFetchingNextPage}
-              onToggleStar={handleToggleStar}
-            />
-          )}
-        </div>
+        {showList && (
+          <div
+            style={{
+              width: !isMobile && detailOpen ? "clamp(260px, 32%, 360px)" : "100%",
+              flexShrink: 0,
+              borderRight: !isMobile && detailOpen ? "1px solid var(--color-border)" : "none",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            {threadView ? (
+              <ThreadList
+                threads={threads}
+                selectedThreadId={selectedThreadId}
+                onSelectThread={setSelectedThreadId}
+                loading={loadingThreads}
+              />
+            ) : (
+              <MessageList
+                messages={messages}
+                selectedMessageId={selectedMessageId}
+                onSelectMessage={setSelectedMessage}
+                loading={loadingMessages}
+                onLoadMore={handleLoadMore}
+                hasNextPage={hasNextPage}
+                isFetchingNextPage={isFetchingNextPage}
+                onToggleStar={handleToggleStar}
+              />
+            )}
+          </div>
+        )}
 
         {/* Detail panel */}
-        {detailOpen && (
+        {showDetail && (
           <div style={{ flex: 1, overflow: "hidden" }}>
             {threadView && selectedThreadId ? (
               <ThreadView />

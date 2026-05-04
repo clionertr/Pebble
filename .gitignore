@@ -37,7 +37,9 @@ pnpm-debug.log
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+data/
 
 # Claude Code
 .claude/
 src-tauri/data/
+

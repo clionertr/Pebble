@@ -344,5 +344,23 @@ document.querySelectorAll('.lang-switch button').forEach(btn => {
   btn.addEventListener('click', () => setLang(btn.getAttribute('data-lang')));
 });
 
+// -- Mobile menu toggle --
+const mobileMenu = document.getElementById('mobileMenu');
+const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+const mobileMenuClose = document.querySelector('.mobile-menu-close');
+
+function toggleMobileMenu(show) {
+  mobileMenu.classList.toggle('active', show);
+  document.body.style.overflow = show ? 'hidden' : '';
+}
+
+mobileMenuToggle?.addEventListener('click', () => toggleMobileMenu(true));
+mobileMenuClose?.addEventListener('click', () => toggleMobileMenu(false));
+
+// Close mobile menu on link click
+document.querySelectorAll('.mobile-nav-links a, .mobile-menu .btn-primary').forEach(link => {
+  link.addEventListener('click', () => toggleMobileMenu(false));
+});
+
 // -- Initialize language --
 setLang(currentLang);
