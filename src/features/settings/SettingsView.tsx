@@ -157,6 +157,7 @@ export default function SettingsView() {
         {activeTab === "cloudSync" && <CloudSyncTab />}
         {activeTab === "about" && <AboutTab />}
       </div>
+      )}
     </div>
   );
 }
