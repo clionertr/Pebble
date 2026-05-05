@@ -74,3 +74,37 @@ Adapted the React app and landing page for mobile devices using responsive desig
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: Fix Build Error
+
+**Date**: 2026-05-05
+**Task**: Fix Build Error
+**Package**: pebble
+**Branch**: `master`
+
+### Summary
+
+Fixed a syntax error in SettingsView.tsx that was causing the build to fail.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c6a9b0b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
