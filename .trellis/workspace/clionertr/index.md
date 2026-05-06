@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 3
-- **Last Active**: 2026-05-05
+- **Total Sessions**: 4
+- **Last Active**: 2026-05-06
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~110 | Active |
+| `journal-1.md` | ~146 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 4 | 2026-05-06 | Optimize Docker Build Caching | `78b512d`, `2e17041`, `e890d9f` | `001-improve-experience` |
 | 3 | 2026-05-05 | Fix Build Error | `c6a9b0b` | `master` |
 | 2 | 2026-05-04 | Mobile Web Adaptation | `c06dc63` | `master` |
 | 1 | 2026-05-04 | 修复 1Panel 部署下的 502 错误 | `d910242`, `7ec7c7b` | `master` |

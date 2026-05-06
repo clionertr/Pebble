@@ -108,3 +108,39 @@ Fixed a syntax error in SettingsView.tsx that was causing the build to fail.
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: Optimize Docker Build Caching
+
+**Date**: 2026-05-06
+**Task**: Optimize Docker Build Caching
+**Package**: pebble
+**Branch**: `001-improve-experience`
+
+### Summary
+
+Implemented cargo-chef and BuildKit cache mounts in Dockerfiles. Updated GitHub Actions for multi-arch builds, GHA caching, and GHCR.io pushing. Updated backend quality specs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `78b512d` | (see git log) |
+| `2e17041` | (see git log) |
+| `e890d9f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
