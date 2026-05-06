@@ -1,12 +1,15 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm
+# Install pnpm using corepack
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Install dependencies
+# Copy package files
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install
+
+# Install dependencies with cache mount for pnpm store
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    PNPM_HOME="/pnpm" pnpm install --frozen-lockfile
 
 # Copy source code and build frontend
 COPY . .
