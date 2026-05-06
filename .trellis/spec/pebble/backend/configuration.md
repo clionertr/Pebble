@@ -11,7 +11,7 @@ The backend service (Pebble) can be configured using the following environment v
 
 ### Binding Strategy
 
-- **Local Development**: Keep defaults (`127.0.0.1:3000`) for security and local access via Tauri.
+- **Local Development**: Keep defaults (`127.0.0.1:3000`) for security and local access via the browser.
 - **Docker Deployment**: Set `PEBBLE_HOST=0.0.0.0` to allow the frontend container or a reverse proxy to reach the backend service via the container network.
 
 ## Examples
