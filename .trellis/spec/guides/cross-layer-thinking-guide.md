@@ -68,6 +68,12 @@ For each boundary:
 
 **Good**: Each layer only knows its neighbors
 
+### Mistake 4: Retired Endpoint Still Called
+
+**Bad**: Backend migrates a workflow from an RPC command to an HTTP route, but frontend components keep calling the retired RPC wrapper.
+
+**Good**: Search for both the old command name and its frontend wrapper, update every caller to the new route, and add a regression test that asserts the user action uses the new endpoint.
+
 ---
 
 ## Checklist for Cross-Layer Features
@@ -82,6 +88,7 @@ After implementation:
 - [ ] Tested with edge cases (null, empty, invalid)
 - [ ] Verified error handling at each boundary
 - [ ] Checked data survives round-trip
+- [ ] If an endpoint/RPC was retired, searched for old wrapper and command call sites
 
 ---
 
