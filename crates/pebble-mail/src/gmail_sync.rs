@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -78,7 +78,30 @@ fn can_advance_gmail_cursor(failure_count: usize) -> bool {
     failure_count == 0
 }
 
+fn filter_deleted_history_additions(added_ids: Vec<String>, deleted_ids: &[String]) -> Vec<String> {
+    if deleted_ids.is_empty() {
+        return added_ids;
+    }
+
+    let deleted: HashSet<&str> = deleted_ids.iter().map(String::as_str).collect();
+    added_ids
+        .into_iter()
+        .filter(|id| !deleted.contains(id.as_str()))
+        .collect()
+}
+
+fn should_count_gmail_history_fetch_failure(error: &PebbleError) -> bool {
+    !matches!(
+        error,
+        PebbleError::Network(message) if message.contains("status 404")
+    )
+}
+
 fn should_notify_gmail_startup_fetch(stored_cursor: Option<&str>) -> bool {
+    stored_cursor.is_some_and(|cursor| !cursor.trim().is_empty())
+}
+
+fn should_use_gmail_history_sync_on_startup(stored_cursor: Option<&str>) -> bool {
     stored_cursor.is_some_and(|cursor| !cursor.trim().is_empty())
 }
 
@@ -172,6 +195,7 @@ impl GmailSyncWorker {
                 error_tx: None,
                 message_tx: None,
                 runtime_status_tx: None,
+                progress_tx: None,
             },
             provider,
             stop_rx,
@@ -187,6 +211,14 @@ impl GmailSyncWorker {
 
     pub fn with_message_tx(mut self, tx: mpsc::UnboundedSender<StoredMessage>) -> Self {
         self.base.message_tx = Some(tx);
+        self
+    }
+
+    pub fn with_progress_tx(
+        mut self,
+        tx: mpsc::UnboundedSender<crate::sync::SyncProgress>,
+    ) -> Self {
+        self.base.progress_tx = Some(tx);
         self
     }
 
@@ -309,14 +341,7 @@ impl GmailSyncWorker {
         Ok(())
     }
 
-    /// Perform initial sync: list folders, fetch messages for each label.
-    async fn initial_sync(&self) -> Result<()> {
-        info!(
-            "Starting Gmail initial sync for account {}",
-            self.base.account_id
-        );
-
-        // Sync folders (labels) — hidden labels are already filtered by the provider
+    async fn refresh_folders(&self) -> Result<()> {
         let folders = self.provider.list_folders().await?;
         for mut folder in folders {
             folder.account_id = self.base.account_id.clone();
@@ -362,6 +387,18 @@ impl GmailSyncWorker {
             };
             let _ = self.base.store.insert_folder(&archive);
         }
+
+        Ok(())
+    }
+
+    /// Perform initial sync: list folders, fetch messages for each label.
+    async fn initial_sync(&self) -> Result<()> {
+        info!(
+            "Starting Gmail initial sync for account {}",
+            self.base.account_id
+        );
+
+        self.refresh_folders().await?;
 
         // Get the stored sync cursor (historyId) if any
         let stored_cursor = self
@@ -736,6 +773,8 @@ impl GmailSyncWorker {
             }
         }
 
+        let new_ids = filter_deleted_history_additions(new_ids, &deleted_ids);
+
         // Fetch new messages concurrently, then collect refs and store.
         if !new_ids.is_empty() {
             let existing = match self
@@ -786,8 +825,15 @@ impl GmailSyncWorker {
                     match result {
                         Ok(fetched) => fetched_messages.push(fetched),
                         Err(e) => {
-                            failure_count += 1;
-                            warn!("Failed to fetch history message {}: {}", gmail_id, e);
+                            if should_count_gmail_history_fetch_failure(&e) {
+                                failure_count += 1;
+                                warn!("Failed to fetch history message {}: {}", gmail_id, e);
+                            } else {
+                                debug!(
+                                    "Skipping stale Gmail history message {} after fetch returned not found",
+                                    gmail_id
+                                );
+                            }
                         }
                     }
                 }
@@ -838,30 +884,38 @@ impl GmailSyncWorker {
         Ok(())
     }
 
-    async fn run_poll_cycle(&self, backoff: &mut SyncBackoff) {
+    async fn run_poll_cycle(&self, backoff: &mut SyncBackoff, allow_circuit_attempt: bool) {
         if backoff.is_circuit_open() {
             warn!(
-                "Circuit open for Gmail account {} ({} failures), waiting {:?}",
+                "Circuit open for Gmail account {} ({} failures), current delay {:?}",
                 self.base.account_id,
                 backoff.failure_count(),
                 backoff.current_delay()
             );
-            return;
+            if !allow_circuit_attempt {
+                return;
+            }
         }
 
+        self.base.emit_sync_started("poll");
         if let Err(e) = self.ensure_valid_token().await {
             warn!("Token refresh failed: {}", e);
+            self.base.emit_sync_error("poll", &e.to_string());
             let _ = backoff.record_failure();
             return;
         }
         match self.poll_changes().await {
-            Ok(()) => backoff.record_success(),
+            Ok(()) => {
+                self.base.emit_sync_completed("poll");
+                backoff.record_success()
+            }
             Err(e) => {
                 warn!(
                     "Gmail poll failed for account {}: {}",
                     self.base.account_id, e
                 );
                 self.base.emit_error("sync", &format!("Poll failed: {e}"));
+                self.base.emit_sync_error("poll", &e.to_string());
                 let _ = backoff.record_failure();
             }
         }
@@ -881,18 +935,41 @@ impl GmailSyncWorker {
             );
             self.base
                 .emit_error("auth", &format!("Token validation failed: {e}"));
+            self.base.emit_sync_error("auth", &e.to_string());
             return;
         }
 
-        // Initial sync
-        if let Err(e) = self.initial_sync().await {
+        let stored_cursor = self
+            .base
+            .store
+            .get_sync_cursor(&self.base.account_id)
+            .ok()
+            .flatten();
+
+        // Initial startup pass. Existing accounts must use Gmail History delta;
+        // otherwise startup can skip older changes outside the latest-label fetch
+        // window and then incorrectly advance the cursor.
+        self.base.emit_sync_started("initial");
+        let startup_result = if should_use_gmail_history_sync_on_startup(stored_cursor.as_deref()) {
+            match self.refresh_folders().await {
+                Ok(()) => self.poll_changes().await,
+                Err(e) => Err(e),
+            }
+        } else {
+            self.initial_sync().await
+        };
+
+        if let Err(e) = startup_result {
             error!(
-                "Gmail initial sync failed for account {}: {}",
+                "Gmail startup sync failed for account {}: {}",
                 self.base.account_id, e
             );
             self.base
-                .emit_error("sync", &format!("Initial sync failed: {e}"));
+                .emit_error("sync", &format!("Startup sync failed: {e}"));
+            self.base.emit_sync_error("initial", &e.to_string());
             // Don't return — still enter poll loop so we can retry
+        } else {
+            self.base.emit_sync_completed("initial");
         }
 
         if config.manual_only() {
@@ -921,14 +998,17 @@ impl GmailSyncWorker {
                     }
                 }
                 _ = tokio::time::sleep(next_delay) => {
-                    self.run_poll_cycle(&mut backoff).await;
+                    self.run_poll_cycle(&mut backoff, true).await;
                 }
                 trigger = recv_sync_trigger(&mut trigger_rx) => {
                     match trigger {
                         Some(trigger) => {
                             runtime.record_trigger(trigger, Instant::now());
                             if trigger.should_sync_now() {
-                                self.run_poll_cycle(&mut backoff).await;
+                                self.run_poll_cycle(
+                                    &mut backoff,
+                                    trigger.bypasses_circuit_backoff(),
+                                ).await;
                             }
                         }
                         None => {
@@ -1034,10 +1114,50 @@ mod tests {
     }
 
     #[test]
+    fn gmail_history_additions_exclude_messages_deleted_in_same_batch() {
+        let added = vec![
+            "deleted-message".to_string(),
+            "surviving-message".to_string(),
+        ];
+        let deleted = vec!["deleted-message".to_string()];
+
+        assert_eq!(
+            filter_deleted_history_additions(added, &deleted),
+            vec!["surviving-message".to_string()]
+        );
+    }
+
+    #[test]
+    fn gmail_history_fetch_404_does_not_count_as_cursor_blocking_failure() {
+        let error = PebbleError::Network(
+            "Failed to fetch message gone-message (status 404 Not Found): {}".to_string(),
+        );
+
+        assert!(!should_count_gmail_history_fetch_failure(&error));
+    }
+
+    #[test]
+    fn gmail_history_fetch_non_404_counts_as_cursor_blocking_failure() {
+        let error = PebbleError::Network(
+            "Failed to fetch message rate-limited-message (status 429 Too Many Requests): {}"
+                .to_string(),
+        );
+
+        assert!(should_count_gmail_history_fetch_failure(&error));
+    }
+
+    #[test]
     fn gmail_startup_fetch_notifies_only_when_history_cursor_exists() {
         assert!(!should_notify_gmail_startup_fetch(None));
         assert!(!should_notify_gmail_startup_fetch(Some("")));
         assert!(should_notify_gmail_startup_fetch(Some("history-1")));
+    }
+
+    #[test]
+    fn gmail_startup_uses_history_sync_when_cursor_exists() {
+        assert!(!should_use_gmail_history_sync_on_startup(None));
+        assert!(!should_use_gmail_history_sync_on_startup(Some("")));
+        assert!(should_use_gmail_history_sync_on_startup(Some("history-1")));
     }
 
     #[tokio::test]

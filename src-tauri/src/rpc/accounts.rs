@@ -14,7 +14,6 @@ use pebble_mail::OutlookProvider;
 use pebble_mail::{ConnectionSecurity, ImapConfig, ProxyConfig, SmtpConfig};
 use serde::{Deserialize, Serialize};
 
-
 /// Typed view of the encrypted `auth_data` blob for an IMAP/SMTP account.
 ///
 /// Prior code patched this blob with hand-written `serde_json::Value`
@@ -276,7 +275,6 @@ impl std::fmt::Debug for AddAccountRequest {
     }
 }
 
-
 pub async fn add_account(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     request: AddAccountRequest,
@@ -359,7 +357,6 @@ pub async fn add_account(
 
     Ok(account)
 }
-
 
 #[allow(clippy::too_many_arguments)]
 pub async fn update_account(
@@ -494,14 +491,12 @@ pub async fn update_account(
     Ok(())
 }
 
-
 pub async fn get_account_proxy(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     account_id: String,
 ) -> std::result::Result<Option<HttpProxyConfig>, PebbleError> {
     Ok(get_account_proxy_setting(state, account_id).await?.proxy)
 }
-
 
 pub async fn get_account_proxy_setting(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -527,7 +522,6 @@ pub async fn get_account_proxy_setting(
     let credentials = deserialize_account_credentials(&decrypted)?;
     Ok(account_proxy_setting_from_credentials(&credentials))
 }
-
 
 pub async fn update_account_proxy(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -555,7 +549,6 @@ pub async fn update_account_proxy(
         None => update_account_proxy_setting(state, account_id, mode, None, None).await,
     }
 }
-
 
 pub async fn update_account_proxy_setting(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -604,7 +597,6 @@ pub struct TestConnectionRequest {
     pub password: Option<String>,
 }
 
-
 pub async fn test_imap_connection(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     request: TestConnectionRequest,
@@ -637,7 +629,6 @@ pub async fn test_imap_connection(
         pebble_mail::ImapProvider::test_connection(&config).await
     }
 }
-
 
 pub async fn test_account_connection(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -685,16 +676,14 @@ pub async fn test_account_connection(
         credentials.proxy_mode,
         credentials.imap.proxy.clone(),
     )?;
-    pebble_mail::ImapProvider::test_connection(&credentials.imap).await
+    pebble_mail::ImapProvider::test_connection_with_login(&credentials.imap).await
 }
-
 
 pub async fn list_accounts(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
 ) -> std::result::Result<Vec<Account>, PebbleError> {
     state.store.list_accounts()
 }
-
 
 pub async fn delete_account(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

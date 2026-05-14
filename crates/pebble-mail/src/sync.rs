@@ -16,6 +16,43 @@ pub struct SyncError {
     pub timestamp: u64,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SyncProgress {
+    pub account_id: String,
+    pub status: String,
+    pub phase: String,
+    pub message: Option<String>,
+}
+
+impl SyncProgress {
+    fn started(account_id: &str, phase: &str) -> Self {
+        Self {
+            account_id: account_id.to_string(),
+            status: "started".to_string(),
+            phase: phase.to_string(),
+            message: None,
+        }
+    }
+
+    fn completed(account_id: &str, phase: &str) -> Self {
+        Self {
+            account_id: account_id.to_string(),
+            status: "completed".to_string(),
+            phase: phase.to_string(),
+            message: None,
+        }
+    }
+
+    fn error(account_id: &str, phase: &str, message: &str) -> Self {
+        Self {
+            account_id: account_id.to_string(),
+            status: "error".to_string(),
+            phase: phase.to_string(),
+            message: Some(message.to_string()),
+        }
+    }
+}
+
 use crate::parser::{parse_raw_email, AttachmentData, ParsedMessage};
 use crate::provider::imap_provider::ImapMailProvider;
 use crate::realtime_policy::{RealtimePollPolicy, RealtimeRuntimeState, SyncTrigger};
@@ -278,6 +315,43 @@ fn should_run_imap_deletion_diff(_server_exists: u32, local_count: usize) -> boo
     local_count > 0
 }
 
+fn can_seed_imap_polling_baseline_after_startup(initial_sync_succeeded: bool) -> bool {
+    initial_sync_succeeded
+}
+
+fn can_refresh_imap_polling_baseline_after_idle_fallback(catch_up_succeeded: bool) -> bool {
+    catch_up_succeeded
+}
+
+fn apply_local_inbox_uid_baseline(
+    last_exists: &mut Option<crate::idle::MailboxUidState>,
+    uidvalidity: Option<u64>,
+    local_max_uid: Option<u32>,
+    has_unresolved_failures: bool,
+) -> bool {
+    if has_unresolved_failures {
+        return false;
+    }
+    *last_exists = Some(crate::idle::MailboxUidState {
+        uidvalidity,
+        highest_uid: local_max_uid.unwrap_or(0),
+    });
+    true
+}
+
+fn should_skip_missing_imap_mailbox_during_initial_sync(
+    folder_role: Option<pebble_core::FolderRole>,
+) -> bool {
+    folder_role != Some(pebble_core::FolderRole::Inbox)
+}
+
+fn should_fail_initial_sync_for_folder_error(
+    folder_role: Option<pebble_core::FolderRole>,
+    is_retryable: bool,
+) -> bool {
+    folder_role == Some(pebble_core::FolderRole::Inbox) || is_retryable
+}
+
 fn idle_check_recovery_user_error(
     reconnect_error: Option<String>,
     poll_error: Option<String>,
@@ -308,7 +382,11 @@ fn is_retryable_imap_connection_error(error: &PebbleError) -> bool {
         || lower.contains("connection aborted")
         || lower.contains("broken pipe")
         || lower.contains("connection closed")
+        || lower.contains("closed connection")
+        || lower.contains("tls close_notify")
         || lower.contains("unexpected eof")
+        || lower.contains("unexpected-eof")
+        || lower.contains("timed out")
         || lower == "not connected"
 }
 
@@ -326,6 +404,28 @@ fn is_missing_imap_mailbox_error(error: &PebbleError) -> bool {
 
 fn should_attempt_imap_remote_folder(folder: &pebble_core::Folder) -> bool {
     !folder.remote_id.starts_with("__local_")
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ImapPollScope {
+    Realtime,
+    Full,
+}
+
+fn should_poll_imap_folder_for_scope(folder: &pebble_core::Folder, scope: ImapPollScope) -> bool {
+    if !should_attempt_imap_remote_folder(folder) {
+        return false;
+    }
+
+    match scope {
+        ImapPollScope::Realtime => folder.role == Some(pebble_core::FolderRole::Inbox),
+        ImapPollScope::Full => true,
+    }
+}
+
+#[cfg(test)]
+fn should_poll_imap_folder_for_realtime(folder: &pebble_core::Folder) -> bool {
+    should_poll_imap_folder_for_scope(folder, ImapPollScope::Realtime)
 }
 
 /// Configuration for the sync worker.
@@ -357,6 +457,10 @@ impl SyncConfig {
 
 fn imap_poll_policy(config: &SyncConfig) -> RealtimePollPolicy {
     RealtimePollPolicy::from_foreground_interval_secs(config.poll_interval_secs)
+}
+
+fn first_reconcile_deadline(now: Instant, interval: Duration) -> Instant {
+    now + interval
 }
 
 fn should_notify_imap_startup_fetch(since_uid: Option<u32>) -> bool {
@@ -400,6 +504,7 @@ pub(crate) struct SyncWorkerBase {
     pub(crate) error_tx: Option<mpsc::UnboundedSender<SyncError>>,
     pub(crate) message_tx: Option<mpsc::UnboundedSender<StoredMessage>>,
     pub(crate) runtime_status_tx: Option<mpsc::UnboundedSender<SyncRuntimeStatus>>,
+    pub(crate) progress_tx: Option<mpsc::UnboundedSender<SyncProgress>>,
 }
 
 impl SyncWorkerBase {
@@ -424,6 +529,24 @@ impl SyncWorkerBase {
     pub(crate) fn emit_runtime_status(&self, status: SyncRuntimeStatus) {
         if let Some(tx) = &self.runtime_status_tx {
             let _ = tx.send(status);
+        }
+    }
+
+    pub(crate) fn emit_sync_started(&self, phase: &str) {
+        if let Some(tx) = &self.progress_tx {
+            let _ = tx.send(SyncProgress::started(&self.account_id, phase));
+        }
+    }
+
+    pub(crate) fn emit_sync_completed(&self, phase: &str) {
+        if let Some(tx) = &self.progress_tx {
+            let _ = tx.send(SyncProgress::completed(&self.account_id, phase));
+        }
+    }
+
+    pub(crate) fn emit_sync_error(&self, phase: &str, message: &str) {
+        if let Some(tx) = &self.progress_tx {
+            let _ = tx.send(SyncProgress::error(&self.account_id, phase, message));
         }
     }
 }
@@ -454,6 +577,7 @@ impl SyncWorker {
                 error_tx: None,
                 message_tx: None,
                 runtime_status_tx: None,
+                progress_tx: None,
             },
             provider,
             idle_provider,
@@ -476,6 +600,106 @@ impl SyncWorker {
     pub fn with_runtime_status_tx(mut self, tx: mpsc::UnboundedSender<SyncRuntimeStatus>) -> Self {
         self.base.runtime_status_tx = Some(tx);
         self
+    }
+
+    pub fn with_progress_tx(mut self, tx: mpsc::UnboundedSender<SyncProgress>) -> Self {
+        self.base.progress_tx = Some(tx);
+        self
+    }
+
+    fn refresh_inbox_local_uid_baseline(
+        &self,
+        last_exists: &mut Option<crate::idle::MailboxUidState>,
+    ) -> bool {
+        let folders = match self.base.store.list_folders(&self.base.account_id) {
+            Ok(folders) => folders,
+            Err(e) => {
+                warn!(
+                    "Failed to load folders while refreshing IMAP polling baseline for account {}: {}",
+                    self.base.account_id, e
+                );
+                return false;
+            }
+        };
+
+        let Some(inbox) = folders
+            .iter()
+            .find(|folder| folder.role == Some(pebble_core::FolderRole::Inbox))
+        else {
+            warn!(
+                "Failed to refresh IMAP polling baseline for account {}: no Inbox folder found",
+                self.base.account_id
+            );
+            return false;
+        };
+
+        let has_unresolved_failures = match self
+            .base
+            .store
+            .has_sync_failures_for_folder(&self.base.account_id, &inbox.id)
+        {
+            Ok(has_failures) => has_failures,
+            Err(e) => {
+                warn!(
+                    "Failed to check Inbox sync failures while refreshing IMAP polling baseline for account {} folder {}: {}",
+                    self.base.account_id, inbox.remote_id, e
+                );
+                return false;
+            }
+        };
+        if has_unresolved_failures {
+            debug!(
+                "Skipping IMAP polling baseline refresh for account {} folder {} because Inbox has unresolved sync failures",
+                self.base.account_id, inbox.remote_id
+            );
+            return false;
+        }
+
+        let folder_sync_state = match self
+            .base
+            .store
+            .get_folder_sync_state(&self.base.account_id, &inbox.id)
+        {
+            Ok(state) => state,
+            Err(e) => {
+                warn!(
+                    "Failed to load local Inbox cursor while refreshing IMAP polling baseline for account {} folder {}: {}",
+                    self.base.account_id, inbox.remote_id, e
+                );
+                return false;
+            }
+        };
+        let cursor = parse_imap_folder_cursor(folder_sync_state.as_deref());
+
+        let local_max_uid = match self
+            .base
+            .store
+            .get_max_remote_id(&self.base.account_id, &inbox.id)
+        {
+            Ok(remote_id) => remote_id.and_then(|uid| uid.parse::<u32>().ok()),
+            Err(e) => {
+                warn!(
+                    "Failed to load local Inbox max UID while refreshing IMAP polling baseline for account {} folder {}: {}",
+                    self.base.account_id, inbox.remote_id, e
+                );
+                return false;
+            }
+        };
+        let refreshed = apply_local_inbox_uid_baseline(
+            last_exists,
+            cursor.uidvalidity,
+            local_max_uid,
+            has_unresolved_failures,
+        );
+        if refreshed {
+            debug!(
+                "Refreshed IMAP polling baseline for account {} folder {} to local max UID {}",
+                self.base.account_id,
+                inbox.remote_id,
+                last_exists.map(|state| state.highest_uid).unwrap_or(0)
+            );
+        }
+        refreshed
     }
 
     fn stored_imap_folder_cursor(&self, folder: &pebble_core::Folder) -> ImapFolderCursor {
@@ -613,17 +837,20 @@ impl SyncWorker {
             }
         }
 
-        let mut first_recovered_error = None;
+        let mut first_initial_sync_error = None;
         for folder in &ordered {
             if let Err(e) = self.initial_sync_folder_with_reconnect(folder).await {
                 warn!("Initial sync folder {} failed: {}", folder.name, e);
-                if is_retryable_imap_connection_error(&e) && first_recovered_error.is_none() {
-                    first_recovered_error = Some(e);
+                let is_retryable = is_retryable_imap_connection_error(&e);
+                if should_fail_initial_sync_for_folder_error(folder.role.clone(), is_retryable)
+                    && first_initial_sync_error.is_none()
+                {
+                    first_initial_sync_error = Some(e);
                 }
             }
         }
 
-        if let Some(e) = first_recovered_error {
+        if let Some(e) = first_initial_sync_error {
             return Err(e);
         }
 
@@ -633,7 +860,12 @@ impl SyncWorker {
     async fn initial_sync_folder_with_reconnect(&self, folder: &pebble_core::Folder) -> Result<()> {
         match self.initial_sync_folder_once(folder).await {
             Ok(()) => Ok(()),
-            Err(e) if is_missing_imap_mailbox_error(&e) => {
+            Err(e)
+                if is_missing_imap_mailbox_error(&e)
+                    && should_skip_missing_imap_mailbox_during_initial_sync(
+                        folder.role.clone(),
+                    ) =>
+            {
                 debug!(
                     "Skipping unavailable IMAP folder {} ({}) for account {}: {}",
                     folder.name, folder.remote_id, self.base.account_id, e
@@ -870,13 +1102,36 @@ impl SyncWorker {
 
     /// Poll all folders for new messages since the highest known UID.
     pub async fn poll_new_messages(&self) -> Result<()> {
+        self.poll_new_messages_for_scope("poll", ImapPollScope::Realtime)
+            .await
+    }
+
+    async fn poll_all_new_messages(&self, phase: &str) -> Result<()> {
+        self.poll_new_messages_for_scope(phase, ImapPollScope::Full)
+            .await
+    }
+
+    async fn poll_new_messages_for_scope(&self, phase: &str, scope: ImapPollScope) -> Result<()> {
+        self.base.emit_sync_started(phase);
+        let result = self.poll_new_messages_inner(scope).await;
+        match &result {
+            Ok(()) => self.base.emit_sync_completed(phase),
+            Err(e) => self.base.emit_sync_error(phase, &e.to_string()),
+        }
+        result
+    }
+
+    async fn poll_new_messages_inner(&self, scope: ImapPollScope) -> Result<()> {
         let folders = self.base.store.list_folders(&self.base.account_id)?;
         if folders.is_empty() {
             return Ok(());
         }
 
         let mut first_recovered_error = None;
-        for folder in &folders {
+        for folder in folders
+            .iter()
+            .filter(|folder| should_poll_imap_folder_for_scope(folder, scope))
+        {
             if let Some(e) = self.poll_imap_folder_with_reconnect(folder).await {
                 if first_recovered_error.is_none() {
                     first_recovered_error = Some(e);
@@ -917,6 +1172,13 @@ impl SyncWorker {
                                 "Poll retry failed for folder {} account {} after reconnect: {}",
                                 folder.name, self.base.account_id, retry_error
                             );
+                            self.base.emit_error(
+                                "poll",
+                                &format!(
+                                    "Poll retry failed for folder {}: {}",
+                                    folder.name, retry_error
+                                ),
+                            );
                             if is_retryable_imap_connection_error(&retry_error) {
                                 return Some(retry_error);
                             }
@@ -936,6 +1198,10 @@ impl SyncWorker {
                 warn!(
                     "Poll failed for folder {} account {}: {}",
                     folder.name, self.base.account_id, e
+                );
+                self.base.emit_error(
+                    "poll",
+                    &format!("Poll failed for folder {}: {}", folder.name, e),
                 );
                 None
             }
@@ -1262,17 +1528,27 @@ impl SyncWorker {
             );
             self.base
                 .emit_error("connection", &format!("Failed to connect: {}", e));
+            self.base.emit_sync_error("connection", &e.to_string());
             return;
         }
 
-        if let Err(e) = self.initial_sync().await {
-            error!(
-                "Initial sync failed for account {}: {}",
-                self.base.account_id, e
-            );
-            self.base
-                .emit_error("sync", &format!("Initial sync failed: {}", e));
-        }
+        self.base.emit_sync_started("initial");
+        let initial_sync_succeeded = match self.initial_sync().await {
+            Ok(()) => {
+                self.base.emit_sync_completed("initial");
+                true
+            }
+            Err(e) => {
+                error!(
+                    "Initial sync failed for account {}: {}",
+                    self.base.account_id, e
+                );
+                self.base
+                    .emit_error("sync", &format!("Initial sync failed: {}", e));
+                self.base.emit_sync_error("initial", &e.to_string());
+                false
+            }
+        };
 
         if config.manual_only() {
             info!("Manual sync completed for account {}", self.base.account_id);
@@ -1283,7 +1559,14 @@ impl SyncWorker {
         let poll_policy = imap_poll_policy(&config);
         let reconcile_interval = tokio::time::Duration::from_secs(config.reconcile_interval_secs);
 
-        let mut reconcile_ticker = tokio::time::interval(reconcile_interval);
+        let mut reconcile_ticker = tokio::time::interval_at(
+            tokio::time::Instant::from_std(first_reconcile_deadline(
+                Instant::now(),
+                reconcile_interval,
+            )),
+            reconcile_interval,
+        );
+        reconcile_ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
         let supports_idle = self.provider.inner().supports_idle().await;
         if supports_idle {
@@ -1310,7 +1593,7 @@ impl SyncWorker {
         }
 
         let mut stop_rx = self.stop_rx.clone();
-        let mut last_exists: u32 = 0;
+        let mut last_exists: Option<crate::idle::MailboxUidState> = None;
         let mut backoff = SyncBackoff::new();
         let mut trigger_rx = trigger_rx;
         let mut runtime = RealtimeRuntimeState::new(Duration::from_secs(60), Instant::now());
@@ -1349,6 +1632,12 @@ impl SyncWorker {
         }
         drop(idle_trigger_tx);
         let mut idle_watcher_active = idle_watcher.is_some();
+        let mut polling_baseline_trusted = false;
+        if !idle_watcher_active
+            && can_seed_imap_polling_baseline_after_startup(initial_sync_succeeded)
+        {
+            polling_baseline_trusted = self.refresh_inbox_local_uid_baseline(&mut last_exists);
+        }
 
         loop {
             let next_poll_delay =
@@ -1357,14 +1646,24 @@ impl SyncWorker {
             tokio::select! {
                 _ = tokio::time::sleep(next_poll_delay), if !idle_watcher_active => {
                     if backoff.is_circuit_open() {
-                        let delay = backoff.current_delay();
                         warn!(
-                            "Circuit open for account {} ({} consecutive failures), waiting {:?}",
-                            self.base.account_id, backoff.failure_count(), delay
+                            "Circuit open for account {} ({} consecutive failures); attempting half-open poll after scheduled delay",
+                            self.base.account_id, backoff.failure_count()
                         );
-                        match tokio::time::timeout(delay, stop_rx.changed()).await {
-                            Ok(Ok(())) if *stop_rx.borrow() => break,
-                            _ => {}
+                    }
+
+                    if !polling_baseline_trusted {
+                        match self.poll_new_messages().await {
+                            Ok(()) => {
+                                backoff.record_success();
+                                polling_baseline_trusted =
+                                    self.refresh_inbox_local_uid_baseline(&mut last_exists);
+                            }
+                            Err(e) => {
+                                warn!("Catch-up poll before IMAP baseline refresh failed for account {}: {}", self.base.account_id, e);
+                                self.base.emit_error("poll", &format!("Catch-up poll before IMAP baseline refresh failed: {}", e));
+                                backoff.record_failure();
+                            }
                         }
                         continue;
                     }
@@ -1386,6 +1685,8 @@ impl SyncWorker {
                                     backoff.record_failure();
                                 } else {
                                     backoff.record_success();
+                                    polling_baseline_trusted =
+                                        self.refresh_inbox_local_uid_baseline(&mut last_exists);
                                 }
                             }
                             Ok(crate::idle::IdleEvent::Timeout) => {
@@ -1397,7 +1698,11 @@ impl SyncWorker {
                                 let _ = self.provider.disconnect().await;
                                 let recovery_error = match self.provider.connect().await {
                                     Ok(()) => match self.poll_new_messages().await {
-                                        Ok(()) => None,
+                                        Ok(()) => {
+                                            polling_baseline_trusted = self
+                                                .refresh_inbox_local_uid_baseline(&mut last_exists);
+                                            None
+                                        }
                                         Err(poll_error) => {
                                             warn!(
                                                 "Poll after idle check reconnect failed for account {}: {}",
@@ -1461,6 +1766,24 @@ impl SyncWorker {
                                 self.base.account_id
                             );
                             idle_watcher_active = false;
+                            let catch_up_succeeded = match self.poll_new_messages().await {
+                                Ok(()) => {
+                                    backoff.record_success();
+                                    true
+                                }
+                                Err(e) => {
+                                    warn!("Catch-up poll after IMAP IDLE watcher exit failed for account {}: {}", self.base.account_id, e);
+                                    self.base.emit_error("poll", &format!("Catch-up poll after IMAP IDLE watcher exit failed: {}", e));
+                                    backoff.record_failure();
+                                    false
+                                }
+                            };
+                            if can_refresh_imap_polling_baseline_after_idle_fallback(catch_up_succeeded) {
+                                polling_baseline_trusted =
+                                    self.refresh_inbox_local_uid_baseline(&mut last_exists);
+                            } else {
+                                polling_baseline_trusted = false;
+                            }
                         }
                     }
                 }
@@ -1471,19 +1794,30 @@ impl SyncWorker {
                             if !trigger.should_sync_now() {
                                 continue;
                             }
-                            if backoff.is_circuit_open() {
+                            if backoff.is_circuit_open()
+                                && !trigger.bypasses_circuit_backoff()
+                            {
                                 debug!(
                                     "Ignoring realtime trigger while circuit is open for account {}",
                                     self.base.account_id
                                 );
                                 continue;
                             }
-                            if let Err(e) = self.poll_new_messages().await {
+                            let poll_result = if trigger == SyncTrigger::Manual {
+                                self.poll_all_new_messages("manual").await
+                            } else {
+                                self.poll_new_messages().await
+                            };
+                            if let Err(e) = poll_result {
                                 warn!("Triggered poll error for account {}: {}", self.base.account_id, e);
                                 self.base.emit_error("poll", &format!("Triggered poll error: {}", e));
                                 backoff.record_failure();
                             } else {
                                 backoff.record_success();
+                                if !idle_watcher_active {
+                                    polling_baseline_trusted =
+                                        self.refresh_inbox_local_uid_baseline(&mut last_exists);
+                                }
                             }
                         }
                         None => {
@@ -1493,19 +1827,27 @@ impl SyncWorker {
                 }
                 _ = reconcile_ticker.tick() => {
                     // Full reconcile: poll new messages + flag diff + deletion detection
-                    if let Err(e) = self.poll_new_messages().await {
+                    self.base.emit_sync_started("reconcile");
+                    let mut reconcile_failed = false;
+                    if let Err(e) = self.poll_new_messages_inner(ImapPollScope::Full).await {
                         warn!("Reconcile poll error for account {}: {}", self.base.account_id, e);
                         self.base.emit_error("reconcile", &format!("Reconcile poll error: {}", e));
+                        self.base.emit_sync_error("reconcile", &e.to_string());
                         backoff.record_failure();
                         continue;
                     } else {
                         backoff.record_success();
+                        if !idle_watcher_active {
+                            polling_baseline_trusted =
+                                self.refresh_inbox_local_uid_baseline(&mut last_exists);
+                        }
                     }
                     let folders = match self.base.store.list_folders(&self.base.account_id) {
                         Ok(f) => f,
                         Err(e) => {
                             warn!("Reconcile list folders error: {}", e);
                             self.base.emit_error("reconcile", &format!("List folders error: {}", e));
+                            self.base.emit_sync_error("reconcile", &e.to_string());
                             continue;
                         }
                     };
@@ -1513,7 +1855,13 @@ impl SyncWorker {
                         if let Err(e) = self.reconcile_folder(folder).await {
                             warn!("Reconcile folder {} error: {}", folder.name, e);
                             self.base.emit_error("reconcile", &format!("Reconcile {} error: {}", folder.name, e));
+                            reconcile_failed = true;
                         }
+                    }
+                    if reconcile_failed {
+                        self.base.emit_sync_error("reconcile", "One or more folders failed to reconcile");
+                    } else {
+                        self.base.emit_sync_completed("reconcile");
                     }
                 }
                 Ok(()) = stop_rx.changed() => {
@@ -1660,6 +2008,120 @@ mod tests {
     }
 
     #[test]
+    fn startup_baseline_seed_requires_successful_initial_sync() {
+        assert!(can_seed_imap_polling_baseline_after_startup(true));
+        assert!(!can_seed_imap_polling_baseline_after_startup(false));
+    }
+
+    #[test]
+    fn idle_fallback_baseline_refresh_requires_successful_catch_up() {
+        assert!(can_refresh_imap_polling_baseline_after_idle_fallback(true));
+        assert!(!can_refresh_imap_polling_baseline_after_idle_fallback(
+            false
+        ));
+    }
+
+    #[test]
+    fn imap_polling_baseline_refuses_unresolved_inbox_failures() {
+        let mut last_exists = Some(crate::idle::MailboxUidState {
+            uidvalidity: Some(42),
+            highest_uid: 7,
+        });
+
+        let seeded = apply_local_inbox_uid_baseline(&mut last_exists, Some(42), Some(12), true);
+
+        assert!(!seeded);
+        assert_eq!(
+            last_exists,
+            Some(crate::idle::MailboxUidState {
+                uidvalidity: Some(42),
+                highest_uid: 7,
+            })
+        );
+    }
+
+    #[test]
+    fn imap_polling_baseline_seeds_local_max_uid_without_unresolved_inbox_failures() {
+        let mut last_exists = Some(crate::idle::MailboxUidState {
+            uidvalidity: Some(42),
+            highest_uid: 7,
+        });
+
+        let seeded = apply_local_inbox_uid_baseline(&mut last_exists, Some(43), Some(12), false);
+
+        assert!(seeded);
+        assert_eq!(
+            last_exists,
+            Some(crate::idle::MailboxUidState {
+                uidvalidity: Some(43),
+                highest_uid: 12,
+            })
+        );
+    }
+
+    #[test]
+    fn imap_polling_baseline_seeds_zero_for_clean_empty_local_inbox() {
+        let mut last_exists = Some(crate::idle::MailboxUidState {
+            uidvalidity: Some(42),
+            highest_uid: 7,
+        });
+
+        let seeded = apply_local_inbox_uid_baseline(&mut last_exists, Some(43), None, false);
+
+        assert!(seeded);
+        assert_eq!(
+            last_exists,
+            Some(crate::idle::MailboxUidState {
+                uidvalidity: Some(43),
+                highest_uid: 0,
+            })
+        );
+    }
+
+    #[test]
+    fn inbox_missing_mailbox_is_not_skipped_during_initial_sync() {
+        assert!(!should_skip_missing_imap_mailbox_during_initial_sync(Some(
+            pebble_core::FolderRole::Inbox
+        )));
+    }
+
+    #[test]
+    fn non_inbox_missing_mailbox_can_be_skipped_during_initial_sync() {
+        assert!(should_skip_missing_imap_mailbox_during_initial_sync(Some(
+            pebble_core::FolderRole::Sent
+        )));
+    }
+
+    #[test]
+    fn inbox_initial_sync_folder_failure_fails_initial_sync() {
+        assert!(should_fail_initial_sync_for_folder_error(
+            Some(pebble_core::FolderRole::Inbox),
+            false
+        ));
+    }
+
+    #[test]
+    fn non_inbox_non_retryable_initial_sync_folder_failure_does_not_fail_initial_sync() {
+        assert!(!should_fail_initial_sync_for_folder_error(
+            Some(pebble_core::FolderRole::Sent),
+            false
+        ));
+    }
+
+    #[test]
+    fn non_inbox_retryable_initial_sync_folder_failure_fails_initial_sync() {
+        assert!(should_fail_initial_sync_for_folder_error(None, true));
+    }
+
+    #[test]
+    fn first_reconcile_deadline_is_delayed_by_interval() {
+        let now = Instant::now();
+        let interval = Duration::from_secs(900);
+
+        assert_eq!(first_reconcile_deadline(now, interval), now + interval);
+    }
+
+    #[test]
     fn idle_check_disconnect_does_not_surface_when_recovery_succeeds() {
         let message = idle_check_recovery_user_error(None, None);
 
@@ -1684,6 +2146,16 @@ mod tests {
     fn imap_windows_connection_abort_is_retryable_for_polling() {
         let error = pebble_core::PebbleError::Network(
             "SELECT failed: io: 你的主机中的软件中止了一个已建立的连接。 (os error 10053)"
+                .to_string(),
+        );
+
+        assert!(is_retryable_imap_connection_error(&error));
+    }
+
+    #[test]
+    fn imap_rustls_unexpected_eof_is_retryable_for_polling() {
+        let error = pebble_core::PebbleError::Network(
+            "SELECT failed: io: peer closed connection without sending TLS close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof"
                 .to_string(),
         );
 
@@ -1726,5 +2198,63 @@ mod tests {
         };
 
         assert!(!should_attempt_imap_remote_folder(&folder));
+    }
+
+    fn test_folder(role: Option<pebble_core::FolderRole>, remote_id: &str) -> pebble_core::Folder {
+        pebble_core::Folder {
+            id: format!("folder-{remote_id}"),
+            account_id: "account-1".to_string(),
+            remote_id: remote_id.to_string(),
+            name: remote_id.to_string(),
+            folder_type: pebble_core::FolderType::Folder,
+            role,
+            parent_id: None,
+            color: None,
+            is_system: true,
+            sort_order: 0,
+        }
+    }
+
+    #[test]
+    fn imap_realtime_poll_targets_inbox_only() {
+        let inbox = test_folder(Some(pebble_core::FolderRole::Inbox), "INBOX");
+        let sent = test_folder(Some(pebble_core::FolderRole::Sent), "Sent");
+        let spam = test_folder(Some(pebble_core::FolderRole::Spam), "Spam");
+        let custom = test_folder(None, "Newsletters");
+
+        assert!(should_poll_imap_folder_for_realtime(&inbox));
+        assert!(!should_poll_imap_folder_for_realtime(&sent));
+        assert!(!should_poll_imap_folder_for_realtime(&spam));
+        assert!(!should_poll_imap_folder_for_realtime(&custom));
+    }
+
+    #[test]
+    fn imap_full_poll_targets_all_remote_folders() {
+        let inbox = test_folder(Some(pebble_core::FolderRole::Inbox), "INBOX");
+        let sent = test_folder(Some(pebble_core::FolderRole::Sent), "Sent");
+        let spam = test_folder(Some(pebble_core::FolderRole::Spam), "Spam");
+        let custom = test_folder(None, "Newsletters");
+        let local = test_folder(Some(pebble_core::FolderRole::Archive), "__local_archive__");
+
+        assert!(should_poll_imap_folder_for_scope(
+            &inbox,
+            ImapPollScope::Full
+        ));
+        assert!(should_poll_imap_folder_for_scope(
+            &sent,
+            ImapPollScope::Full
+        ));
+        assert!(should_poll_imap_folder_for_scope(
+            &spam,
+            ImapPollScope::Full
+        ));
+        assert!(should_poll_imap_folder_for_scope(
+            &custom,
+            ImapPollScope::Full
+        ));
+        assert!(!should_poll_imap_folder_for_scope(
+            &local,
+            ImapPollScope::Full
+        ));
     }
 }

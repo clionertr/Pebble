@@ -1,10 +1,10 @@
+use crate::events;
+use crate::realtime::{RealtimeMode, RealtimeStatusPayload, SyncTrigger};
 use crate::rpc::indexing;
 use crate::rpc::oauth::{
     build_oauth_token_refresher, decode_oauth_account_tokens, gmail_oauth_config,
     outlook_oauth_config,
 };
-use crate::events;
-use crate::realtime::{RealtimeMode, RealtimeStatusPayload, SyncTrigger};
 use crate::state::{AppState, SyncHandle};
 use pebble_core::{PebbleError, ProviderType};
 use pebble_mail::{
@@ -29,9 +29,7 @@ fn spawn_sync_start_placeholder(
     })
 }
 
-
 pub async fn start_sync(
-    
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     account_id: String,
     poll_interval_secs: Option<u64>,
@@ -42,8 +40,6 @@ pub async fn start_sync(
 
 /// Auto-resume sync for all existing accounts on app startup.
 pub async fn resume_all_syncs(state: axum::extract::State<std::sync::Arc<crate::state::AppState>>) {
-    
-    
     let accounts = match state.store.list_accounts() {
         Ok(a) => a,
         Err(e) => {
@@ -122,13 +118,14 @@ async fn start_sync_inner(
     let (trigger_tx, trigger_rx) = mpsc::unbounded_channel();
 
     let (error_tx, mut error_rx) = mpsc::unbounded_channel();
-    
+
     let state_for_err = state.clone();
     tokio::spawn(async move {
         let state = state_for_err;
         while let Some(sync_error) = error_rx.recv().await {
-            /* mock emit */
-            emit_realtime_status(&state, 
+            state.emit(events::MAIL_ERROR, &sync_error);
+            emit_realtime_status(
+                &state,
                 realtime_status_payload(
                     &account_id_for_errors,
                     &provider_for_errors,
@@ -141,24 +138,25 @@ async fn start_sync_inner(
         }
     });
 
+    let (progress_tx, mut progress_rx) = mpsc::unbounded_channel();
+    let state_for_sync_progress = state.clone();
+    tokio::spawn(async move {
+        while let Some(sync_progress) = progress_rx.recv().await {
+            state_for_sync_progress.emit(events::MAIL_SYNC_PROGRESS, &sync_progress);
+        }
+    });
+
     // Channel for newly stored messages — used to populate the search index and emit events
     let (message_tx, mut message_rx) = mpsc::unbounded_channel();
     let search = Arc::clone(&state.search);
     let store_for_rules = Arc::clone(&state.store);
-    
+
     let state_for_msg = state.clone();
     tokio::spawn(async move {
-        indexing::index_new_messages(
-            &state_for_msg,
-            &search,
-            &store_for_rules,
-            &mut message_rx,
-            )
-        .await;
+        indexing::index_new_messages(&state_for_msg, &search, &store_for_rules, &mut message_rx)
+            .await;
     });
 
-    
-    
     let account_id_clone = account_id.clone();
 
     // Build the provider-specific task. If this fails (e.g. token decode error,
@@ -170,8 +168,9 @@ async fn start_sync_inner(
         stop_rx,
         trigger_rx,
         error_tx,
+        progress_tx,
         message_tx,
-                account_id_clone.clone(),
+        account_id_clone.clone(),
         account_id_clone,
         poll_interval_secs,
         account,
@@ -365,6 +364,7 @@ fn build_sync_task(
     stop_rx: watch::Receiver<bool>,
     trigger_rx: mpsc::UnboundedReceiver<SyncTrigger>,
     error_tx: mpsc::UnboundedSender<pebble_mail::SyncError>,
+    progress_tx: mpsc::UnboundedSender<pebble_mail::SyncProgress>,
     message_tx: mpsc::UnboundedSender<pebble_mail::StoredMessage>,
     account_id_for_progress: String,
     account_id_clone: String,
@@ -377,7 +377,8 @@ fn build_sync_task(
             let tokens = match decode_oauth_account_tokens(&state, &account_id_clone) {
                 Ok(tokens) => tokens,
                 Err(e) => {
-                    emit_realtime_status(&state, 
+                    emit_realtime_status(
+                        &state,
                         realtime_status_payload(
                             &account_id_clone,
                             &ProviderType::Gmail,
@@ -409,10 +410,12 @@ fn build_sync_task(
                 if let Some(interval) = poll_interval_secs {
                     config.poll_interval_secs = interval;
                 }
-                let _ = ( // app_for_progress.emit(
+                state.emit(
                     events::MAIL_SYNC_PROGRESS,
-                    serde_json::json!({ "account_id": &account_id_clone, "status": "started" }));
-                emit_realtime_status(&state, 
+                    serde_json::json!({ "account_id": &account_id_clone, "status": "started" }),
+                );
+                emit_realtime_status(
+                    &state,
                     realtime_status_payload(
                         &account_id_clone,
                         &ProviderType::Gmail,
@@ -431,11 +434,13 @@ fn build_sync_task(
                 )
                 .with_error_tx(error_tx)
                 .with_message_tx(message_tx)
+                .with_progress_tx(progress_tx)
                 .with_token_refresher(refresher, expires_at);
                 worker.run(config, Some(trigger_rx)).await;
-                let _ = ( // app_for_progress.emit(
+                state.emit(
                     events::MAIL_SYNC_COMPLETE,
-                    serde_json::json!({ "account_id": &account_id_clone }));
+                    serde_json::json!({ "account_id": &account_id_clone }),
+                );
                 info!("Gmail sync task completed for account {}", account_id_clone);
             })
         }
@@ -444,7 +449,8 @@ fn build_sync_task(
             let tokens = match decode_oauth_account_tokens(&state, &account_id_clone) {
                 Ok(tokens) => tokens,
                 Err(e) => {
-                    emit_realtime_status(&state, 
+                    emit_realtime_status(
+                        &state,
                         realtime_status_payload(
                             &account_id_clone,
                             &ProviderType::Outlook,
@@ -477,10 +483,12 @@ fn build_sync_task(
                 if let Some(interval) = poll_interval_secs {
                     config.poll_interval_secs = interval;
                 }
-                let _ = ( // app_for_progress.emit(
+                state.emit(
                     events::MAIL_SYNC_PROGRESS,
-                    serde_json::json!({ "account_id": &account_id_clone, "status": "started" }));
-                emit_realtime_status(&state, 
+                    serde_json::json!({ "account_id": &account_id_clone, "status": "started" }),
+                );
+                emit_realtime_status(
+                    &state,
                     realtime_status_payload(
                         &account_id_clone,
                         &ProviderType::Outlook,
@@ -498,11 +506,13 @@ fn build_sync_task(
                 )
                 .with_error_tx(error_tx)
                 .with_message_tx(message_tx)
+                .with_progress_tx(progress_tx)
                 .with_token_refresher(refresher, expires_at);
                 worker.run(config, stop_rx, Some(trigger_rx)).await;
-                let _ = ( // app_for_progress.emit(
+                state.emit(
                     events::MAIL_SYNC_COMPLETE,
-                    serde_json::json!({ "account_id": &account_id_clone }));
+                    serde_json::json!({ "account_id": &account_id_clone }),
+                );
                 info!(
                     "Outlook sync task completed for account {}",
                     account_id_clone
@@ -518,7 +528,8 @@ fn build_sync_task(
             ) {
                 Ok(config) => config,
                 Err(e) => {
-                    emit_realtime_status(&state, 
+                    emit_realtime_status(
+                        &state,
                         realtime_status_payload(
                             &account_id_clone,
                             &ProviderType::Imap,
@@ -538,10 +549,12 @@ fn build_sync_task(
                 if let Some(interval) = poll_interval_secs {
                     config.poll_interval_secs = interval;
                 }
-                let _ = ( // app_for_progress.emit(
+                state.emit(
                     events::MAIL_SYNC_PROGRESS,
-                    serde_json::json!({ "account_id": &account_id_clone, "status": "started" }));
-                emit_realtime_status(&state, 
+                    serde_json::json!({ "account_id": &account_id_clone, "status": "started" }),
+                );
+                emit_realtime_status(
+                    &state,
                     realtime_status_payload(
                         &account_id_clone,
                         &ProviderType::Imap,
@@ -552,7 +565,7 @@ fn build_sync_task(
                     ),
                 );
                 let (runtime_status_tx, mut runtime_status_rx) = mpsc::unbounded_channel();
-                
+
                 let account_id_for_runtime_status = account_id_clone.clone();
                 let config_for_runtime_status = config.clone();
                 let state_for_runtime = state.clone();
@@ -560,7 +573,8 @@ fn build_sync_task(
                     let state = state_for_runtime;
                     while let Some(status) = runtime_status_rx.recv().await {
                         let supports_idle = matches!(status, SyncRuntimeStatus::ImapIdleAvailable);
-                        emit_realtime_status(&state, 
+                        emit_realtime_status(
+                            &state,
                             realtime_status_payload(
                                 &account_id_for_runtime_status,
                                 &ProviderType::Imap,
@@ -588,11 +602,13 @@ fn build_sync_task(
                 )
                 .with_error_tx(error_tx)
                 .with_message_tx(message_tx)
+                .with_progress_tx(progress_tx)
                 .with_runtime_status_tx(runtime_status_tx);
                 worker.run(config, Some(trigger_rx)).await;
-                let _ = ( // app_for_progress.emit(
+                state.emit(
                     events::MAIL_SYNC_COMPLETE,
-                    serde_json::json!({ "account_id": &account_id_clone }));
+                    serde_json::json!({ "account_id": &account_id_clone }),
+                );
                 info!("Sync task completed for account {}", account_id_clone);
             })
         }
@@ -601,9 +617,7 @@ fn build_sync_task(
     Ok(task)
 }
 
-
 pub async fn trigger_sync(
-    
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     account_id: String,
     reason: String,
@@ -637,7 +651,6 @@ pub async fn trigger_sync(
     Ok(())
 }
 
-
 pub async fn stop_sync(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     account_id: String,
@@ -669,9 +682,7 @@ fn should_drop_trigger_handle(task_finished: bool, send_failed: bool) -> bool {
     task_finished || send_failed
 }
 
-
 pub async fn set_realtime_preference(
-    
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     mode: String,
 ) -> std::result::Result<(), PebbleError> {
@@ -688,7 +699,8 @@ pub async fn set_realtime_preference(
 
     if poll_interval_secs == 0 {
         for account in accounts {
-            emit_realtime_status(&state, 
+            emit_realtime_status(
+                &state,
                 manual_realtime_status_payload(&account.id, &account.provider),
             );
         }
@@ -702,8 +714,12 @@ pub async fn set_realtime_preference(
 
     let mut start_summary = RealtimePreferenceStartSummary::default();
     for account_id in account_ids {
-        let result =
-            start_sync_inner(state.0.clone(), account_id.clone(), Some(poll_interval_secs)).await;
+        let result = start_sync_inner(
+            state.0.clone(),
+            account_id.clone(),
+            Some(poll_interval_secs),
+        )
+        .await;
         if let Err(e) = &result {
             warn!("Failed to apply realtime preference to account {account_id}: {e}");
         }
@@ -723,7 +739,9 @@ pub async fn set_realtime_preference(
 
 /// Rebuild the search index from all messages currently in the store.
 
-pub async fn reindex_search(state: axum::extract::State<std::sync::Arc<crate::state::AppState>>) -> std::result::Result<u32, PebbleError> {
+pub async fn reindex_search(
+    state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
+) -> std::result::Result<u32, PebbleError> {
     let store = Arc::clone(&state.store);
     let search = Arc::clone(&state.search);
 
