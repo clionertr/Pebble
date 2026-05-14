@@ -13,6 +13,7 @@ export type {
   ConnectionSecurity,
   EmailAddress,
   Folder,
+  GmailRealtimeConfig,
   HttpProxyConfig,
   KanbanCard,
   KanbanColumnType,
@@ -44,6 +45,7 @@ import type {
   BackupPreview,
   ConnectionSecurity,
   Folder,
+  GmailRealtimeConfig,
   HttpProxyConfig,
   KanbanCard,
   KanbanColumnType,
@@ -197,6 +199,34 @@ export async function deleteAccount(accountId: string): Promise<void> {
   return invoke<void>("delete_account", { accountId });
 }
 
+export async function getGmailRealtimeConfig(accountId: string): Promise<GmailRealtimeConfig> {
+  return invoke<GmailRealtimeConfig>("get_gmail_realtime_config", { accountId });
+}
+
+export async function enableGmailRealtime(
+  accountId: string,
+  fallbackIntervalMinutes?: number,
+): Promise<GmailRealtimeConfig> {
+  return invoke<GmailRealtimeConfig>("enable_gmail_realtime", {
+    accountId,
+    fallbackIntervalMinutes: fallbackIntervalMinutes ?? null,
+  });
+}
+
+export async function disableGmailRealtime(accountId: string): Promise<GmailRealtimeConfig> {
+  return invoke<GmailRealtimeConfig>("disable_gmail_realtime", { accountId });
+}
+
+export async function updateGmailRealtimeConfig(
+  accountId: string,
+  fallbackIntervalMinutes: number,
+): Promise<GmailRealtimeConfig> {
+  return invoke<GmailRealtimeConfig>("update_gmail_realtime_config", {
+    accountId,
+    fallbackIntervalMinutes,
+  });
+}
+
 // ─── Folder API ──────────────────────────────────────────────────────────────
 
 export async function listFolders(accountId: string): Promise<Folder[]> {
@@ -299,6 +329,14 @@ export async function listPendingMailOps(
   limit = 100,
 ): Promise<PendingMailOp[]> {
   return invoke<PendingMailOp[]>("list_pending_mail_ops", { accountId, limit });
+}
+
+export async function cancelPendingMailOp(id: string): Promise<void> {
+  return invoke<void>("cancel_pending_mail_op", { id });
+}
+
+export async function deletePendingMailOp(id: string): Promise<void> {
+  return invoke<void>("delete_pending_mail_op", { id });
 }
 
 // ─── Trusted Senders API ────────────────────────────────────────────────────

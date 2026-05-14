@@ -268,7 +268,13 @@
       "update_flags": "更新标记",
       "move_to_folder": "移动到文件夹",
       "send": "发送"
-    }
+    },
+    "actions": {
+      "cancel": "取消",
+      "delete": "删除"
+    },
+    "cancelConfirm": "取消此待处理操作？将不再重试。",
+    "deleteConfirm": "删除此待处理操作记录？"
   },
   "about": {
     "title": "关于",

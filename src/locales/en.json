@@ -268,7 +268,13 @@
       "update_flags": "Update flags",
       "move_to_folder": "Move to folder",
       "send": "Send"
-    }
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "delete": "Delete"
+    },
+    "cancelConfirm": "Cancel this pending operation? It will no longer be retried.",
+    "deleteConfirm": "Delete this pending operation record?"
   },
   "about": {
     "title": "About",

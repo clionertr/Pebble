@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listen } from "../../tauri-mock";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Clock, RefreshCw } from "lucide-react";
+import { AlertCircle, Clock, RefreshCw, Trash2, XCircle } from "lucide-react";
 import type { PendingMailOp } from "@/lib/api";
 import {
   pendingMailOpsQueryKey,
@@ -11,6 +11,7 @@ import {
   usePendingMailOpsQuery,
   usePendingMailOpsSummary,
 } from "@/hooks/queries";
+import { cancelPendingMailOp, deletePendingMailOp } from "@/lib/api";
 import { useMailStore } from "@/stores/mail.store";
 
 const metricStyle: React.CSSProperties = {
@@ -111,6 +112,36 @@ export default function PendingOpsTab() {
     const account = accountsById.get(accountId);
     return account?.email ?? t("pendingOps.unknownAccount", "Unknown account");
   }
+
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const handleCancel = useCallback(async (opId: string) => {
+    if (!window.confirm(t("pendingOps.cancelConfirm", "Cancel this pending operation? It will no longer be retried."))) return;
+    setActionLoading(opId);
+    try {
+      await cancelPendingMailOp(opId);
+      queryClient.invalidateQueries({ queryKey: pendingMailOpsSummaryQueryKey(selectedAccountId) });
+      queryClient.invalidateQueries({ queryKey: pendingMailOpsQueryKey(selectedAccountId) });
+    } catch {
+      // error handled by caller
+    } finally {
+      setActionLoading(null);
+    }
+  }, [queryClient, selectedAccountId, t]);
+
+  const handleDelete = useCallback(async (opId: string) => {
+    if (!window.confirm(t("pendingOps.deleteConfirm", "Delete this pending operation record?"))) return;
+    setActionLoading(opId);
+    try {
+      await deletePendingMailOp(opId);
+      queryClient.invalidateQueries({ queryKey: pendingMailOpsSummaryQueryKey(selectedAccountId) });
+      queryClient.invalidateQueries({ queryKey: pendingMailOpsQueryKey(selectedAccountId) });
+    } catch {
+      // error handled by caller
+    } finally {
+      setActionLoading(null);
+    }
+  }, [queryClient, selectedAccountId, t]);
 
   async function refresh() {
     await Promise.all([summaryQuery.refetch(), opsQuery.refetch()]);
@@ -303,6 +334,7 @@ export default function PendingOpsTab() {
                 <th style={tableHeaderStyle}>{t("pendingOps.account", "Account")}</th>
                 <th style={tableHeaderStyle}>{t("pendingOps.updated", "Updated")}</th>
                 <th style={tableHeaderStyle}>{t("pendingOps.lastError", "Last error")}</th>
+                <th style={{ ...tableHeaderStyle, textAlign: "center" }}>{t("common.actions", "Actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -336,6 +368,53 @@ export default function PendingOpsTab() {
                     <td style={tableCellStyle}>{formatTimestamp(op.updated_at)}</td>
                     <td style={{ ...tableCellStyle, color: op.last_error ? "var(--color-warning, #d97706)" : "var(--color-text-secondary)" }}>
                       {op.last_error ?? "-"}
+                    </td>
+                    <td style={{ ...tableCellStyle, textAlign: "center", whiteSpace: "nowrap" }}>
+                      <button
+                        type="button"
+                        onClick={() => handleCancel(op.id)}
+                        disabled={actionLoading === op.id}
+                        title={t("pendingOps.actions.cancel", "Cancel")}
+                        aria-label={t("pendingOps.actions.cancel", "Cancel")}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: "28px",
+                          height: "28px",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: "4px",
+                          background: "var(--color-bg-secondary)",
+                          color: "var(--color-text-secondary)",
+                          cursor: "pointer",
+                          marginRight: "4px",
+                          opacity: actionLoading === op.id ? 0.5 : 1,
+                        }}
+                      >
+                        <XCircle size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(op.id)}
+                        disabled={actionLoading === op.id}
+                        title={t("pendingOps.actions.delete", "Delete")}
+                        aria-label={t("pendingOps.actions.delete", "Delete")}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: "28px",
+                          height: "28px",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: "4px",
+                          background: "var(--color-bg-secondary)",
+                          color: "var(--color-danger, #dc2626)",
+                          cursor: "pointer",
+                          opacity: actionLoading === op.id ? 0.5 : 1,
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </td>
                   </tr>
                 );

@@ -429,6 +429,13 @@ impl Store {
         })
     }
 
+    pub fn delete_pending_mail_op(&self, id: &str) -> Result<()> {
+        self.with_write(|conn| {
+            conn.execute("DELETE FROM pending_mail_ops WHERE id = ?1", params![id])?;
+            Ok(())
+        })
+    }
+
     #[cfg(test)]
     pub fn force_pending_mail_op_retry_now_for_test(&self, id: &str) -> Result<()> {
         self.with_write(|conn| {

@@ -60,6 +60,32 @@ pub async fn handle_rpc(
                 Err(err) => Err(Json(json!({ "error": err.to_string() }))),
             }
         }
+        "cancel_pending_mail_op" => {
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct Args {
+            pub id: String,
+            }
+            let args: Args = serde_json::from_value(req.params).map_err(|e| Json(json!({ "error": e.to_string() })))?;
+            let res = crate::rpc::pending_mail_ops::cancel_pending_mail_op(axum::extract::State(state.clone()), args.id);
+            match res {
+                Ok(val) => Ok(Json(serde_json::to_value(val).unwrap_or(Value::Null))),
+                Err(err) => Err(Json(json!({ "error": err.to_string() }))),
+            }
+        }
+        "delete_pending_mail_op" => {
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct Args {
+            pub id: String,
+            }
+            let args: Args = serde_json::from_value(req.params).map_err(|e| Json(json!({ "error": e.to_string() })))?;
+            let res = crate::rpc::pending_mail_ops::delete_pending_mail_op(axum::extract::State(state.clone()), args.id);
+            match res {
+                Ok(val) => Ok(Json(serde_json::to_value(val).unwrap_or(Value::Null))),
+                Err(err) => Err(Json(json!({ "error": err.to_string() }))),
+            }
+        }
         "save_draft" => {
             #[derive(serde::Deserialize)]
             #[serde(rename_all = "camelCase")]
@@ -664,6 +690,66 @@ pub async fn handle_rpc(
             }
             let args: Args = serde_json::from_value(req.params).map_err(|e| Json(json!({ "error": e.to_string() })))?;
             let res = crate::rpc::sync_cmd::set_realtime_preference(axum::extract::State(state.clone()), serde_json::from_value(args.mode).map_err(|e| Json(json!({ "error": format!("Invalid arg 'mode': {}", e) })))?).await;
+            match res {
+                Ok(val) => Ok(Json(serde_json::to_value(val).unwrap_or(Value::Null))),
+                Err(err) => Err(Json(json!({ "error": err.to_string() }))),
+            }
+        }
+        "get_gmail_realtime_config" => {
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct Args {
+            #[serde(default)]
+            pub account_id: serde_json::Value,
+            }
+            let args: Args = serde_json::from_value(req.params).map_err(|e| Json(json!({ "error": e.to_string() })))?;
+            let res = crate::rpc::gmail_realtime::get_gmail_realtime_config(axum::extract::State(state.clone()), serde_json::from_value(args.account_id).map_err(|e| Json(json!({ "error": format!("Invalid arg 'account_id': {}", e) })))?).await;
+            match res {
+                Ok(val) => Ok(Json(serde_json::to_value(val).unwrap_or(Value::Null))),
+                Err(err) => Err(Json(json!({ "error": err.to_string() }))),
+            }
+        }
+        "enable_gmail_realtime" => {
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct Args {
+            #[serde(default)]
+            pub account_id: serde_json::Value,
+            #[serde(default)]
+            pub fallback_interval_minutes: serde_json::Value,
+            }
+            let args: Args = serde_json::from_value(req.params).map_err(|e| Json(json!({ "error": e.to_string() })))?;
+            let res = crate::rpc::gmail_realtime::enable_gmail_realtime(axum::extract::State(state.clone()), serde_json::from_value(args.account_id).map_err(|e| Json(json!({ "error": format!("Invalid arg 'account_id': {}", e) })))?, serde_json::from_value(args.fallback_interval_minutes).map_err(|e| Json(json!({ "error": format!("Invalid arg 'fallback_interval_minutes': {}", e) })))?).await;
+            match res {
+                Ok(val) => Ok(Json(serde_json::to_value(val).unwrap_or(Value::Null))),
+                Err(err) => Err(Json(json!({ "error": err.to_string() }))),
+            }
+        }
+        "disable_gmail_realtime" => {
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct Args {
+            #[serde(default)]
+            pub account_id: serde_json::Value,
+            }
+            let args: Args = serde_json::from_value(req.params).map_err(|e| Json(json!({ "error": e.to_string() })))?;
+            let res = crate::rpc::gmail_realtime::disable_gmail_realtime(axum::extract::State(state.clone()), serde_json::from_value(args.account_id).map_err(|e| Json(json!({ "error": format!("Invalid arg 'account_id': {}", e) })))?).await;
+            match res {
+                Ok(val) => Ok(Json(serde_json::to_value(val).unwrap_or(Value::Null))),
+                Err(err) => Err(Json(json!({ "error": err.to_string() }))),
+            }
+        }
+        "update_gmail_realtime_config" => {
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct Args {
+            #[serde(default)]
+            pub account_id: serde_json::Value,
+            #[serde(default)]
+            pub fallback_interval_minutes: serde_json::Value,
+            }
+            let args: Args = serde_json::from_value(req.params).map_err(|e| Json(json!({ "error": e.to_string() })))?;
+            let res = crate::rpc::gmail_realtime::update_gmail_realtime_config(axum::extract::State(state.clone()), serde_json::from_value(args.account_id).map_err(|e| Json(json!({ "error": format!("Invalid arg 'account_id': {}", e) })))?, serde_json::from_value(args.fallback_interval_minutes).map_err(|e| Json(json!({ "error": format!("Invalid arg 'fallback_interval_minutes': {}", e) })))?).await;
             match res {
                 Ok(val) => Ok(Json(serde_json::to_value(val).unwrap_or(Value::Null))),
                 Err(err) => Err(Json(json!({ "error": err.to_string() }))),

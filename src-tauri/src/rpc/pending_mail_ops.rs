@@ -94,6 +94,24 @@ pub fn list_pending_mail_ops(
         .map(|ops| ops.into_iter().map(Into::into).collect())
 }
 
+pub fn cancel_pending_mail_op(
+    state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
+    id: String,
+) -> std::result::Result<(), PebbleError> {
+    state.store.mark_pending_mail_op_done(&id)?;
+    emit_pending_ops_changed(&state);
+    Ok(())
+}
+
+pub fn delete_pending_mail_op(
+    state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
+    id: String,
+) -> std::result::Result<(), PebbleError> {
+    state.store.delete_pending_mail_op(&id)?;
+    emit_pending_ops_changed(&state);
+    Ok(())
+}
+
 pub fn queue_pending_mail_op(
     store: &Store,
     message: &Message,
