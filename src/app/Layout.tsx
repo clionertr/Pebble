@@ -109,7 +109,7 @@ export default function Layout() {
   // Global listener: refresh data when snoozed messages are restored
   useEffect(() => {
     const unlisten = listen<{ message_id: string; return_to?: string }>("mail:unsnoozed", (event) => {
-      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      queryClient.refetchQueries({ queryKey: ["messages"] });
       queryClient.invalidateQueries({ queryKey: ["snoozed"] });
 
       const { return_to } = event.payload;
