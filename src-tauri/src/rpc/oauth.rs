@@ -332,19 +332,20 @@ fn persist_oauth_tokens(
 }
 
 /// Encrypt and persist OAuth tokens without needing a full `AppState`.
+/// Preserves account proxy settings and the existing refresh token when the
+/// provider omits a replacement refresh token.
 /// Used inside async refresher closures where only `crypto` and `store` are
 /// cloned in.
-fn persist_oauth_tokens_raw(
+pub(crate) fn persist_oauth_tokens_raw(
     crypto: &CryptoService,
     store: &Store,
     account_id: &str,
     tokens: &OAuthTokens,
 ) -> Result<(), PebbleError> {
-    let (proxy_mode, proxy) = read_stored_oauth_auth_data_raw(crypto, store, account_id)?
-        .map(|stored| (stored.proxy_mode, stored.proxy))
-        .unwrap_or((AccountProxyMode::Inherit, None));
-    let stored =
-        StoredOAuthAuthData::from_tokens_with_proxy_mode(tokens.clone(), proxy_mode, proxy);
+    let stored = match read_stored_oauth_auth_data_raw(crypto, store, account_id)? {
+        Some(existing) => existing.with_replacement_tokens(tokens),
+        None => StoredOAuthAuthData::from_tokens(tokens.clone(), None),
+    };
     persist_stored_oauth_auth_data_raw(crypto, store, account_id, &stored)
 }
 
@@ -394,6 +395,16 @@ impl StoredOAuthAuthData {
         self.refresh_token = tokens.refresh_token;
         self.expires_at = tokens.expires_at;
         self.scopes = tokens.scopes;
+        self
+    }
+
+    fn with_replacement_tokens(mut self, tokens: &OAuthTokens) -> Self {
+        self.access_token = tokens.access_token.clone();
+        if tokens.refresh_token.is_some() {
+            self.refresh_token = tokens.refresh_token.clone();
+        }
+        self.expires_at = tokens.expires_at;
+        self.scopes = tokens.scopes.clone();
         self
     }
 
@@ -899,6 +910,42 @@ MICROSOFT_CLIENT_SECRET='microsoft-secret'
 
         assert_eq!(updated.access_token, "new-access");
         assert_eq!(updated.refresh_token.as_deref(), Some("new-refresh"));
+        assert_eq!(updated.expires_at, Some(2));
+        assert_eq!(updated.scopes, vec!["new-scope"]);
+        assert_eq!(updated.proxy_mode, AccountProxyMode::Custom);
+        assert_eq!(
+            updated.proxy,
+            Some(pebble_core::HttpProxyConfig {
+                host: "127.0.0.1".to_string(),
+                port: 7890,
+            })
+        );
+    }
+
+    #[test]
+    fn stored_oauth_auth_data_keeps_refresh_token_when_replacement_omits_it() {
+        let stored = StoredOAuthAuthData {
+            access_token: "old-access".to_string(),
+            refresh_token: Some("old-refresh".to_string()),
+            expires_at: Some(1),
+            scopes: vec!["old-scope".to_string()],
+            proxy_mode: AccountProxyMode::Custom,
+            proxy: Some(pebble_core::HttpProxyConfig {
+                host: "127.0.0.1".to_string(),
+                port: 7890,
+            }),
+        };
+        let replacement = OAuthTokens {
+            access_token: "new-access".to_string(),
+            refresh_token: None,
+            expires_at: Some(2),
+            scopes: vec!["new-scope".to_string()],
+        };
+
+        let updated = stored.with_replacement_tokens(&replacement);
+
+        assert_eq!(updated.access_token, "new-access");
+        assert_eq!(updated.refresh_token.as_deref(), Some("old-refresh"));
         assert_eq!(updated.expires_at, Some(2));
         assert_eq!(updated.scopes, vec!["new-scope"]);
         assert_eq!(updated.proxy_mode, AccountProxyMode::Custom);

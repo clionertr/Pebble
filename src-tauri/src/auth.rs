@@ -18,6 +18,17 @@ pub struct LoginQuery {
     provider: String,
 }
 
+fn account_color_for_existing_oauth_account(
+    existing: &Account,
+    existing_accounts: &[Account],
+    email: &str,
+) -> String {
+    existing
+        .color
+        .clone()
+        .unwrap_or_else(|| crate::account_colors::default_account_color(existing_accounts, email))
+}
+
 pub async fn login_handler(
     State(state): State<Arc<AppState>>,
     Query(query): Query<LoginQuery>,
@@ -128,38 +139,119 @@ async fn complete_account_creation(
     token_pair: pebble_oauth::TokenPair,
     network: &OAuthNetworkConfig,
 ) -> Result<(), pebble_core::PebbleError> {
-    let (real_email, real_name) = crate::rpc::oauth::fetch_userinfo(provider, &token_pair.access_token, network).await?;
+    let (real_email, real_name) =
+        crate::rpc::oauth::fetch_userinfo(provider, &token_pair.access_token, network).await?;
 
     let now = now_timestamp();
     let existing_accounts = state.store.list_accounts()?;
-    let account_color = Some(crate::account_colors::default_account_color(&existing_accounts, &real_email));
+    let provider_type = crate::rpc::oauth::provider_type(provider)?;
 
-    let account = Account {
-        id: new_id(),
-        email: real_email,
-        display_name: real_name,
-        color: account_color,
-        provider: crate::rpc::oauth::provider_type(provider)?,
-        created_at: now,
-        updated_at: now,
-    };
+    if let Some(existing) = existing_accounts
+        .iter()
+        .find(|a| a.email == real_email && a.provider == provider_type)
+    {
+        let color =
+            account_color_for_existing_oauth_account(existing, &existing_accounts, &real_email);
+        state
+            .store
+            .update_account(&existing.id, &real_email, &real_name, Some(&color))?;
 
-    state.store.insert_account(&account)?;
+        let tokens = OAuthTokens {
+            access_token: token_pair.access_token,
+            refresh_token: token_pair.refresh_token,
+            expires_at: token_pair.expires_at,
+            scopes: token_pair.scopes,
+        };
 
-    let tokens = OAuthTokens {
-        access_token: token_pair.access_token,
-        refresh_token: token_pair.refresh_token,
-        expires_at: token_pair.expires_at,
-        scopes: token_pair.scopes,
-    };
+        crate::rpc::oauth::persist_oauth_tokens_raw(
+            &state.crypto,
+            &state.store,
+            &existing.id,
+            &tokens,
+        )?;
 
-    let stored = crate::rpc::oauth::StoredOAuthAuthData::from_tokens(tokens, None);
-    crate::rpc::oauth::persist_stored_oauth_auth_data_raw(&state.crypto, &state.store, &account.id, &stored)?;
+        state.store.update_sync_state(&existing.id, |s| {
+            s.last_sync_cursor = None;
+        })?;
+    } else {
+        let account_color = Some(crate::account_colors::default_account_color(
+            &existing_accounts,
+            &real_email,
+        ));
 
-    let slug = crate::rpc::oauth::provider_slug(&account.provider).to_string();
-    state.store.update_sync_state(&account.id, |s| {
-        s.provider = Some(slug);
-    })?;
+        let account = Account {
+            id: new_id(),
+            email: real_email,
+            display_name: real_name,
+            color: account_color,
+            provider: provider_type,
+            created_at: now,
+            updated_at: now,
+        };
+
+        state.store.insert_account(&account)?;
+
+        let tokens = OAuthTokens {
+            access_token: token_pair.access_token,
+            refresh_token: token_pair.refresh_token,
+            expires_at: token_pair.expires_at,
+            scopes: token_pair.scopes,
+        };
+
+        let stored = crate::rpc::oauth::StoredOAuthAuthData::from_tokens(tokens, None);
+        crate::rpc::oauth::persist_stored_oauth_auth_data_raw(
+            &state.crypto,
+            &state.store,
+            &account.id,
+            &stored,
+        )?;
+
+        let slug = crate::rpc::oauth::provider_slug(&account.provider).to_string();
+        state.store.update_sync_state(&account.id, |s| {
+            s.provider = Some(slug);
+        })?;
+    }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pebble_core::ProviderType;
+
+    fn account(id: &str, color: Option<&str>) -> Account {
+        let now = now_timestamp();
+        Account {
+            id: id.to_string(),
+            email: format!("{id}@example.com"),
+            display_name: id.to_string(),
+            color: color.map(ToOwned::to_owned),
+            provider: ProviderType::Gmail,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    #[test]
+    fn existing_oauth_account_color_keeps_saved_color_on_relogin() {
+        let existing = account("gmail", Some("#f43f5e"));
+        let accounts = vec![account("other", Some("#0ea5e9")), existing.clone()];
+
+        let color =
+            account_color_for_existing_oauth_account(&existing, &accounts, "gmail@example.com");
+
+        assert_eq!(color, "#f43f5e");
+    }
+
+    #[test]
+    fn existing_oauth_account_color_assigns_default_when_missing() {
+        let existing = account("gmail", None);
+        let accounts = vec![account("other", Some("#0ea5e9")), existing.clone()];
+
+        let color =
+            account_color_for_existing_oauth_account(&existing, &accounts, "gmail@example.com");
+
+        assert_eq!(color, "#22c55e");
+    }
 }
