@@ -21,6 +21,58 @@ describe("sanitizeHtml", () => {
     expect(sanitized).toContain("color:");
   });
 
+  it("preserves safe background shorthand used by email buttons", () => {
+    const sanitized = sanitizeHtml(
+      '<a style="background: #f38020; color: #ffffff; border: 1px solid #f38020">Open dashboard</a>',
+    );
+
+    expect(sanitized).toContain("background:");
+    expect(sanitized).toContain("#f38020");
+    expect(sanitized).toContain("color:");
+  });
+
+  it("removes unsafe background shorthand urls", () => {
+    const sanitized = sanitizeHtml(
+      '<p style="background: url(https://evil.example/track); color: blue">Hello</p>',
+    );
+
+    expect(sanitized).not.toContain("evil.example");
+    expect(sanitized).toContain("color:");
+  });
+
+  it("keeps zero-height email spacer image constraints", () => {
+    const sanitized = sanitizeHtml(
+      '<img src="https://example.com/spacer.png" width="600" height="1" style="display:block;max-height:0px;min-height:0px;min-width:600px;width:600px">',
+    );
+
+    expect(sanitized).toContain("max-height:0px");
+    expect(sanitized).toContain("min-height:0px");
+    expect(sanitized).toContain("min-width:600px");
+    expect(sanitized).toContain('height="1"');
+  });
+
+  it("preserves hidden preheader clipping styles", () => {
+    const sanitized = sanitizeHtml(
+      '<div style="max-width:0px;max-height:0px;overflow:hidden;visibility:hidden;opacity:0">马凯，为您推荐 2 条新动态</div>',
+    );
+
+    expect(sanitized).toContain("max-width:0px");
+    expect(sanitized).toContain("max-height:0px");
+    expect(sanitized).toContain("overflow:hidden");
+    expect(sanitized).toContain("visibility:hidden");
+    expect(sanitized).toContain("opacity:0");
+  });
+
+  it("uses only body content from full html documents", () => {
+    const sanitized = sanitizeHtml(
+      "<html><head><title>Leaked subject</title><style>p{color:red}</style></head><body><p>Visible body</p></body></html>",
+    );
+
+    expect(sanitized).toContain("Visible body");
+    expect(sanitized).not.toContain("Leaked subject");
+    expect(sanitized).not.toContain("p{color:red}");
+  });
+
   it("removes inline styles with escaped url tokens", () => {
     const sanitized = sanitizeHtml(
       `<p style="color: u\\72l('https://evil.example/track')">hello</p>`,
