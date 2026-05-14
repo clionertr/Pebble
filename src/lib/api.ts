@@ -112,6 +112,7 @@ export async function updateGlobalProxy(
   return invoke<void>("update_global_proxy", { proxyHost, proxyPort });
 }
 
+/** @deprecated OAuth sign-in must start through `startOAuthLogin` and `/auth/login`. */
 export async function completeOAuthFlow(
   provider: string,
   email: string,
@@ -120,6 +121,22 @@ export async function completeOAuthFlow(
   proxyPort?: number,
 ): Promise<Account> {
   return invoke<Account>("complete_oauth_flow", { provider, email, displayName, proxyHost, proxyPort });
+}
+
+export function startOAuthLogin(
+  provider: "gmail" | "outlook",
+  proxyHost?: string,
+  proxyPort?: number,
+) {
+  const params = new URLSearchParams({ provider });
+  const trimmedProxyHost = proxyHost?.trim();
+  if (trimmedProxyHost) {
+    params.set("proxyHost", trimmedProxyHost);
+  }
+  if (proxyPort !== undefined) {
+    params.set("proxyPort", String(proxyPort));
+  }
+  window.location.assign(`/auth/login?${params.toString()}`);
 }
 
 export async function getOAuthAccountProxy(accountId: string): Promise<HttpProxyConfig | null> {

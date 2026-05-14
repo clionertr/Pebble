@@ -349,6 +349,22 @@ pub(crate) fn persist_oauth_tokens_raw(
     persist_stored_oauth_auth_data_raw(crypto, store, account_id, &stored)
 }
 
+pub(crate) fn persist_oauth_tokens_with_custom_proxy_raw(
+    crypto: &CryptoService,
+    store: &Store,
+    account_id: &str,
+    tokens: &OAuthTokens,
+    proxy: HttpProxyConfig,
+) -> Result<(), PebbleError> {
+    let mut stored = match read_stored_oauth_auth_data_raw(crypto, store, account_id)? {
+        Some(existing) => existing.with_replacement_tokens(tokens),
+        None => StoredOAuthAuthData::from_tokens(tokens.clone(), Some(proxy.clone())),
+    };
+    stored.proxy_mode = AccountProxyMode::Custom;
+    stored.proxy = Some(proxy);
+    persist_stored_oauth_auth_data_raw(crypto, store, account_id, &stored)
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct StoredOAuthAuthData {
     access_token: String,

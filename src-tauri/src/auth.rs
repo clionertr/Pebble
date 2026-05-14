@@ -3,7 +3,7 @@ use axum::{
     extract::{Query, State},
     response::{Html, IntoResponse, Redirect},
 };
-use pebble_core::{new_id, now_timestamp, Account, OAuthTokens};
+use pebble_core::{new_id, now_timestamp, Account, HttpProxyConfig, OAuthTokens};
 use pebble_oauth::{OAuthManager, OAuthNetworkConfig, PkceState};
 use serde::Deserialize;
 use std::sync::Arc;
@@ -11,11 +11,15 @@ use std::sync::Arc;
 pub struct OAuthSession {
     pub provider: String,
     pub pkce_state: PkceState,
+    pub proxy: Option<HttpProxyConfig>,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LoginQuery {
     provider: String,
+    proxy_host: Option<String>,
+    proxy_port: Option<u16>,
 }
 
 fn account_color_for_existing_oauth_account(
@@ -33,7 +37,11 @@ pub async fn login_handler(
     State(state): State<Arc<AppState>>,
     Query(query): Query<LoginQuery>,
 ) -> impl IntoResponse {
-    let provider = query.provider;
+    let LoginQuery { provider, proxy_host, proxy_port } = query;
+    let proxy = match crate::rpc::network::proxy_config_from_parts(proxy_host, proxy_port, "OAuth proxy") {
+        Ok(proxy) => proxy,
+        Err(e) => return Html(format!("<h1>Error</h1><p>{}</p>", e)).into_response(),
+    };
     let config = match crate::rpc::oauth::config_for_provider(&provider) {
         Ok(c) => c,
         Err(e) => return Html(format!("<h1>Error</h1><p>Invalid provider: {}</p>", e)).into_response(),
@@ -56,6 +64,7 @@ pub async fn login_handler(
         OAuthSession {
             provider,
             pkce_state,
+            proxy,
         },
     );
 
@@ -97,10 +106,11 @@ pub async fn callback_handler(
         Err(e) => return Html(format!("<h1>Error</h1><p>{}</p>", e)).into_response(),
     };
 
-    let effective_proxy = match crate::rpc::network::get_global_proxy_raw(&state.crypto, &state.store) {
+    let global_proxy = match crate::rpc::network::get_global_proxy_raw(&state.crypto, &state.store) {
         Ok(p) => p,
         Err(_) => None,
     };
+    let effective_proxy = session.proxy.clone().or(global_proxy);
     let network = OAuthNetworkConfig { proxy: effective_proxy };
     let manager = OAuthManager::new_with_network(config, network.clone());
 
@@ -114,7 +124,7 @@ pub async fn callback_handler(
     // For now we'll do it inline, using a dummy fetch_userinfo if we don't want to copy the whole thing,
     // but actually we can make fetch_userinfo in oauth.rs pub(crate). Let's assume we will.
 
-    match complete_account_creation(&state, &session.provider, token_pair, &network).await {
+    match complete_account_creation(&state, &session.provider, token_pair, &network, session.proxy.clone()).await {
         Ok(_) => Html(format!("
             <html>
                 <head><title>Success</title></head>
@@ -138,6 +148,7 @@ async fn complete_account_creation(
     provider: &str,
     token_pair: pebble_oauth::TokenPair,
     network: &OAuthNetworkConfig,
+    account_proxy: Option<HttpProxyConfig>,
 ) -> Result<(), pebble_core::PebbleError> {
     let (real_email, real_name) =
         crate::rpc::oauth::fetch_userinfo(provider, &token_pair.access_token, network).await?;
@@ -163,12 +174,22 @@ async fn complete_account_creation(
             scopes: token_pair.scopes,
         };
 
-        crate::rpc::oauth::persist_oauth_tokens_raw(
-            &state.crypto,
-            &state.store,
-            &existing.id,
-            &tokens,
-        )?;
+        if let Some(proxy) = account_proxy.clone() {
+            crate::rpc::oauth::persist_oauth_tokens_with_custom_proxy_raw(
+                &state.crypto,
+                &state.store,
+                &existing.id,
+                &tokens,
+                proxy,
+            )?;
+        } else {
+            crate::rpc::oauth::persist_oauth_tokens_raw(
+                &state.crypto,
+                &state.store,
+                &existing.id,
+                &tokens,
+            )?;
+        }
 
         state.store.update_sync_state(&existing.id, |s| {
             s.last_sync_cursor = None;
@@ -198,7 +219,7 @@ async fn complete_account_creation(
             scopes: token_pair.scopes,
         };
 
-        let stored = crate::rpc::oauth::StoredOAuthAuthData::from_tokens(tokens, None);
+        let stored = crate::rpc::oauth::StoredOAuthAuthData::from_tokens(tokens, account_proxy);
         crate::rpc::oauth::persist_stored_oauth_auth_data_raw(
             &state.crypto,
             &state.store,
