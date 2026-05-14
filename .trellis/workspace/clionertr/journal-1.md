@@ -144,3 +144,39 @@ Implemented cargo-chef and BuildKit cache mounts in Dockerfiles. Updated GitHub 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 5: Gmail Pub/Sub realtime sync
+
+**Date**: 2026-05-14
+**Task**: Gmail Pub/Sub realtime sync
+**Package**: pebble
+**Branch**: `001-improve-experience`
+
+### Summary
+
+Implemented per-account Gmail API Pub/Sub realtime sync with configurable fallback polling, fixed OAuth add-account login to use /auth/login, updated tests/docs, and recorded retired endpoint call guidance.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bf7621c` | (see git log) |
+| `82acafb` | (see git log) |
+| `b8af4b9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

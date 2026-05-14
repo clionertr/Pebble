@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 4
-- **Last Active**: 2026-05-06
+- **Total Sessions**: 5
+- **Last Active**: 2026-05-14
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~146 | Active |
+| `journal-1.md` | ~182 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 5 | 2026-05-14 | Gmail Pub/Sub realtime sync | `bf7621c`, `82acafb`, `b8af4b9` | `001-improve-experience` |
 | 4 | 2026-05-06 | Optimize Docker Build Caching | `78b512d`, `2e17041`, `e890d9f` | `001-improve-experience` |
 | 3 | 2026-05-05 | Fix Build Error | `c6a9b0b` | `master` |
 | 2 | 2026-05-04 | Mobile Web Adaptation | `c06dc63` | `master` |
