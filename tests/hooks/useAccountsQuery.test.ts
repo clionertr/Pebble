@@ -8,9 +8,12 @@ const mockInvoke = vi.mocked(invoke);
 // Import after mocking
 import { accountsQueryKey } from "../../src/hooks/queries/useAccountsQuery";
 import {
+  enableGmailRealtime,
   getGlobalProxy,
+  getGmailRealtimeConfig,
   getOAuthAccountProxy,
   listAccounts,
+  updateGmailRealtimeConfig,
   updateGlobalProxy,
   updateOAuthAccountProxy,
   updateAccount,
@@ -125,6 +128,49 @@ describe("useAccountsQuery", () => {
       proxyHost: undefined,
       proxyPort: undefined,
       accountColor: "#22c55e",
+    });
+  });
+
+  it("getGmailRealtimeConfig should call the correct Tauri command", async () => {
+    mockInvoke.mockResolvedValueOnce({
+      accountId: "account-1",
+      enabled: false,
+      status: "not_enabled",
+      configMissing: false,
+      topicName: null,
+      expirationMs: null,
+      lastWatchHistoryId: null,
+      lastWatchAt: null,
+      lastError: null,
+      fallbackIntervalMinutes: 15,
+    });
+
+    await getGmailRealtimeConfig("account-1");
+
+    expect(mockInvoke).toHaveBeenCalledWith("get_gmail_realtime_config", {
+      accountId: "account-1",
+    });
+  });
+
+  it("enableGmailRealtime should pass the fallback interval", async () => {
+    mockInvoke.mockResolvedValueOnce({});
+
+    await enableGmailRealtime("account-1", 30);
+
+    expect(mockInvoke).toHaveBeenCalledWith("enable_gmail_realtime", {
+      accountId: "account-1",
+      fallbackIntervalMinutes: 30,
+    });
+  });
+
+  it("updateGmailRealtimeConfig should pass the fallback interval", async () => {
+    mockInvoke.mockResolvedValueOnce({});
+
+    await updateGmailRealtimeConfig("account-1", 45);
+
+    expect(mockInvoke).toHaveBeenCalledWith("update_gmail_realtime_config", {
+      accountId: "account-1",
+      fallbackIntervalMinutes: 45,
     });
   });
 });

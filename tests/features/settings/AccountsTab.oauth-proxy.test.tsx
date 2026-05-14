@@ -2,8 +2,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AccountsTab from "../../../src/features/settings/AccountsTab";
 import {
+  disableGmailRealtime,
+  enableGmailRealtime,
+  getGmailRealtimeConfig,
   getOAuthAccountProxySetting,
+  setRealtimePreference,
   updateAccount,
+  updateGmailRealtimeConfig,
   updateOAuthAccountProxySetting,
 } from "../../../src/lib/api";
 
@@ -42,10 +47,15 @@ vi.mock("../../../src/hooks/queries", () => ({
 
 vi.mock("../../../src/lib/api", () => ({
   deleteAccount: vi.fn(),
+  disableGmailRealtime: vi.fn(),
+  enableGmailRealtime: vi.fn(),
+  getGmailRealtimeConfig: vi.fn(),
   getOAuthAccountProxy: vi.fn(() => Promise.resolve(null)),
   getOAuthAccountProxySetting: vi.fn(),
+  setRealtimePreference: vi.fn(() => Promise.resolve(undefined)),
   testAccountConnection: vi.fn(),
   updateAccount: vi.fn(),
+  updateGmailRealtimeConfig: vi.fn(),
   updateOAuthAccountProxy: vi.fn(() => Promise.resolve(undefined)),
   updateOAuthAccountProxySetting: vi.fn(),
 }));
@@ -65,8 +75,8 @@ vi.mock("../../../src/stores/mail.store", () => ({
 }));
 
 vi.mock("../../../src/stores/ui.store", () => ({
-  useUIStore: (selector: (state: { realtimeStatusByAccount: Record<string, unknown> }) => unknown) =>
-    selector({ realtimeStatusByAccount: {} }),
+  useUIStore: (selector: (state: { realtimeStatusByAccount: Record<string, unknown>; realtimeMode: "realtime" }) => unknown) =>
+    selector({ realtimeStatusByAccount: {}, realtimeMode: "realtime" }),
 }));
 
 vi.mock("../../../src/stores/toast.store", () => ({
@@ -84,8 +94,83 @@ describe("AccountsTab OAuth proxy", () => {
       mode: "custom",
       proxy: { host: "127.0.0.1", port: 7890 },
     });
+    vi.mocked(getGmailRealtimeConfig).mockResolvedValue({
+      accountId: "account-1",
+      enabled: false,
+      status: "not_enabled",
+      configMissing: false,
+      topicName: null,
+      expirationMs: null,
+      lastWatchHistoryId: null,
+      lastWatchAt: null,
+      lastError: null,
+      fallbackIntervalMinutes: 15,
+    });
     vi.mocked(updateAccount).mockResolvedValue(undefined);
+    vi.mocked(updateGmailRealtimeConfig).mockImplementation((_accountId, fallbackIntervalMinutes) =>
+      Promise.resolve({
+        accountId: "account-1",
+        enabled: false,
+        status: "not_enabled",
+        configMissing: false,
+        topicName: null,
+        expirationMs: null,
+        lastWatchHistoryId: null,
+        lastWatchAt: null,
+        lastError: null,
+        fallbackIntervalMinutes,
+      }),
+    );
     vi.mocked(updateOAuthAccountProxySetting).mockResolvedValue(undefined);
+    vi.mocked(enableGmailRealtime).mockResolvedValue({
+      accountId: "account-1",
+      enabled: true,
+      status: "realtime_enabled",
+      configMissing: false,
+      topicName: "projects/test/topics/gmail",
+      expirationMs: 1_700_000_000_000,
+      lastWatchHistoryId: "123",
+      lastWatchAt: 1_700_000_000,
+      lastError: null,
+      fallbackIntervalMinutes: 15,
+    });
+    vi.mocked(disableGmailRealtime).mockResolvedValue({
+      accountId: "account-1",
+      enabled: false,
+      status: "not_enabled",
+      configMissing: false,
+      topicName: "projects/test/topics/gmail",
+      expirationMs: 1_700_000_000_000,
+      lastWatchHistoryId: "123",
+      lastWatchAt: 1_700_000_000,
+      lastError: null,
+      fallbackIntervalMinutes: 15,
+    });
+  });
+
+  it("enables Gmail realtime from the account row with the account fallback interval", async () => {
+    render(<AccountsTab />);
+
+    const enableButton = await screen.findByRole("button", { name: "Enable realtime Gmail" });
+    fireEvent.click(enableButton);
+
+    await waitFor(() => {
+      expect(enableGmailRealtime).toHaveBeenCalledWith("account-1", 15);
+    });
+    expect(await screen.findByText("Gmail realtime: Realtime enabled")).toBeTruthy();
+  });
+
+  it("saves the Gmail realtime fallback interval from the edit dialog", async () => {
+    render(<AccountsTab />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit account" }));
+    const fallbackInput = await screen.findByLabelText("Gmail realtime fallback");
+    fireEvent.change(fallbackInput, { target: { value: "30" } });
+    fireEvent.click(screen.getByRole("button", { name: "common.save" }));
+
+    await waitFor(() => {
+      expect(updateGmailRealtimeConfig).toHaveBeenCalledWith("account-1", 30);
+    });
   });
 
   it("loads and saves OAuth proxy settings without IMAP credentials", async () => {

@@ -173,6 +173,30 @@ export interface AccountProxySetting {
   proxy: HttpProxyConfig | null;
 }
 
+/** @rust src-tauri/src/gmail_realtime.rs -> GmailRealtimeStatus */
+export type GmailRealtimeStatus =
+  | "not_enabled"
+  | "enabling"
+  | "realtime_enabled"
+  | "renewing"
+  | "realtime_error"
+  | "reconnect_required"
+  | "config_missing";
+
+/** @rust src-tauri/src/gmail_realtime.rs -> GmailRealtimeConfig */
+export interface GmailRealtimeConfig {
+  accountId: string;
+  enabled: boolean;
+  status: GmailRealtimeStatus;
+  configMissing: boolean;
+  topicName: string | null;
+  expirationMs: number | null;
+  lastWatchHistoryId: string | null;
+  lastWatchAt: number | null;
+  lastError: string | null;
+  fallbackIntervalMinutes: number;
+}
+
 // ─── Attachment types ───────────────────────────────────────────────────────────
 
 /** @rust pebble-core/src/types.rs → Attachment */

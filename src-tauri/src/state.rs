@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::{broadcast, mpsc, watch, Mutex};
 
 #[derive(Clone, Debug)]
@@ -26,6 +27,7 @@ pub struct AppState {
     pub search: Arc<TantivySearch>,
     pub crypto: Arc<CryptoService>,
     pub sync_handles: Mutex<HashMap<String, SyncHandle>>,
+    pub gmail_push_coalescer: Mutex<HashMap<String, Instant>>,
     pub oauth_states: Mutex<HashMap<String, crate::auth::OAuthSession>>,
     /// Kept alive so the snooze watcher's `stop_rx` remains open.
     #[allow(dead_code)]
@@ -49,6 +51,7 @@ impl AppState {
             search: Arc::new(search),
             crypto: Arc::new(crypto),
             sync_handles: Mutex::new(HashMap::new()),
+            gmail_push_coalescer: Mutex::new(HashMap::new()),
             oauth_states: Mutex::new(HashMap::new()),
             snooze_stop_tx,
             attachments_dir,

@@ -1926,6 +1926,7 @@ name = "pebble"
 version = "0.0.4"
 dependencies = [
  "axum",
+ "base64 0.22.1",
  "lettre",
  "opener",
  "pebble-core",

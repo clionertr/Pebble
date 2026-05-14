@@ -223,6 +223,17 @@ fn oauth_config_optional_value(key: &str, compile_value: Option<&str>) -> Option
     }
 }
 
+pub(crate) fn runtime_config_value(key: &str) -> Option<String> {
+    std::env::var(key)
+        .ok()
+        .filter(|value| !is_placeholder(value))
+        .or_else(|| {
+            dotenv_contents()
+                .and_then(|contents| dotenv_lookup_from_str(&contents, key))
+                .filter(|value| !is_placeholder(value))
+        })
+}
+
 fn token_exchange_error_message(provider: &str, error: &OAuthError) -> String {
     let detail = match error {
         OAuthError::TokenExchange(message) => message.as_str(),

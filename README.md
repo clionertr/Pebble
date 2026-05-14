@@ -157,7 +157,7 @@ Start the frontend dev server (terminal 2):
 pnpm dev:frontend
 ```
 
-Open `http://localhost:1420` in your browser. The Vite dev server automatically proxies `/rpc`, `/events`, and `/auth` to the backend at port 3000.
+Open `http://localhost:1420` in your browser. The Vite dev server automatically proxies `/rpc`, `/events`, `/auth`, and `/webhook` to the backend at port 3000.
 
 ### Production Deployment
 
@@ -167,7 +167,7 @@ Build the frontend:
 pnpm build:frontend
 ```
 
-The static files are written to `dist/`. Serve them with any web server (nginx, caddy, etc.) and proxy the `/rpc`, `/events`, and `/auth` paths to the Rust backend.
+The static files are written to `dist/`. Serve them with any web server (nginx, caddy, etc.) and proxy the `/rpc`, `/events`, `/auth`, and `/webhook` paths to the Rust backend.
 
 Build and run the backend:
 
@@ -193,8 +193,8 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Backend API and SSE
-    location ~ ^/(rpc|events|auth) {
+    # Backend API, SSE, OAuth, and Gmail Pub/Sub webhook
+    location ~ ^/(rpc|events|auth|webhook) {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -222,6 +222,27 @@ Copy `.env.example` to `.env`, then fill the provider values you need. The envir
 
 > **Note**: Because the OAuth callback is now handled by the HTTP server at `/auth/callback`, you must configure `http://<your-host>/auth/callback` (or `http://localhost:3000/auth/callback` for local dev) as the authorized redirect URI in your Google/Microsoft app settings.
 
+## Gmail Realtime Push
+
+Gmail accounts can optionally use Gmail API `watch` notifications delivered through Google Cloud Pub/Sub. This is enabled per account from **Settings -> Accounts -> Enable realtime Gmail**; normal Gmail OAuth login and IMAP accounts do not depend on this configuration.
+
+Runtime environment variables:
+
+| Variable | Description |
+| --- | --- |
+| `GMAIL_PUBSUB_TOPIC` | Fully qualified Pub/Sub topic, for example `projects/<project-id>/topics/gmail-webmail-topic`. |
+| `GMAIL_WEBHOOK_SECRET` | Shared secret required on the Pub/Sub push URL query string. Do not commit this value. |
+
+Google Cloud setup:
+
+1. Enable Gmail API and Cloud Pub/Sub API.
+2. Create a Pub/Sub topic.
+3. Grant `roles/pubsub.publisher` on that topic to `gmail-api-push@system.gserviceaccount.com`.
+4. Create a push subscription pointing at `https://<your-host>/webhook/gmail?secret=<your-secret>`.
+5. Expose `/webhook/gmail` through your reverse proxy to the Pebble backend.
+
+Pebble renews enabled Gmail watches on startup and every 12 hours, renewing any watch that is missing an expiration or expires within 24 hours. Pub/Sub OIDC JWT validation is not part of this MVP; use the URL secret now and add authenticated push verification before treating the endpoint as production-hardened.
+
 ## API Reference
 
 The backend exposes three endpoint groups:
@@ -245,6 +266,10 @@ Initiates the OAuth PKCE flow. Redirects the browser to the provider's authoriza
 ### `GET /auth/callback`
 
 OAuth redirect target. Exchanges the authorization code for tokens and creates the account. Redirects to `/` on success.
+
+### `POST /webhook/gmail?secret=<secret>`
+
+Cloud Pub/Sub push endpoint for Gmail notifications. Valid requests are acknowledged immediately; Pebble maps the Gmail `emailAddress` to push-enabled Gmail accounts and triggers the existing Gmail sync pipeline asynchronously.
 
 ## Useful Scripts
 

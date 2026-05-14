@@ -110,6 +110,29 @@ async fn start_sync_inner(
         }
     };
 
+    let gmail_push_state = if account.provider == ProviderType::Gmail {
+        match crate::gmail_realtime::load_gmail_push_state(&state.store, &account_id) {
+            Ok(push_state) => Some(push_state),
+            Err(e) => {
+                let mut handles = state.sync_handles.lock().await;
+                if let Some(handle) = handles.remove(&account_id) {
+                    handle.task.abort();
+                }
+                return Err(e);
+            }
+        }
+    } else {
+        None
+    };
+    let gmail_push_enabled = gmail_push_state
+        .as_ref()
+        .is_some_and(|push_state| push_state.enabled);
+    let poll_interval_secs = crate::gmail_realtime::effective_gmail_poll_interval_secs(
+        &account.provider,
+        gmail_push_state.as_ref(),
+        poll_interval_secs,
+    );
+
     let provider_for_errors = account.provider.clone();
     let account_id_for_errors = account_id.clone();
     let store = Arc::clone(&state.store);
@@ -173,6 +196,7 @@ async fn start_sync_inner(
         account_id_clone.clone(),
         account_id_clone,
         poll_interval_secs,
+        gmail_push_enabled,
         account,
     ) {
         Ok(task) => task,
@@ -369,6 +393,7 @@ fn build_sync_task(
     account_id_for_progress: String,
     account_id_clone: String,
     poll_interval_secs: Option<u64>,
+    gmail_push_enabled: bool,
     account: pebble_core::Account,
 ) -> std::result::Result<tokio::task::JoinHandle<()>, PebbleError> {
     let task = match account.provider {
@@ -419,10 +444,13 @@ fn build_sync_task(
                     realtime_status_payload(
                         &account_id_clone,
                         &ProviderType::Gmail,
-                        RealtimeMode::Polling,
+                        crate::gmail_realtime::gmail_push_initial_mode(&config, gmail_push_enabled),
                         Some(now_timestamp_secs()),
                         None,
-                        Some(polling_status_message(&config)),
+                        Some(crate::gmail_realtime::gmail_push_status_message(
+                            &config,
+                            gmail_push_enabled,
+                        )),
                     ),
                 );
                 let worker = GmailSyncWorker::new(

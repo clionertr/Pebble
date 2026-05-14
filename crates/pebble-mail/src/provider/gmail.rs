@@ -2,6 +2,7 @@ use std::sync::RwLock;
 
 use async_trait::async_trait;
 use reqwest::{Client, StatusCode};
+use serde::de::{self, Deserializer};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 
@@ -14,6 +15,42 @@ use pebble_core::{
 };
 
 const GMAIL_API_BASE: &str = "https://www.googleapis.com/gmail/v1/users/me";
+
+fn deserialize_string_from_number_or_string<'de, D>(
+    deserializer: D,
+) -> std::result::Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::String(s) => Ok(s),
+        serde_json::Value::Number(n) => Ok(n.to_string()),
+        _ => Err(de::Error::custom("expected string or number")),
+    }
+}
+
+fn deserialize_optional_i64_from_number_or_string<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<i64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    match value {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(serde_json::Value::Number(n)) => n
+            .as_i64()
+            .or_else(|| n.as_u64().and_then(|v| i64::try_from(v).ok()))
+            .map(Some)
+            .ok_or_else(|| de::Error::custom("expected i64 timestamp")),
+        Some(serde_json::Value::String(s)) => s
+            .parse::<i64>()
+            .map(Some)
+            .map_err(|e| de::Error::custom(format!("expected i64 timestamp: {e}"))),
+        Some(_) => Err(de::Error::custom("expected string or number")),
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Gmail API response types (internal)
@@ -135,6 +172,29 @@ struct GmailDraftList {
     drafts: Option<Vec<GmailDraft>>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct GmailWatchResponse {
+    #[serde(
+        rename = "historyId",
+        deserialize_with = "deserialize_string_from_number_or_string"
+    )]
+    pub history_id: String,
+    #[serde(
+        default,
+        rename = "expiration",
+        deserialize_with = "deserialize_optional_i64_from_number_or_string"
+    )]
+    pub expiration_ms: Option<i64>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GmailWatchRequest {
+    topic_name: String,
+    label_ids: Vec<String>,
+    label_filter_behavior: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct GmailFetchedMessage {
     pub message: Message,
@@ -218,6 +278,21 @@ impl GmailProvider {
             .send()
             .await
             .map_err(|e| PebbleError::Network(format!("Gmail API DELETE failed: {e}")))
+    }
+
+    fn status_error(operation: &str, status: StatusCode, body: &str) -> PebbleError {
+        let body = body.trim();
+        let detail = if body.is_empty() {
+            format!("Gmail {operation} failed (status {status})")
+        } else {
+            format!("Gmail {operation} failed (status {status}): {body}")
+        };
+
+        if status == StatusCode::UNAUTHORIZED {
+            PebbleError::Auth(detail)
+        } else {
+            PebbleError::Network(detail)
+        }
     }
 
     fn modify_labels_status_error(status: StatusCode, body: &str) -> PebbleError {
@@ -387,6 +462,41 @@ impl GmailProvider {
         };
         debug!(email = %email, history_id = %history_id, "Gmail profile");
         Ok((email, history_id))
+    }
+
+    pub async fn watch_inbox(&self, topic_name: &str) -> Result<GmailWatchResponse> {
+        let request = GmailWatchRequest {
+            topic_name: topic_name.to_string(),
+            label_ids: vec!["INBOX".to_string()],
+            label_filter_behavior: "include".to_string(),
+        };
+        let resp = self
+            .post_json(&format!("{GMAIL_API_BASE}/watch"), &request)
+            .await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            return Err(Self::status_error("watch", status, &text));
+        }
+
+        resp.json()
+            .await
+            .map_err(|e| PebbleError::Network(format!("Failed to parse Gmail watch response: {e}")))
+    }
+
+    pub async fn stop_watch(&self) -> Result<()> {
+        let resp = self
+            .post_json(&format!("{GMAIL_API_BASE}/stop"), &serde_json::json!({}))
+            .await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            return Err(Self::status_error("stop watch", status, &text));
+        }
+
+        Ok(())
     }
 
     pub async fn trash_message(&self, remote_id: &str) -> Result<()> {
@@ -700,7 +810,7 @@ impl MailTransport for GmailProvider {
             has_labels: true,
             has_folders: false,
             has_categories: false,
-            has_push: false,
+            has_push: true,
             has_threads: true,
         }
     }
@@ -1446,7 +1556,7 @@ mod tests {
         assert!(caps.has_labels);
         assert!(!caps.has_folders);
         assert!(!caps.has_categories);
-        assert!(!caps.has_push);
+        assert!(caps.has_push);
         assert!(caps.has_threads);
     }
 

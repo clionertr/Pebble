@@ -1,17 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Mail, Pencil, Plug } from "lucide-react";
+import { Plus, Trash2, Mail, Pencil, Plug, PowerOff, RadioTower } from "lucide-react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   deleteAccount,
+  disableGmailRealtime,
+  enableGmailRealtime,
+  getGmailRealtimeConfig,
   getOAuthAccountProxySetting,
+  setRealtimePreference,
   testAccountConnection,
   updateAccount,
+  updateGmailRealtimeConfig,
   updateOAuthAccountProxySetting,
 } from "@/lib/api";
-import type { Account, AccountProxyMode, ConnectionSecurity } from "@/lib/api";
+import type { Account, AccountProxyMode, ConnectionSecurity, GmailRealtimeConfig } from "@/lib/api";
 import { useAccountsQuery, accountsQueryKey } from "@/hooks/queries";
 import { useMailStore } from "@/stores/mail.store";
 import { useUIStore, type RealtimeStatus } from "@/stores/ui.store";
@@ -28,11 +33,51 @@ export default function AccountsTab() {
   const { data: accounts = [] } = useAccountsQuery();
   const accountColorsById = useMemo(() => assignAccountColors(accounts), [accounts]);
   const realtimeStatusByAccount = useUIStore((state) => state.realtimeStatusByAccount);
+  const realtimeMode = useUIStore((state) => state.realtimeMode);
   const [showSetup, setShowSetup] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; email: string } | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ id: string; ok: boolean; message: string } | null>(null);
+  const [gmailRealtimeByAccount, setGmailRealtimeByAccount] = useState<Record<string, GmailRealtimeConfig>>({});
+  const [gmailRealtimeActionId, setGmailRealtimeActionId] = useState<string | null>(null);
+  const gmailAccountIds = useMemo(
+    () => accounts.filter((account) => account.provider === "gmail").map((account) => account.id),
+    [accounts],
+  );
+  const gmailAccountIdsKey = gmailAccountIds.join("|");
+
+  useEffect(() => {
+    let cancelled = false;
+    if (gmailAccountIds.length === 0) {
+      setGmailRealtimeByAccount({});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    Promise.all(
+      gmailAccountIds.map((accountId) =>
+        getGmailRealtimeConfig(accountId).catch((err) => {
+          console.warn("Failed to load Gmail realtime config:", err);
+          return null;
+        }),
+      ),
+    ).then((configs) => {
+      if (cancelled) return;
+      setGmailRealtimeByAccount(() => {
+        const next: Record<string, GmailRealtimeConfig> = {};
+        for (const config of configs) {
+          if (config) next[config.accountId] = config;
+        }
+        return next;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gmailAccountIdsKey]);
 
   async function doTestConnection(accountId: string) {
     setTestingId(accountId);
@@ -65,6 +110,37 @@ export default function AccountsTab() {
         message: t("settings.deleteAccountFailed", "Failed to remove account: {{error}}", { error: msg }),
         type: "error",
       });
+    }
+  }
+
+  async function doToggleGmailRealtime(account: Account) {
+    const current = gmailRealtimeByAccount[account.id];
+    setGmailRealtimeActionId(account.id);
+    try {
+      const next = current?.enabled
+        ? await disableGmailRealtime(account.id)
+        : await enableGmailRealtime(
+            account.id,
+            current?.fallbackIntervalMinutes ?? 15,
+          );
+      setGmailRealtimeByAccount((prev) => ({ ...prev, [account.id]: next }));
+      if (current?.enabled) {
+        await setRealtimePreference(realtimeMode);
+      }
+      useToastStore.getState().addToast({
+        message: current?.enabled
+          ? t("settings.gmailRealtimeDisabled", "Gmail realtime disabled")
+          : t("settings.gmailRealtimeEnabled", "Gmail realtime enabled"),
+        type: "success",
+      });
+    } catch (err) {
+      const msg = extractErrorMessage(err);
+      useToastStore.getState().addToast({
+        message: t("settings.gmailRealtimeActionFailed", "Gmail realtime update failed: {{error}}", { error: msg }),
+        type: "error",
+      });
+    } finally {
+      setGmailRealtimeActionId(null);
     }
   }
 
@@ -155,6 +231,17 @@ export default function AccountsTab() {
           {accounts.map((account, index) => {
             const realtimeStatus = realtimeStatusByAccount[account.id];
             const realtimeLabel = getAccountRealtimeStatusText(realtimeStatus, t);
+            const gmailRealtimeConfig = gmailRealtimeByAccount[account.id];
+            const gmailRealtimeLabel =
+              account.provider === "gmail"
+                ? getGmailRealtimeStatusText(
+                    gmailRealtimeConfig,
+                    gmailRealtimeActionId === account.id && !gmailRealtimeConfig?.enabled
+                      ? "enabling"
+                      : null,
+                    t,
+                  )
+                : null;
             const accountColor = accountColorsById.get(account.id) ?? getAccountColor(account);
 
             return (
@@ -214,8 +301,64 @@ export default function AccountsTab() {
                       {realtimeLabel}
                     </span>
                   )}
+                  {gmailRealtimeLabel && (
+                    <span
+                      aria-label={gmailRealtimeLabel}
+                      title={gmailRealtimeConfig?.lastError ?? gmailRealtimeLabel}
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--color-text-secondary)",
+                      }}
+                    >
+                      {t("settings.gmailRealtime", "Gmail realtime")}: {gmailRealtimeLabel}
+                    </span>
+                  )}
                 </div>
                 <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                  {account.provider === "gmail" && (
+                    <button
+                      onClick={() => doToggleGmailRealtime(account)}
+                      disabled={
+                        gmailRealtimeActionId === account.id ||
+                        (!!gmailRealtimeConfig?.configMissing && !gmailRealtimeConfig.enabled)
+                      }
+                      title={getGmailRealtimeActionLabel(gmailRealtimeConfig, t)}
+                      aria-label={getGmailRealtimeActionLabel(gmailRealtimeConfig, t)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        padding: "6px",
+                        borderRadius: "6px",
+                        border: "none",
+                        backgroundColor: "transparent",
+                        color: gmailRealtimeConfig?.enabled ? "var(--color-accent)" : "var(--color-text-secondary)",
+                        cursor:
+                          gmailRealtimeActionId === account.id ||
+                          (!!gmailRealtimeConfig?.configMissing && !gmailRealtimeConfig.enabled)
+                            ? "not-allowed"
+                            : "pointer",
+                        opacity:
+                          gmailRealtimeActionId === account.id ||
+                          (!!gmailRealtimeConfig?.configMissing && !gmailRealtimeConfig.enabled)
+                            ? 0.55
+                            : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (
+                          gmailRealtimeActionId === account.id ||
+                          (!!gmailRealtimeConfig?.configMissing && !gmailRealtimeConfig.enabled)
+                        ) return;
+                        e.currentTarget.style.color = gmailRealtimeConfig?.enabled ? "#ef4444" : "var(--color-accent)";
+                        e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = gmailRealtimeConfig?.enabled ? "var(--color-accent)" : "var(--color-text-secondary)";
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                    >
+                      {gmailRealtimeConfig?.enabled ? <PowerOff size={15} /> : <RadioTower size={15} />}
+                    </button>
+                  )}
                   <button
                     onClick={() => doTestConnection(account.id)}
                     disabled={testingId === account.id}
@@ -351,6 +494,10 @@ export default function AccountsTab() {
             setEditingAccount(null);
             await queryClient.invalidateQueries({ queryKey: accountsQueryKey });
           }}
+          initialGmailRealtimeConfig={gmailRealtimeByAccount[editingAccount.id]}
+          onGmailRealtimeSaved={(config) => {
+            setGmailRealtimeByAccount((prev) => ({ ...prev, [config.accountId]: config }));
+          }}
         />
       )}
     </div>
@@ -385,11 +532,54 @@ function getAccountRealtimeStatusText(
   }
 }
 
-function EditAccountModal({ account, initialColor, onClose, onSaved }: {
+function getGmailRealtimeStatusText(
+  config: GmailRealtimeConfig | undefined | null,
+  transientStatus: "enabling" | null,
+  t: TFunction,
+) {
+  if (transientStatus === "enabling") {
+    return t("settings.gmailRealtimeEnabling", "Enabling...");
+  }
+  if (!config) return null;
+
+  switch (config.status) {
+    case "not_enabled":
+      return t("settings.gmailRealtimeNotEnabled", "Not enabled");
+    case "enabling":
+      return t("settings.gmailRealtimeEnabling", "Enabling...");
+    case "realtime_enabled":
+      return t("settings.gmailRealtimeEnabledStatus", "Realtime enabled");
+    case "renewing":
+      return t("settings.gmailRealtimeRenewing", "Renewing...");
+    case "realtime_error":
+      return t("settings.gmailRealtimeError", "Realtime error");
+    case "reconnect_required":
+      return t("settings.gmailRealtimeReconnectRequired", "Reconnect required");
+    case "config_missing":
+      return t("settings.gmailRealtimeConfigMissing", "Config missing");
+  }
+}
+
+function getGmailRealtimeActionLabel(
+  config: GmailRealtimeConfig | undefined,
+  t: TFunction,
+) {
+  if (config?.enabled) {
+    return t("settings.disableGmailRealtime", "Disable realtime Gmail");
+  }
+  if (config?.configMissing) {
+    return t("settings.gmailRealtimeConfigMissing", "Config missing");
+  }
+  return t("settings.enableGmailRealtime", "Enable realtime Gmail");
+}
+
+function EditAccountModal({ account, initialColor, onClose, onSaved, initialGmailRealtimeConfig, onGmailRealtimeSaved }: {
   account: Account;
   initialColor: string;
   onClose: () => void;
   onSaved: () => void;
+  initialGmailRealtimeConfig?: GmailRealtimeConfig;
+  onGmailRealtimeSaved?: (config: GmailRealtimeConfig) => void;
 }) {
   const { t } = useTranslation();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -408,9 +598,16 @@ function EditAccountModal({ account, initialColor, onClose, onSaved }: {
   const [proxyHost, setProxyHost] = useState("");
   const [proxyPort, setProxyPort] = useState("");
   const [signature, setSignatureValue] = useState("");
+  const [gmailRealtimeConfig, setGmailRealtimeConfig] = useState<GmailRealtimeConfig | null>(
+    initialGmailRealtimeConfig ?? null,
+  );
+  const [fallbackIntervalMinutes, setFallbackIntervalMinutes] = useState(
+    String(initialGmailRealtimeConfig?.fallbackIntervalMinutes ?? 15),
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isOAuth = account.provider === "gmail" || account.provider === "outlook";
+  const isGmail = account.provider === "gmail";
 
   useEffect(() => {
     let cancelled = false;
@@ -443,6 +640,23 @@ function EditAccountModal({ account, initialColor, onClose, onSaved }: {
       cancelled = true;
     };
   }, [account.id, isOAuth]);
+
+  useEffect(() => {
+    if (!isGmail) return;
+    let cancelled = false;
+    getGmailRealtimeConfig(account.id)
+      .then((config) => {
+        if (cancelled) return;
+        setGmailRealtimeConfig(config);
+        setFallbackIntervalMinutes(String(config.fallbackIntervalMinutes));
+      })
+      .catch((err) => {
+        console.warn("Failed to load Gmail realtime config:", err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [account.id, isGmail]);
 
   useEffect(() => {
     const previousFocus =
@@ -515,6 +729,15 @@ function EditAccountModal({ account, initialColor, onClose, onSaved }: {
           nextProxyMode === "custom" ? trimmedProxyHost || undefined : undefined,
           nextProxyMode === "custom" && trimmedProxyPort ? parseInt(trimmedProxyPort, 10) : undefined,
         );
+        if (isGmail) {
+          const interval = parseInt(fallbackIntervalMinutes, 10);
+          if (!Number.isFinite(interval) || interval < 1 || interval > 60) {
+            throw new Error(t("settings.gmailRealtimeFallbackRange", "Fallback interval must be 1-60 minutes"));
+          }
+          const nextConfig = await updateGmailRealtimeConfig(account.id, interval);
+          setGmailRealtimeConfig(nextConfig);
+          onGmailRealtimeSaved?.(nextConfig);
+        }
       } else {
         await updateAccount(
           account.id,
@@ -546,6 +769,7 @@ function EditAccountModal({ account, initialColor, onClose, onSaved }: {
     flexDirection: "column",
   };
   const colorInputValue = /^#[0-9a-fA-F]{6}$/.test(accountColor) ? accountColor : initialColor;
+  const gmailRealtimeStatusText = getGmailRealtimeStatusText(gmailRealtimeConfig, null, t);
   const proxyFields = (
     <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px" }}>
       <div style={fieldStyle}>
@@ -751,6 +975,34 @@ function EditAccountModal({ account, initialColor, onClose, onSaved }: {
             )}
 
             {proxyFields}
+
+            {isGmail && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "end" }}>
+                <div style={fieldStyle}>
+                  <label htmlFor="gmail-realtime-fallback" style={labelStyle}>
+                    {t("settings.gmailRealtimeFallback", "Gmail realtime fallback")}
+                  </label>
+                  <input
+                    id="gmail-realtime-fallback"
+                    aria-label={t("settings.gmailRealtimeFallback", "Gmail realtime fallback")}
+                    style={inputStyle}
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={fallbackIntervalMinutes}
+                    onChange={(e) => setFallbackIntervalMinutes(e.target.value)}
+                  />
+                </div>
+                <span style={{ fontSize: "12px", color: "var(--color-text-secondary)", paddingBottom: "8px" }}>
+                  {t("settings.minutesShort", "min")}
+                </span>
+                {gmailRealtimeStatusText && (
+                  <div style={{ gridColumn: "1 / -1", fontSize: "12px", color: "var(--color-text-secondary)" }}>
+                    {t("settings.gmailRealtime", "Gmail realtime")}: {gmailRealtimeStatusText}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Signature */}
             <div style={fieldStyle}>

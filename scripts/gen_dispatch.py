@@ -37,6 +37,10 @@ EXPORTED_COMMANDS = [
     "crate::rpc::sync_cmd::trigger_sync",
     "crate::rpc::sync_cmd::stop_sync",
     "crate::rpc::sync_cmd::set_realtime_preference",
+    "crate::rpc::gmail_realtime::get_gmail_realtime_config",
+    "crate::rpc::gmail_realtime::enable_gmail_realtime",
+    "crate::rpc::gmail_realtime::disable_gmail_realtime",
+    "crate::rpc::gmail_realtime::update_gmail_realtime_config",
     "crate::rpc::kanban::move_to_kanban",
     "crate::rpc::kanban::list_kanban_cards",
     "crate::rpc::kanban::remove_from_kanban",
@@ -187,6 +191,21 @@ def generate_dispatch(functions, output_file):
     lines.append("    pub method: String,")
     lines.append("    #[serde(default)]")
     lines.append("    pub params: Value,")
+    lines.append("}")
+    lines.append("")
+    lines.append("pub async fn handle_rpc_batch(")
+    lines.append("    state: State<Arc<AppState>>,")
+    lines.append("    Json(reqs): Json<Vec<RpcRequest>>,")
+    lines.append(") -> Result<Json<Vec<Value>>, Json<Value>> {")
+    lines.append("    let mut responses = Vec::with_capacity(reqs.len());")
+    lines.append("    for req in reqs {")
+    lines.append("        let res = handle_rpc(state.clone(), Json(req)).await;")
+    lines.append("        match res {")
+    lines.append("            Ok(Json(val)) => responses.push(val),")
+    lines.append("            Err(Json(err)) => responses.push(err),")
+    lines.append("        }")
+    lines.append("    }")
+    lines.append("    Ok(Json(responses))")
     lines.append("}")
     lines.append("")
     lines.append("pub async fn handle_rpc(")

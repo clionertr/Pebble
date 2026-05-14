@@ -1,25 +1,26 @@
 mod account_colors;
+mod auth;
 mod events;
+mod gmail_realtime;
 mod realtime;
+mod rpc;
 mod snooze_watcher;
 mod state;
-mod rpc;
-mod auth;
 
 use axum::{
-    routing::{get, post},
     extract::State,
     response::sse::{Event, Sse},
+    routing::{get, post},
     Router,
 };
+use state::AppState;
 use std::convert::Infallible;
 use std::net::SocketAddr;
-use tokio::net::TcpListener;
-use tokio_stream::StreamExt;
-use tokio_stream::wrappers::BroadcastStream;
 use std::path::PathBuf;
 use std::sync::Arc;
-use state::AppState;
+use tokio::net::TcpListener;
+use tokio_stream::wrappers::BroadcastStream;
+use tokio_stream::StreamExt;
 
 async fn sse_handler(
     State(state): State<Arc<AppState>>,
@@ -61,25 +62,36 @@ async fn main() {
     std::fs::create_dir_all(&attachments_dir).unwrap();
 
     let (snooze_stop_tx, snooze_stop_rx) = std::sync::mpsc::channel::<()>();
-    let state = Arc::new(AppState::new(store, search, crypto, snooze_stop_tx, attachments_dir));
+    let state = Arc::new(AppState::new(
+        store,
+        search,
+        crypto,
+        snooze_stop_tx,
+        attachments_dir,
+    ));
 
     let store_clone = state.store.clone();
     let state_clone = state.clone();
     tokio::spawn(async move {
         snooze_watcher::run_snooze_watcher(store_clone, state_clone, snooze_stop_rx).await;
     });
+    gmail_realtime::spawn_gmail_watch_renewal_task(state.clone());
 
     let app = Router::new()
         .route("/rpc", post(rpc::dispatch::handle_rpc))
         .route("/rpc/batch", post(rpc::dispatch::handle_rpc_batch))
         .route("/events", get(sse_handler))
+        .route(
+            "/webhook/gmail",
+            post(gmail_realtime::gmail_webhook_handler),
+        )
         .route("/auth/login", get(auth::login_handler))
         .route("/auth/callback", get(auth::callback_handler))
         .layer(
             tower_http::cors::CorsLayer::new()
                 .allow_origin(tower_http::cors::Any)
                 .allow_headers(tower_http::cors::Any)
-                .allow_methods(tower_http::cors::Any)
+                .allow_methods(tower_http::cors::Any),
         )
         .layer(tower_http::compression::CompressionLayer::new())
         .with_state(state);
@@ -92,7 +104,7 @@ async fn main() {
     let addr_str = format!("{}:{}", host, port);
     let addr: SocketAddr = addr_str.parse().expect("Invalid address");
     tracing::info!("listening on {}", addr);
-    
+
     let listener = TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
