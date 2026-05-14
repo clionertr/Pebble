@@ -92,9 +92,6 @@ export default function ConfirmDialog({
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
       aria-describedby="confirm-dialog-message"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onCancel();
-      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -109,8 +106,10 @@ export default function ConfirmDialog({
         ref={dialogRef}
         style={{
           width: "380px",
-          backgroundColor: "var(--color-bg)",
-          borderRadius: "10px",
+          backgroundColor: "var(--color-sidebar-bg)",
+          color: "var(--color-text-primary)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "8px",
           boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
           padding: "24px",
           display: "flex",

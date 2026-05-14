@@ -373,9 +373,6 @@ function DiagnosticLogDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="diagnostic-log-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
       style={{
         position: "fixed",
         inset: 0,

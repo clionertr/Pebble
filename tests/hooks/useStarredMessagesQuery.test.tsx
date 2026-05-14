@@ -6,7 +6,7 @@ import type { MessageSummary } from "../../src/lib/api";
 
 
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../src/tauri-mock";
 import {
   STARRED_MESSAGES_PAGE_SIZE,
   starredMessagesQueryKey,

@@ -49,15 +49,24 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
     : t("messageActions.archive", "Archive");
   const ArchiveActionIcon = folderRole === "archive" ? RotateCcw : Archive;
 
+  function invalidateMessageViews(includeUnreadCounts = false) {
+    queryClient.invalidateQueries({ queryKey: ["messages"] });
+    queryClient.invalidateQueries({ queryKey: ["threads"] });
+    if (includeUnreadCounts) {
+      queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
+    }
+  }
+
   return (
     <div
+      className={`message-list-row${message.is_read ? "" : " message-list-row--unread"}`}
       onClick={onClick}
       tabIndex={0}
       role="option"
       aria-selected={isSelected}
       style={{
         position: "relative",
-        backgroundColor: isSelected ? "var(--color-sidebar-active)" : "transparent",
+        backgroundColor: isSelected ? "var(--color-sidebar-active)" : undefined,
         color: "var(--color-text-primary)",
         fontWeight,
         cursor: "pointer",
@@ -68,23 +77,19 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
         overflow: "hidden",
         transition: "background-color 0.12s ease",
       }}
-      onMouseEnter={(e) => {
+      onMouseEnter={() => {
         setShowActions(true);
-        if (!isSelected) e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
       }}
-      onMouseLeave={(e) => {
+      onMouseLeave={() => {
         setShowActions(false);
-        if (!isSelected) e.currentTarget.style.backgroundColor = "transparent";
       }}
-      onFocus={(e) => {
+      onFocus={() => {
         setShowActions(true);
-        if (!isSelected) e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
       }}
       onBlur={(e) => {
         // Only hide if focus leaves this element entirely (not moving to a child)
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
           setShowActions(false);
-          if (!isSelected) e.currentTarget.style.backgroundColor = "transparent";
         }
       }}
       onKeyDown={(e) => {
@@ -125,15 +130,23 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
         )}
         <span
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
             fontSize: "13px",
             overflow: "hidden",
-            textOverflow: "ellipsis",
             whiteSpace: "nowrap",
             flex: 1,
             marginRight: "8px",
+            minWidth: 0,
           }}
         >
-          {message.from_name || message.from_address}
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+            {message.from_name || message.from_address}
+          </span>
+          {!message.is_read && (
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-accent)", flexShrink: 0 }} />
+          )}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
           {inKanban && (
@@ -228,8 +241,7 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
                     restoreMessagesCache(queryClient, previousLists);
                     return;
                   }
-                  queryClient.invalidateQueries({ queryKey: ["messages"] });
-                  queryClient.invalidateQueries({ queryKey: ["threads"] });
+                  invalidateMessageViews(true);
                   const msg = result === "unarchived"
                     ? t("messageActions.unarchiveSuccess", "Message moved to inbox")
                     : t("messageActions.archiveSuccess", "Message archived");
@@ -267,8 +279,7 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
                 patchMessagesCache(queryClient, (page) => page.filter((m) => m.id !== message.id));
                 moveToFolder(message.id, spamFolderId)
                   .then(() => {
-                    queryClient.invalidateQueries({ queryKey: ["messages"] });
-                    queryClient.invalidateQueries({ queryKey: ["threads"] });
+                    invalidateMessageViews(true);
                     useToastStore.getState().addToast({ message: t("messageActions.spamSuccess", "Marked as spam"), type: "success" });
                   })
                   .catch(() => {
@@ -324,8 +335,7 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
               e.stopPropagation();
               updateMessageFlags(message.id, undefined, !message.is_starred)
                 .then(() => {
-                  queryClient.invalidateQueries({ queryKey: ["messages"] });
-                  queryClient.invalidateQueries({ queryKey: ["threads"] });
+                  invalidateMessageViews();
                   queryClient.invalidateQueries({ queryKey: ["starred-messages"] });
                   queryClient.invalidateQueries({ queryKey: ["message", message.id] });
                 })

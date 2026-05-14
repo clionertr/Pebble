@@ -55,6 +55,8 @@ export function buildCommands(t: (key: string, defaultValue: string) => string):
         if (id) {
           await updateMessageFlags(id, true);
           queryClient.invalidateQueries({ queryKey: ["messages"] });
+          queryClient.invalidateQueries({ queryKey: ["threads"] });
+          queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
         }
       },
     },
@@ -67,6 +69,8 @@ export function buildCommands(t: (key: string, defaultValue: string) => string):
         if (id) {
           await updateMessageFlags(id, false);
           queryClient.invalidateQueries({ queryKey: ["messages"] });
+          queryClient.invalidateQueries({ queryKey: ["threads"] });
+          queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
         }
       },
     },
@@ -106,6 +110,8 @@ export function buildCommands(t: (key: string, defaultValue: string) => string):
           const result = await archiveMessage(id);
           if (result === "skipped") return;
           queryClient.invalidateQueries({ queryKey: ["messages"] });
+          queryClient.invalidateQueries({ queryKey: ["threads"] });
+          queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
           const msg = result === "unarchived" ? t("messageActions.unarchiveSuccess", "Message moved to inbox") : t("messageActions.archiveSuccess", "Message archived");
           useToastStore.getState().addToast({ message: msg, type: "success" });
         } catch {

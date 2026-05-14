@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../src/tauri-mock";
 const mockInvoke = vi.mocked(invoke);
 
 import { foldersQueryKey } from "../../src/hooks/queries/useFoldersQuery";

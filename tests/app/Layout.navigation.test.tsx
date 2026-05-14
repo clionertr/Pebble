@@ -6,16 +6,16 @@ import { useUIStore } from "../../src/stores/ui.store";
 const mocks = vi.hoisted(() => {
   const settingsViewPromise = new Promise<{ default: () => JSX.Element }>(() => {});
 
-vi.mock("../../src/tauri-mock", () => ({
-  listen: vi.fn().mockResolvedValue(vi.fn()),
-}));
-
   return {
     settingsViewPromise,
     invalidateQueries: vi.fn(),
     setNotificationsEnabled: vi.fn().mockResolvedValue(undefined),
   };
 });
+
+vi.mock("../../src/tauri-mock", () => ({
+  listen: vi.fn().mockResolvedValue(vi.fn()),
+}));
 
 vi.mock("react-i18next", () => ({
   initReactI18next: {
@@ -150,7 +150,7 @@ vi.mock("../../src/hooks/useKeyboard", () => ({
 
 vi.mock("../../src/app/lazyViewPreload", () => ({
   createLazyViewPreloader: vi.fn(() => vi.fn().mockResolvedValue([])),
-  scheduleLazyViewPreload: vi.fn(),
+  scheduleLazyViewPreload: vi.fn(() => vi.fn()),
 }));
 
 vi.mock("../../src/stores/kanban.store", () => ({

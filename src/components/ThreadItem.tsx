@@ -31,13 +31,14 @@ function ThreadItem({ thread, isSelected, onClick }: Props) {
 
   return (
     <div
+      className={`thread-list-row${hasUnread ? " thread-list-row--unread" : ""}`}
       role="option"
       aria-selected={isSelected}
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
       style={{
-        backgroundColor: isSelected ? "var(--color-sidebar-active)" : "transparent",
+        backgroundColor: isSelected ? "var(--color-sidebar-active)" : undefined,
         color: "var(--color-text-primary)",
         fontWeight,
         cursor: "pointer",
@@ -48,29 +49,31 @@ function ThreadItem({ thread, isSelected, onClick }: Props) {
         overflow: "hidden",
         transition: "background-color 0.12s ease",
       }}
-      onMouseEnter={(e) => {
-        if (!isSelected) e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) e.currentTarget.style.backgroundColor = "transparent";
-      }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2px" }}>
         <span
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
             fontSize: "13px",
             overflow: "hidden",
-            textOverflow: "ellipsis",
             whiteSpace: "nowrap",
             flex: 1,
             marginRight: "8px",
+            minWidth: 0,
           }}
         >
-          {participantText}
-          {thread.message_count > 1 && (
-            <span style={{ color: "var(--color-text-secondary)", fontWeight: "normal", marginLeft: "4px" }}>
-              ({thread.message_count})
-            </span>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+            {participantText}
+            {thread.message_count > 1 && (
+              <span style={{ color: "var(--color-text-secondary)", fontWeight: "normal", marginLeft: "4px" }}>
+                ({thread.message_count})
+              </span>
+            )}
+          </span>
+          {hasUnread && (
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-accent)", flexShrink: 0 }} />
           )}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>

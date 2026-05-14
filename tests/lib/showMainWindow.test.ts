@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 
 
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "../../src/tauri-mock";
 import { showMainWindow } from "../../src/lib/showMainWindow";
 
 vi.mock("../../src/tauri-mock", () => ({

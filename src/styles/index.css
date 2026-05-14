@@ -204,6 +204,25 @@ option {
   color: var(--color-text-secondary);
 }
 
+.message-list-row,
+.thread-list-row {
+  background: transparent;
+}
+
+.message-list-row[aria-selected="false"]:hover,
+.message-list-row[aria-selected="false"]:focus,
+.thread-list-row[aria-selected="false"]:hover,
+.thread-list-row[aria-selected="false"]:focus {
+  background: var(--color-bg-hover);
+}
+
+.message-list-row--unread[aria-selected="false"]:hover,
+.message-list-row--unread[aria-selected="false"]:focus,
+.thread-list-row--unread[aria-selected="false"]:hover,
+.thread-list-row--unread[aria-selected="false"]:focus {
+  background: var(--color-bg-hover);
+}
+
 /* Staggered fade-in for list items */
 .fade-in-item { animation: fadeIn 0.25s ease-out both; }
 .fade-in-item:nth-child(1)  { animation-delay: 0ms; }

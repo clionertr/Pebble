@@ -5,6 +5,17 @@ type IdleWindow = Window & {
   cancelIdleCallback?: (handle: number) => void;
 };
 
+export function createLazyViewPreloader(importers: readonly LazyViewImporter[]) {
+  let preloadPromise: Promise<PromiseSettledResult<unknown>[]> | null = null;
+
+  return function preloadLazyViews() {
+    if (!preloadPromise) {
+      preloadPromise = Promise.allSettled(importers.map((importer) => importer()));
+    }
+    return preloadPromise;
+  };
+}
+
 export function scheduleLazyViewPreload(
   preload: () => Promise<unknown>,
   win: Window = window,
@@ -21,7 +32,7 @@ export function scheduleLazyViewPreload(
   const scheduleRun = () => {
     if (idleWindow.requestIdleCallback) {
       isIdleHandle = true;
-      handle = idleWindow.requestIdleCallback(run, { timeout: 2000 });
+      handle = idleWindow.requestIdleCallback(run, { timeout: 1200 });
     } else {
       handle = win.setTimeout(run, 0);
     }

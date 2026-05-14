@@ -2,7 +2,7 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 
 
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../src/tauri-mock";
 import { useKanbanStore } from "../../src/stores/kanban.store";
 
 vi.mock("../../src/tauri-mock", () => ({

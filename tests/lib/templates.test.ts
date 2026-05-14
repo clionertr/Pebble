@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../src/tauri-mock";
 import { deleteTemplate, listTemplates, saveTemplate } from "../../src/lib/templates";
 
 vi.mock("../../src/tauri-mock", () => ({

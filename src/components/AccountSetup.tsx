@@ -4,7 +4,7 @@ import { useConfirmStore } from "@/stores/confirm.store";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { addAccount, startSync, testImapConnection } from "@/lib/api";
+import { addAccount, completeOAuthFlow, startSync, testImapConnection } from "@/lib/api";
 import type { AddAccountRequest } from "@/lib/api";
 import { accountsQueryKey } from "@/hooks/queries";
 import { extractErrorMessage } from "@/lib/extractErrorMessage";
@@ -192,7 +192,23 @@ export default function AccountSetup({ onClose }: Props) {
   async function handleOAuth(provider: "gmail" | "outlook") {
     setOauthLoading(true);
     setError(null);
-    window.location.href = `/auth/login?provider=${provider}`;
+    try {
+      const account = await completeOAuthFlow(
+        provider,
+        form.email || "",
+        form.display_name || "",
+        form.proxy_host?.trim() || undefined,
+        form.proxy_port,
+      );
+      await queryClient.invalidateQueries({ queryKey: accountsQueryKey });
+      await startSync(account.id, syncPollInterval);
+      refreshFoldersAfterSyncStart(queryClient, account.id);
+      onClose();
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setOauthLoading(false);
+    }
   }
 
   function applyPreset(key: string) {
@@ -289,11 +305,6 @@ export default function AccountSetup({ onClose }: Props) {
         alignItems: "center",
         justifyContent: "center",
         zIndex: 1000,
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          void requestClose();
-        }
       }}
     >
       <div
