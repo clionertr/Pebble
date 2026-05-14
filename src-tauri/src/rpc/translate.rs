@@ -1,8 +1,8 @@
+use super::network::get_global_proxy_raw;
 use crate::state::AppState;
 use pebble_core::{now_timestamp, PebbleError, TranslateConfig};
 use pebble_translate::types::{TranslateProviderConfig, TranslateResult};
 use pebble_translate::TranslateService;
-
 
 /// Decode a hex string to bytes.
 fn hex_decode(s: &str) -> std::result::Result<Vec<u8>, PebbleError> {
@@ -44,7 +44,6 @@ fn encrypt_config(state: &AppState, plaintext: &str) -> std::result::Result<Stri
     Ok(hex_encode(&encrypted))
 }
 
-
 pub async fn translate_text(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     text: String,
@@ -69,9 +68,17 @@ pub async fn translate_text(
 
     validate_provider_config(&provider_config)?;
 
-    TranslateService::translate(&provider_config, &text, &from_lang, &to_lang).await
-}
+    let proxy = get_global_proxy_raw(&state.crypto, &state.store)?;
 
+    TranslateService::translate_with_proxy(
+        &provider_config,
+        proxy.as_ref(),
+        &text,
+        &from_lang,
+        &to_lang,
+    )
+    .await
+}
 
 pub async fn get_translate_config(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -86,7 +93,6 @@ pub async fn get_translate_config(
         None => Ok(None),
     }
 }
-
 
 pub async fn save_translate_config(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -149,14 +155,24 @@ fn validate_translate_url(url: &str) -> std::result::Result<(), PebbleError> {
     Err(PebbleError::Validation("Unsupported URL scheme".into()))
 }
 
-
-pub async fn test_translate_connection(config: String) -> std::result::Result<String, PebbleError> {
+pub async fn test_translate_connection(
+    state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
+    config: String,
+) -> std::result::Result<String, PebbleError> {
     let provider_config: TranslateProviderConfig = serde_json::from_str(&config)
         .map_err(|e| PebbleError::Translate(format!("Invalid config: {e}")))?;
 
     // Validate endpoint URLs before making any requests
     validate_provider_config(&provider_config)?;
 
-    let result = TranslateService::translate(&provider_config, "Hello", "en", "zh").await?;
+    let proxy = get_global_proxy_raw(&state.crypto, &state.store)?;
+    let result = TranslateService::translate_with_proxy(
+        &provider_config,
+        proxy.as_ref(),
+        "Hello",
+        "en",
+        "zh",
+    )
+    .await?;
     Ok(result.translated)
 }

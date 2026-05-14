@@ -226,7 +226,7 @@ pub async fn handle_rpc(
             pub config: serde_json::Value,
             }
             let args: Args = serde_json::from_value(req.params).map_err(|e| Json(json!({ "error": e.to_string() })))?;
-            let res = crate::rpc::translate::test_translate_connection(serde_json::from_value(args.config).map_err(|e| Json(json!({ "error": format!("Invalid arg 'config': {}", e) })))?).await;
+            let res = crate::rpc::translate::test_translate_connection(axum::extract::State(state.clone()), serde_json::from_value(args.config).map_err(|e| Json(json!({ "error": format!("Invalid arg 'config': {}", e) })))?).await;
             match res {
                 Ok(val) => Ok(Json(serde_json::to_value(val).unwrap_or(Value::Null))),
                 Err(err) => Err(Json(json!({ "error": err.to_string() }))),
