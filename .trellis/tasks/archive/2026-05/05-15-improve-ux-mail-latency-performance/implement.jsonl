@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/pebble/mail_latency.md", "reason": "Phase 0: 后端邮件延迟日志基础设施 (mail_latency.rs)"}
+{"file": ".trellis/spec/pebble/mail_latency_frontend.md", "reason": "Phase 0: 前端邮件延迟日志模块 (mailLatencyLogging.ts)"}

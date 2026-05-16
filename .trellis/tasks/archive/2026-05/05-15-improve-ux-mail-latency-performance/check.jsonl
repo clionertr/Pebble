@@ -1,0 +1,5 @@
+{"check": "cargo-check", "result": "pass", "detail": "编译通过，无错误"}
+{"check": "cargo-clippy", "result": "pass", "detail": "新文件 mail_latency.rs 无新增警告"}
+{"check": "cargo-test", "result": "pass", "detail": "90/90 测试通过"}
+{"check": "tsc --noEmit", "result": "pass", "detail": "TypeScript 类型检查通过"}
+{"check": "cargo-fmt", "result": "pre-existing-warn", "detail": "177 处既有格式差异，非本次引入。dispatch.rs 新代码遵循现有模式。"}

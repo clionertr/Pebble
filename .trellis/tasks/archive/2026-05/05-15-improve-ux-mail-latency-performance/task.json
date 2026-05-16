@@ -1,0 +1,188 @@
+{
+  "id": "improve-ux-mail-latency-performance",
+  "name": "improve-ux-mail-latency-performance",
+  "title": "Pebble Webmail 性能与用户体验全面优化",
+  "description": "消除系统性延迟，优化资源分配，提升前端渲染效率与用户体验。基于全代码库审计报告执行 P0/P1/P2 级重构。",
+  "status": "completed",
+  "dev_type": "performance",
+  "scope": "fullstack",
+  "package": "pebble",
+  "priority": "P0",
+  "creator": "clionertr",
+  "assignee": "clionertr",
+  "createdAt": "2026-05-15",
+  "completedAt": "2026-05-16",
+  "branch": "001-improve-experience",
+  "base_branch": "001-improve-experience",
+  "worktree_path": null,
+  "commit": "5f9a8c9",
+  "pr_url": null,
+  "subtasks": [
+    {
+      "id": "p0-sync-blocking-fix",
+      "title": "消灭异步上下文中的同步阻塞",
+      "status": "completed",
+      "priority": "P0",
+      "files": [
+        "crates/pebble-mail/src/smtp.rs"
+      ]
+    },
+    {
+      "id": "p0-push-bypass-circuit",
+      "title": "实时推送绕过断路器",
+      "status": "completed",
+      "priority": "P0",
+      "files": [
+        "crates/pebble-mail/src/backoff.rs",
+        "crates/pebble-mail/src/idle.rs"
+      ]
+    },
+    {
+      "id": "p0-sse-reconnect",
+      "title": "前端 SSE 断线重连与后端丢弃监控",
+      "status": "completed",
+      "priority": "P0",
+      "files": [
+        "src/tauri-mock.ts",
+        "src-tauri/src/main.rs"
+      ]
+    },
+    {
+      "id": "p0-remove-splash-block",
+      "title": "移除人为闪屏阻塞",
+      "status": "completed",
+      "priority": "P0",
+      "files": [
+        "src/App.tsx"
+      ]
+    },
+    {
+      "id": "p0-a11y-upload-input",
+      "title": "修复附件上传 input 的 A11y 缺陷",
+      "status": "completed",
+      "priority": "P0",
+      "files": [
+        "src/features/compose/ComposeView.tsx"
+      ]
+    },
+    {
+      "id": "p1-cache-patching",
+      "title": "停止前端全局刷新风暴，改用精准缓存修补",
+      "status": "completed",
+      "priority": "P1",
+      "files": [
+        "src/components/StatusBar.tsx",
+        "src/lib/api.ts"
+      ]
+    },
+    {
+      "id": "p1-composite-indexes",
+      "title": "补充数据库复合索引，消除全表扫描",
+      "status": "completed",
+      "priority": "P1",
+      "files": [
+        "crates/pebble-store/src/migrations.rs"
+      ]
+    },
+    {
+      "id": "p1-tantivy-dedup",
+      "title": "Tantivy 索引减负，消除 body_text 双存",
+      "status": "completed",
+      "priority": "P1",
+      "files": [
+        "crates/pebble-search/src/schema.rs"
+      ]
+    },
+    {
+      "id": "p1-split-zustand-store",
+      "title": "拆解 Zustand God Store 为独立 Store",
+      "status": "completed",
+      "priority": "P1",
+      "files": [
+        "src/stores/ui.store.ts"
+      ]
+    },
+    {
+      "id": "p1-imap-connection-pool",
+      "title": "IMAP 连接复用",
+      "status": "completed",
+      "priority": "P1",
+      "files": [
+        "src-tauri/src/rpc/messages/lifecycle.rs"
+      ]
+    },
+    {
+      "id": "p2-rpc-timeout-concurrency",
+      "title": "后端 RPC 并发与超时控制",
+      "status": "completed",
+      "priority": "P2",
+      "files": [
+        "src-tauri/src/main.rs"
+      ]
+    },
+    {
+      "id": "p2-thread-virtualization",
+      "title": "长对话线程渲染虚拟化",
+      "status": "completed",
+      "priority": "P2",
+      "files": [
+        "src/features/inbox/ThreadView.tsx"
+      ]
+    },
+    {
+      "id": "p2-n1-query-optimization",
+      "title": "N+1 查询优化，合并为 JOIN",
+      "status": "completed",
+      "priority": "P2",
+      "files": [
+        "crates/pebble-store/src/rpc/messages/lifecycle.rs"
+      ]
+    },
+    {
+      "id": "p2-search-box-activation",
+      "title": "搜索框激活或移除",
+      "status": "completed",
+      "priority": "P2",
+      "files": [
+        "src/features/inbox/InboxView.tsx"
+      ]
+    },
+    {
+      "id": "p2-deferred-storage-persist",
+      "title": "延迟状态持久化，避免主线程阻塞",
+      "status": "completed",
+      "priority": "P2",
+      "files": [
+        "src/stores/ui.store.ts"
+      ]
+    }
+  ],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "crates/pebble-mail/src/smtp.rs",
+    "crates/pebble-mail/src/backoff.rs",
+    "crates/pebble-mail/src/idle.rs",
+    "crates/pebble-mail/src/sync.rs",
+    "crates/pebble-mail/src/realtime_policy.rs",
+    "crates/pebble-store/src/migrations.rs",
+    "crates/pebble-store/src/rpc/messages/lifecycle.rs",
+    "crates/pebble-search/src/schema.rs",
+    "crates/pebble-search/src/lib.rs",
+    "src-tauri/src/main.rs",
+    "src-tauri/src/state.rs",
+    "src-tauri/src/gmail_realtime.rs",
+    "src-tauri/src/rpc/messages/lifecycle.rs",
+    "src/App.tsx",
+    "src/tauri-mock.ts",
+    "src/components/StatusBar.tsx",
+    "src/lib/api.ts",
+    "src/lib/query-client.ts",
+    "src/stores/ui.store.ts",
+    "src/features/compose/ComposeView.tsx",
+    "src/features/inbox/InboxView.tsx",
+    "src/features/inbox/ThreadView.tsx"
+  ],
+  "notes": "Phase 0 (延迟诊断基础设施) 已完成: mail_latency.rs + mailLatencyLogging.ts 已提交 (5f9a8c9)。P0 全部完成 (5 个任务，commit 25fc972)。P1-1, P1-2 完成。剩余 P1-3 (Tantivy), P1-4 (Zustand), P1-5 (IMAP pool) 需要较大重构。P2 全部待完成。",
+  "meta": {}
+}
