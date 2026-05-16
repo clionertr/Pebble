@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::{broadcast, mpsc, watch, Mutex};
+use tokio::sync::{broadcast, mpsc, watch, Mutex, Semaphore};
 use tracing::warn;
 
 #[derive(Clone, Debug)]
@@ -40,6 +40,7 @@ pub struct AppState {
     pub notifications_enabled: Arc<AtomicBool>,
     pub tx: broadcast::Sender<EventPayload>,
     pub imap_pool: ImapConnectionPool,
+    pub rpc_semaphore: Arc<Semaphore>,
 }
 
 impl AppState {
@@ -64,6 +65,7 @@ impl AppState {
             notifications_enabled: Arc::new(AtomicBool::new(true)),
             tx,
             imap_pool: ImapConnectionPool::new(),
+            rpc_semaphore: Arc::new(Semaphore::new(64)),
         }
     }
 

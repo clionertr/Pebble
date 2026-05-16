@@ -453,6 +453,31 @@ impl Store {
         })
     }
 
+    /// Fetch a message plus its account provider type in a single JOIN,
+    /// avoiding a separate `get_account` call from `resolve_message_context`.
+    pub fn get_message_with_provider(&self, id: &str) -> Result<Option<(Message, pebble_core::ProviderType)>> {
+        self.with_read(|conn| {
+            let sql = format!(
+                "SELECT {MSG_SELECT}, a.provider FROM messages m \
+                 JOIN accounts a ON a.id = m.account_id WHERE m.id = ?1"
+            );
+            let result = conn
+                .query_row(&sql, params![id], |row| {
+                    let msg = row_to_message(row)?;
+                    let provider: String = row.get(26)?;
+                    let pt = match provider.as_str() {
+                        "imap" => pebble_core::ProviderType::Imap,
+                        "gmail" => pebble_core::ProviderType::Gmail,
+                        "outlook" => pebble_core::ProviderType::Outlook,
+                        _ => pebble_core::ProviderType::Imap,
+                    };
+                    Ok((msg, pt))
+                })
+                .optional()?;
+            Ok(result)
+        })
+    }
+
     pub fn get_messages_batch(&self, ids: &[String]) -> Result<Vec<Message>> {
         if ids.is_empty() {
             return Ok(Vec::new());

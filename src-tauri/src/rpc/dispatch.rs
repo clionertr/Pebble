@@ -1,7 +1,10 @@
 use std::sync::Arc;
+use std::time::Duration;
 use axum::{extract::State, Json, response::IntoResponse};
 use serde_json::{Value, json};
 use crate::state::AppState;
+
+const RPC_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(serde::Deserialize)]
 pub struct RpcRequest {
@@ -14,6 +17,10 @@ pub async fn handle_rpc_batch(
     state: State<Arc<AppState>>,
     Json(reqs): Json<Vec<RpcRequest>>,
 ) -> Result<Json<Vec<Value>>, Json<Value>> {
+    let _permit = state.rpc_semaphore.acquire().await.map_err(|_| {
+        Json(json!({ "error": "Server shutting down" }))
+    })?;
+
     let mut responses = Vec::with_capacity(reqs.len());
     for req in reqs {
         let res = handle_rpc(state.clone(), Json(req)).await;
@@ -28,6 +35,23 @@ pub async fn handle_rpc_batch(
 pub async fn handle_rpc(
     State(state): State<Arc<AppState>>,
     Json(req): Json<RpcRequest>,
+) -> Result<Json<Value>, Json<Value>> {
+    let semaphore = state.rpc_semaphore.clone();
+    let _permit = semaphore.acquire().await.map_err(|_| {
+        Json(json!({ "error": "Server shutting down" }))
+    })?;
+
+    let result = tokio::time::timeout(RPC_TIMEOUT, handle_rpc_inner(state, req)).await;
+
+    match result {
+        Ok(inner) => inner,
+        Err(_elapsed) => Err(Json(json!({ "error": "Request timed out" }))),
+    }
+}
+
+async fn handle_rpc_inner(
+    state: Arc<AppState>,
+    req: RpcRequest,
 ) -> Result<Json<Value>, Json<Value>> {
     match req.method.as_str() {
         "get_pending_mail_ops_summary" => {

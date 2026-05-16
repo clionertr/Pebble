@@ -20,16 +20,10 @@ fn resolve_message_context(
     state: &AppState,
     message_id: &str,
 ) -> std::result::Result<(Message, ProviderType), PebbleError> {
-    let msg = state
+    state
         .store
-        .get_message(message_id)?
-        .ok_or_else(|| PebbleError::Internal(format!("Message not found: {message_id}")))?;
-    let provider_type = state
-        .store
-        .get_account(&msg.account_id)?
-        .map(|account| account.provider)
-        .ok_or_else(|| PebbleError::Internal(format!("Account not found: {}", msg.account_id)))?;
-    Ok((msg, provider_type))
+        .get_message_with_provider(message_id)?
+        .ok_or_else(|| PebbleError::Internal(format!("Message not found: {message_id}")))
 }
 
 fn queue_permanent_delete_failure(
