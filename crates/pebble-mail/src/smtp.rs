@@ -114,7 +114,7 @@ impl SmtpSender {
                     .unwrap_or("attachment")
                     .to_string();
 
-                let file_bytes = std::fs::read(path).map_err(|e| {
+                let file_bytes = tokio::fs::read(path).await.map_err(|e| {
                     PebbleError::Internal(format!("Failed to read attachment '{}': {e}", path_str))
                 })?;
 

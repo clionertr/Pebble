@@ -6,10 +6,11 @@ use pebble_store::Store;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{broadcast, mpsc, watch, Mutex};
+use tracing::warn;
 
 #[derive(Clone, Debug)]
 pub struct EventPayload {
@@ -64,11 +65,22 @@ impl AppState {
     }
 
     pub fn emit<S: Into<String>, P: Serialize>(&self, event: S, payload: P) {
+        let event: String = event.into();
         if let Ok(value) = serde_json::to_value(payload) {
-            let _ = self.tx.send(EventPayload {
-                event: event.into(),
+            match self.tx.send(EventPayload {
+                event: event.clone(),
                 payload: value,
-            });
+            }) {
+                Ok(_) => {}
+                Err(e) => {
+                    // No active SSE subscriber — event discarded
+                    warn!(
+                        "SSE event dropped (no subscribers): event={} payload_keys={:?}",
+                        event,
+                        e.0.payload.as_object().map(|obj| obj.keys().collect::<Vec<_>>()),
+                    );
+                }
+            }
         }
     }
 }

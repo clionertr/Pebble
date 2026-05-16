@@ -447,10 +447,9 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
                   ref={attachInputRef}
                   type="file"
                   multiple
-                  style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0,0,0,0)", border: 0 }}
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  onChange={(e) => {
+                   style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0,0,0,0)", border: 0 }}
+                   tabIndex={-1}
+                   onChange={(e) => {
                     const files = e.target.files;
                     if (!files) return;
                     void stageAttachmentFiles(files).catch((err) => {

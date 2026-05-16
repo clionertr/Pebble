@@ -58,7 +58,7 @@ impl SyncTrigger {
     }
 
     pub fn bypasses_circuit_backoff(self) -> bool {
-        matches!(self, Self::Manual | Self::NetworkOnline)
+        matches!(self, Self::Manual | Self::NetworkOnline | Self::ProviderPush)
     }
 }
 
@@ -281,9 +281,10 @@ mod tests {
     }
 
     #[test]
-    fn manual_and_network_online_triggers_bypass_circuit_backoff() {
+    fn manual_provider_push_and_network_online_triggers_bypass_circuit_backoff() {
         assert!(SyncTrigger::Manual.bypasses_circuit_backoff());
         assert!(SyncTrigger::NetworkOnline.bypasses_circuit_backoff());
+        assert!(SyncTrigger::ProviderPush.bypasses_circuit_backoff());
     }
 
     #[test]
@@ -291,6 +292,5 @@ mod tests {
         assert!(!SyncTrigger::WindowFocus.bypasses_circuit_backoff());
         assert!(!SyncTrigger::WindowBlur.bypasses_circuit_backoff());
         assert!(!SyncTrigger::Timer.bypasses_circuit_backoff());
-        assert!(!SyncTrigger::ProviderPush.bypasses_circuit_backoff());
     }
 }
