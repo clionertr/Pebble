@@ -19,7 +19,7 @@ import {
 import type { Account, AccountProxyMode, ConnectionSecurity, GmailRealtimeConfig } from "@/lib/api";
 import { useAccountsQuery, accountsQueryKey } from "@/hooks/queries";
 import { useMailStore } from "@/stores/mail.store";
-import { useUIStore, type RealtimeStatus } from "@/stores/ui.store";
+import { useSyncStore, type RealtimeStatus } from "@/stores/sync.store";
 import { useToastStore } from "@/stores/toast.store";
 import AccountSetup from "@/components/AccountSetup";
 import { extractErrorMessage } from "@/lib/extractErrorMessage";
@@ -32,8 +32,8 @@ export default function AccountsTab() {
   const queryClient = useQueryClient();
   const { data: accounts = [] } = useAccountsQuery();
   const accountColorsById = useMemo(() => assignAccountColors(accounts), [accounts]);
-  const realtimeStatusByAccount = useUIStore((state) => state.realtimeStatusByAccount);
-  const realtimeMode = useUIStore((state) => state.realtimeMode);
+  const realtimeStatusByAccount = useSyncStore((state) => state.realtimeStatusByAccount);
+  const realtimeMode = useSyncStore((state) => state.realtimeMode);
   const [showSetup, setShowSetup] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; email: string } | null>(null);

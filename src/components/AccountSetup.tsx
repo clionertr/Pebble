@@ -8,7 +8,7 @@ import { addAccount, startOAuthLogin, startSync, testImapConnection } from "@/li
 import type { AddAccountRequest } from "@/lib/api";
 import { accountsQueryKey } from "@/hooks/queries";
 import { extractErrorMessage } from "@/lib/extractErrorMessage";
-import { realtimePreferenceToPollInterval, useUIStore } from "@/stores/ui.store";
+import { realtimePreferenceToPollInterval, useSyncStore } from "@/stores/sync.store";
 import { useToastStore } from "@/stores/toast.store";
 import { inputStyle, labelStyle } from "../styles/form";
 
@@ -79,7 +79,7 @@ export default function AccountSetup({ onClose }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const emailInputRef = useRef<HTMLInputElement>(null);
-  const realtimeMode = useUIStore((state) => state.realtimeMode);
+  const realtimeMode = useSyncStore((state) => state.realtimeMode);
   const syncPollInterval = realtimePreferenceToPollInterval(realtimeMode);
 
   const initialForm: AddAccountRequest = {

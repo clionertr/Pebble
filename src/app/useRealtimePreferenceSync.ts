@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { setNotificationsEnabled, setRealtimePreference } from "@/lib/api";
-import { useUIStore } from "@/stores/ui.store";
+import { useSyncStore } from "@/stores/sync.store";
 
 export function useRealtimePreferenceSync() {
-  const realtimeMode = useUIStore((state) => state.realtimeMode);
-  const notificationsEnabled = useUIStore((state) => state.notificationsEnabled);
+  const realtimeMode = useSyncStore((state) => state.realtimeMode);
+  const notificationsEnabled = useSyncStore((state) => state.notificationsEnabled);
 
   useEffect(() => {
     let cancelled = false;

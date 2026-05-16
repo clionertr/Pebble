@@ -1,5 +1,6 @@
 import type { Command } from "@/stores/command.store";
 import { useUIStore } from "@/stores/ui.store";
+import { useSyncStore } from "@/stores/sync.store";
 import { useComposeStore } from "@/stores/compose.store";
 import { useMailStore } from "@/stores/mail.store";
 import { useKanbanStore } from "@/stores/kanban.store";
@@ -141,7 +142,7 @@ export function buildCommands(t: (key: string, defaultValue: string) => string):
       name: t("commands.toggleNotifications", "Toggle Notifications"),
       category: t("commands.settings", "Settings"),
       execute: async () => {
-        const { notificationsEnabled, setNotificationsEnabled } = useUIStore.getState();
+        const { notificationsEnabled, setNotificationsEnabled } = useSyncStore.getState();
         setNotificationsEnabled(!notificationsEnabled);
       },
     },

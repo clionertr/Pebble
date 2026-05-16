@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useUIStore } from "@/stores/ui.store";
-import type { Theme, Language } from "@/stores/ui.store";
+import { useThemeStore, type Theme, type Language } from "@/stores/theme.store";
 
 const THEMES: { id: Theme; labelKey: string; descKey: string }[] = [
   { id: "light", labelKey: "settings.themeLight", descKey: "settings.themeLightDesc" },
@@ -15,10 +14,10 @@ const LANGUAGES: { id: Language; label: string }[] = [
 
 export default function AppearanceTab() {
   const { t } = useTranslation();
-  const theme = useUIStore((s) => s.theme);
-  const setTheme = useUIStore((s) => s.setTheme);
-  const language = useUIStore((s) => s.language);
-  const setLanguage = useUIStore((s) => s.setLanguage);
+  const theme = useThemeStore((s) => s.theme);
+  const setTheme = useThemeStore((s) => s.setTheme);
+  const language = useThemeStore((s) => s.language);
+  const setLanguage = useThemeStore((s) => s.setLanguage);
 
   return (
     <div>

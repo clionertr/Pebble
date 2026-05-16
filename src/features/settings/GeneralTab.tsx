@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useUIStore, type RealtimePreference } from "@/stores/ui.store";
+import { useUIStore } from "@/stores/ui.store";
+import { useSyncStore, type RealtimePreference } from "@/stores/sync.store";
 
 const REALTIME_OPTIONS: Array<{
   mode: RealtimePreference;
@@ -41,12 +42,12 @@ const REALTIME_OPTIONS: Array<{
 
 export default function GeneralTab() {
   const { t } = useTranslation();
-  const realtimeMode = useUIStore((s) => s.realtimeMode);
-  const setRealtimeMode = useUIStore((s) => s.setRealtimeMode);
-  const notificationsEnabled = useUIStore((s) => s.notificationsEnabled);
-  const setNotificationsEnabled = useUIStore((s) => s.setNotificationsEnabled);
-  const keepRunningInBackground = useUIStore((s) => s.keepRunningInBackground);
-  const setKeepRunningInBackground = useUIStore((s) => s.setKeepRunningInBackground);
+  const realtimeMode = useSyncStore((s) => s.realtimeMode);
+  const setRealtimeMode = useSyncStore((s) => s.setRealtimeMode);
+  const notificationsEnabled = useSyncStore((s) => s.notificationsEnabled);
+  const setNotificationsEnabled = useSyncStore((s) => s.setNotificationsEnabled);
+  const keepRunningInBackground = useSyncStore((s) => s.keepRunningInBackground);
+  const setKeepRunningInBackground = useSyncStore((s) => s.setKeepRunningInBackground);
 
   const toggleNotifications = useCallback(() => {
     setNotificationsEnabled(!notificationsEnabled);

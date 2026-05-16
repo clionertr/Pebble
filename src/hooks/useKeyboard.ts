@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useShortcutStore } from "@/stores/shortcut.store";
 import { useCommandStore } from "@/stores/command.store";
 import { useUIStore, type ActiveView } from "@/stores/ui.store";
+import { useSyncStore } from "@/stores/sync.store";
 import { useComposeStore, isComposeDirty } from "@/stores/compose.store";
 import { useConfirmStore } from "@/stores/confirm.store";
 import { useMailStore } from "@/stores/mail.store";
@@ -277,7 +278,7 @@ export function useKeyboard() {
           confirmLeaveCompose().then((ok) => { if (ok) navigateAfterComposeConfirm("settings"); });
           break;
         case "toggle-notifications": {
-          const { notificationsEnabled, setNotificationsEnabled } = useUIStore.getState();
+          const { notificationsEnabled, setNotificationsEnabled } = useSyncStore.getState();
           setNotificationsEnabled(!notificationsEnabled);
           break;
         }

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useUIStore } from "@/stores/ui.store";
+import { useSyncStore } from "@/stores/sync.store";
 import { healthCheck } from "@/lib/api";
 
 // Only poll when browser reports offline to detect recovery.
@@ -7,7 +7,7 @@ import { healthCheck } from "@/lib/api";
 const RECOVERY_CHECK_INTERVAL_MS = 15_000;
 
 export function useNetworkStatus() {
-  const setNetworkStatus = useUIStore((s) => s.setNetworkStatus);
+  const setNetworkStatus = useSyncStore((s) => s.setNetworkStatus);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {

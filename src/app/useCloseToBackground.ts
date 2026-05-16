@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { getCurrentWindow } from "../tauri-mock";
-import { useUIStore } from "@/stores/ui.store";
+import { useSyncStore } from "@/stores/sync.store";
 
 export function useCloseToBackground() {
   useEffect(() => {
@@ -10,7 +10,7 @@ export function useCloseToBackground() {
 
     appWindow
       .onCloseRequested((event) => {
-        if (!useUIStore.getState().keepRunningInBackground) {
+        if (!useSyncStore.getState().keepRunningInBackground) {
           return;
         }
 

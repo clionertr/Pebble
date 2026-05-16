@@ -8,7 +8,9 @@ import ToastContainer from "../components/ToastContainer";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { useConfirmStore } from "../stores/confirm.store";
 import { useComposeStore } from "../stores/compose.store";
-import { useUIStore, applyThemeToDom } from "../stores/ui.store";
+import { useUIStore } from "../stores/ui.store";
+import { useThemeStore, applyThemeToDom } from "../stores/theme.store";
+import { useSyncStore } from "../stores/sync.store";
 import { useCommandStore } from "../stores/command.store";
 import { useKanbanStore } from "../stores/kanban.store";
 import { useKeyboard } from "../hooks/useKeyboard";
@@ -47,10 +49,10 @@ export default function Layout() {
   const displayedView = activeView;
   const composeKey = useComposeStore((s) => s.composeKey);
   const setActiveView = useUIStore((s) => s.setActiveView);
-  const theme = useUIStore((s) => s.theme);
+  const theme = useThemeStore((s) => s.theme);
   const isMobile = useUIStore((s) => s.isMobile);
   const setIsMobile = useUIStore((s) => s.setIsMobile);
-  const notificationsEnabled = useUIStore((s) => s.notificationsEnabled);
+  const notificationsEnabled = useSyncStore((s) => s.notificationsEnabled);
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const drawerOpen = useUIStore((s) => s.drawerOpen);
@@ -256,7 +258,7 @@ function GlobalConfirmDialog() {
 }
 
 function OfflineBanner() {
-  const networkStatus = useUIStore((s) => s.networkStatus);
+  const networkStatus = useSyncStore((s) => s.networkStatus);
   if (networkStatus === "online") return null;
   return (
     <div style={{

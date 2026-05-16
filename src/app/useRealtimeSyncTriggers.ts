@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useAccountsQuery } from "@/hooks/queries";
 import { startSync, triggerSync } from "@/lib/api";
 import { useMailStore } from "@/stores/mail.store";
-import { useUIStore } from "@/stores/ui.store";
+import { useSyncStore } from "@/stores/sync.store";
 
 interface SyncAccount {
   id: string;
@@ -12,9 +12,9 @@ const EMPTY_ACCOUNTS: SyncAccount[] = [];
 
 export function useRealtimeSyncTriggers() {
   const activeAccountId = useMailStore((s) => s.activeAccountId);
-  const networkStatus = useUIStore((s) => s.networkStatus);
-  const pollInterval = useUIStore((s) => s.pollInterval);
-  const realtimeMode = useUIStore((s) => s.realtimeMode);
+  const networkStatus = useSyncStore((s) => s.networkStatus);
+  const pollInterval = useSyncStore((s) => s.pollInterval);
+  const realtimeMode = useSyncStore((s) => s.realtimeMode);
   const { data: accounts = EMPTY_ACCOUNTS } = useAccountsQuery();
   const previousNetworkStatus = useRef(networkStatus);
   const accountIds = useMemo(() => {

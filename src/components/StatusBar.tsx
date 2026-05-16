@@ -4,7 +4,8 @@ import type { TFunction } from "i18next";
 import { listen } from "../tauri-mock";
 import { AlertCircle, AppWindow, Clock, RefreshCw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useUIStore, type RealtimeStatus } from "../stores/ui.store";
+import { useUIStore } from "../stores/ui.store";
+import { useSyncStore, type RealtimeStatus } from "../stores/sync.store";
 import { useMailStore } from "@/stores/mail.store";
 import { stopSync } from "@/lib/api";
 import { rememberMailNewLatencyEvent } from "@/lib/mailLatencyLogging";
@@ -50,17 +51,17 @@ interface SyncCompletePayload {
 
 export default function StatusBar() {
   const { t } = useTranslation();
-  const syncStatus = useUIStore((s) => s.syncStatus);
-  const setSyncStatus = useUIStore((s) => s.setSyncStatus);
+  const syncStatus = useSyncStore((s) => s.syncStatus);
+  const setSyncStatus = useSyncStore((s) => s.setSyncStatus);
   const isMobile = useUIStore((s) => s.isMobile);
-  const networkStatus = useUIStore((s) => s.networkStatus);
-  const lastMailError = useUIStore((s) => s.lastMailError);
-  const setLastMailError = useUIStore((s) => s.setLastMailError);
-  const realtimeStatusByAccount = useUIStore((s) => s.realtimeStatusByAccount);
-  const setRealtimeStatus = useUIStore((s) => s.setRealtimeStatus);
-  const notificationsEnabled = useUIStore((s) => s.notificationsEnabled);
-  const keepRunningInBackground = useUIStore((s) => s.keepRunningInBackground);
-  const setKeepRunningInBackground = useUIStore((s) => s.setKeepRunningInBackground);
+  const networkStatus = useSyncStore((s) => s.networkStatus);
+  const lastMailError = useSyncStore((s) => s.lastMailError);
+  const setLastMailError = useSyncStore((s) => s.setLastMailError);
+  const realtimeStatusByAccount = useSyncStore((s) => s.realtimeStatusByAccount);
+  const setRealtimeStatus = useSyncStore((s) => s.setRealtimeStatus);
+  const notificationsEnabled = useSyncStore((s) => s.notificationsEnabled);
+  const keepRunningInBackground = useSyncStore((s) => s.keepRunningInBackground);
+  const setKeepRunningInBackground = useSyncStore((s) => s.setKeepRunningInBackground);
   const activeAccountId = useMailStore((s) => s.activeAccountId);
   const syncMutation = useSyncMutation();
   const queryClient = useQueryClient();
