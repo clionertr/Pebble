@@ -1096,6 +1096,20 @@ pub async fn handle_rpc(
                 Err(err) => Err(Json(json!({ "error": err.to_string() }))),
             }
         }
+        "record_mail_display_timing" => {
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct Args {
+            #[serde(default)]
+            pub timing: serde_json::Value,
+            }
+            let args: Args = serde_json::from_value(req.params).map_err(|e| Json(json!({ "error": e.to_string() })))?;
+            let res = crate::rpc::diagnostics::record_mail_display_timing(serde_json::from_value(args.timing).map_err(|e| Json(json!({ "error": format!("Invalid arg 'timing': {}", e) })))?);
+            match res {
+                Ok(val) => Ok(Json(serde_json::to_value(val).unwrap_or(Value::Null))),
+                Err(err) => Err(Json(json!({ "error": err.to_string() }))),
+            }
+        }
         "list_thread_messages" => {
             #[derive(serde::Deserialize)]
             #[serde(rename_all = "camelCase")]

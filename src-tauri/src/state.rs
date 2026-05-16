@@ -1,3 +1,4 @@
+use crate::mail_latency::MailLatencyHint;
 use crate::realtime::SyncTrigger;
 use pebble_crypto::CryptoService;
 use pebble_search::TantivySearch;
@@ -28,6 +29,7 @@ pub struct AppState {
     pub crypto: Arc<CryptoService>,
     pub sync_handles: Mutex<HashMap<String, SyncHandle>>,
     pub gmail_push_coalescer: Mutex<HashMap<String, Instant>>,
+    pub mail_latency_hints: Mutex<HashMap<String, MailLatencyHint>>,
     pub oauth_states: Mutex<HashMap<String, crate::auth::OAuthSession>>,
     /// Kept alive so the snooze watcher's `stop_rx` remains open.
     #[allow(dead_code)]
@@ -52,6 +54,7 @@ impl AppState {
             crypto: Arc::new(crypto),
             sync_handles: Mutex::new(HashMap::new()),
             gmail_push_coalescer: Mutex::new(HashMap::new()),
+            mail_latency_hints: Mutex::new(HashMap::new()),
             oauth_states: Mutex::new(HashMap::new()),
             snooze_stop_tx,
             attachments_dir,

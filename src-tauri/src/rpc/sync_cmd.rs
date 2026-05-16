@@ -161,10 +161,20 @@ async fn start_sync_inner(
         }
     });
 
-    let (progress_tx, mut progress_rx) = mpsc::unbounded_channel();
+    let (progress_tx, mut progress_rx) = mpsc::unbounded_channel::<pebble_mail::SyncProgress>();
     let state_for_sync_progress = state.clone();
     tokio::spawn(async move {
         while let Some(sync_progress) = progress_rx.recv().await {
+            crate::mail_latency::log_mail_latency(
+                "sync_progress",
+                Some(&sync_progress.account_id),
+                None,
+                None,
+                || format!(
+                    "status={} phase={}",
+                    sync_progress.status, sync_progress.phase
+                ),
+            );
             state_for_sync_progress.emit(events::MAIL_SYNC_PROGRESS, &sync_progress);
         }
     });
@@ -651,6 +661,13 @@ pub async fn trigger_sync(
     reason: String,
 ) -> std::result::Result<(), PebbleError> {
     let trigger = SyncTrigger::from_reason(&reason);
+    crate::mail_latency::log_mail_latency(
+        "sync_trigger_requested",
+        Some(&account_id),
+        None,
+        Some(&reason),
+        || format!("reason={reason}"),
+    );
     let should_start_one_shot = {
         let mut handles = state.sync_handles.lock().await;
         match handles.get(&account_id) {

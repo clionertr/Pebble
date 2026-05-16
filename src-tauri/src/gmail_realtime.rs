@@ -16,6 +16,7 @@ use tokio::time::sleep;
 use tracing::{debug, info, warn};
 
 use crate::events;
+use crate::mail_latency::{self, MailLatencyHint};
 use crate::realtime::{RealtimeMode, RealtimeStatusPayload};
 use crate::state::AppState;
 
@@ -545,6 +546,7 @@ pub(crate) async fn disable_gmail_realtime_raw(
         push_state.enabled = false;
         push_state.last_error = stop_error.clone();
     })?;
+    state.mail_latency_hints.lock().await.remove(&account_id);
 
     emit_gmail_realtime_status(
         &state,
@@ -777,6 +779,7 @@ async fn claim_push_trigger(state: &AppState, account_id: &str, now: Instant) ->
 async fn process_gmail_push_notification(
     state: Arc<AppState>,
     notification: GmailPushNotification,
+    backend_received_at_ms: i64,
 ) {
     let accounts = match state.store.list_accounts() {
         Ok(accounts) => accounts,
@@ -815,12 +818,44 @@ async fn process_gmail_push_notification(
                 account.id, error
             );
         }
+        state.mail_latency_hints.lock().await.insert(
+            account.id.clone(),
+            MailLatencyHint {
+                source: "gmail_push",
+                backend_received_at_ms,
+                history_id: Some(notification.history_id.clone()),
+            },
+        );
+        mail_latency::log_mail_latency(
+            "gmail_push_matched_account",
+            Some(&account.id),
+            None,
+            Some("gmail_push"),
+            || format!(
+                "history_id={} backend_received_at_ms={}",
+                notification.history_id, backend_received_at_ms
+            ),
+        );
 
         if !claim_push_trigger(&state, &account.id, Instant::now()).await {
             debug!("Coalesced Gmail push trigger for account {}", account.id);
+            mail_latency::log_mail_latency(
+                "gmail_push_coalesced",
+                Some(&account.id),
+                None,
+                Some("gmail_push"),
+                || format!("history_id={}", notification.history_id),
+            );
             continue;
         }
 
+        mail_latency::log_mail_latency(
+            "gmail_push_trigger_sync",
+            Some(&account.id),
+            None,
+            Some("gmail_push"),
+            || format!("history_id={}", notification.history_id),
+        );
         if let Err(error) = trigger_provider_push_sync(state.clone(), &account.id).await {
             warn!(
                 "Failed to trigger sync from Gmail push for account {}: {}",
@@ -853,6 +888,7 @@ pub(crate) async fn gmail_webhook_handler(
     Query(query): Query<HashMap<String, String>>,
     body: Bytes,
 ) -> StatusCode {
+    let backend_received_at_ms = mail_latency::now_ms();
     if !webhook_secret_authorized(&query) {
         return StatusCode::UNAUTHORIZED;
     }
@@ -864,7 +900,21 @@ pub(crate) async fn gmail_webhook_handler(
         | Err(WebhookPayloadError::InvalidData) => return StatusCode::BAD_REQUEST,
     };
 
-    tokio::spawn(process_gmail_push_notification(state, notification));
+    mail_latency::log_mail_latency(
+        "gmail_webhook_received",
+        None,
+        None,
+        Some("gmail_push"),
+        || format!(
+            "history_id={} backend_received_at_ms={}",
+            notification.history_id, backend_received_at_ms
+        ),
+    );
+    tokio::spawn(process_gmail_push_notification(
+        state,
+        notification,
+        backend_received_at_ms,
+    ));
     StatusCode::OK
 }
 

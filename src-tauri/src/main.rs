@@ -2,6 +2,7 @@ mod account_colors;
 mod auth;
 mod events;
 mod gmail_realtime;
+mod mail_latency;
 mod realtime;
 mod rpc;
 mod snooze_watcher;
@@ -21,6 +22,38 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+
+fn init_logging(data_dir: &std::path::Path) -> Option<tracing_appender::non_blocking::WorkerGuard> {
+    let log_dir = rpc::diagnostics::app_log_dir(data_dir);
+    let file_guard = std::fs::create_dir_all(&log_dir).ok().map(|_| {
+        let file_appender =
+            tracing_appender::rolling::never(&log_dir, rpc::diagnostics::LOG_FILE_NAME);
+        let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
+        let file_layer = tracing_subscriber::fmt::layer()
+            .with_writer(file_writer)
+            .with_ansi(false);
+        (file_layer, guard)
+    });
+
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let stdout_layer = tracing_subscriber::fmt::layer().with_writer(std::io::stdout);
+
+    if let Some((file_layer, guard)) = file_guard {
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(stdout_layer)
+            .with(file_layer)
+            .init();
+        Some(guard)
+    } else {
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(stdout_layer)
+            .init();
+        None
+    }
+}
 
 async fn sse_handler(
     State(state): State<Arc<AppState>>,
@@ -43,11 +76,10 @@ async fn sse_handler(
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt::init();
-
     // Use a local ./data directory for VPS deployment
     let data_dir = PathBuf::from("./data");
     std::fs::create_dir_all(&data_dir).unwrap();
+    let _log_guard = init_logging(&data_dir);
 
     let db_path = data_dir.join("pebble.db");
     let store = pebble_store::Store::open(&db_path).unwrap();

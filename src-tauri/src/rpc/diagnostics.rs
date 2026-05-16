@@ -1,8 +1,7 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-
 
 pub const LOG_FILE_NAME: &str = "pebble.log";
 const DEFAULT_LOG_MAX_BYTES: u64 = 64 * 1024;
@@ -13,6 +12,21 @@ pub struct AppLogSnapshot {
     pub path: String,
     pub content: String,
     pub truncated: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MailDisplayTiming {
+    pub account_id: Option<String>,
+    pub message_id: String,
+    pub source: Option<String>,
+    pub active_folder_id: Option<String>,
+    pub backend_received_at_ms: Option<i64>,
+    pub backend_sse_at_ms: Option<i64>,
+    pub message_received_at_ms: Option<i64>,
+    pub frontend_sse_at_ms: i64,
+    pub displayed_at_ms: i64,
+    pub frontend_sse_to_display_ms: Option<i64>,
 }
 
 pub fn app_log_dir(app_data_dir: &Path) -> PathBuf {
@@ -51,13 +65,58 @@ fn read_log_tail(path: &Path, max_bytes: u64) -> Result<AppLogSnapshot, String> 
     })
 }
 
-
-pub fn read_app_log( max_bytes: Option<u64>) -> Result<AppLogSnapshot, String> {
-    let app_data_dir = std::path::PathBuf::from("/tmp/pebble");
+pub fn read_app_log(max_bytes: Option<u64>) -> Result<AppLogSnapshot, String> {
+    let app_data_dir = std::path::PathBuf::from("./data");
     let max_bytes = max_bytes
         .unwrap_or(DEFAULT_LOG_MAX_BYTES)
         .clamp(1, MAX_LOG_MAX_BYTES);
     read_log_tail(&app_log_path(&app_data_dir), max_bytes)
+}
+
+pub fn record_mail_display_timing(timing: MailDisplayTiming) -> Result<(), String> {
+    if !crate::mail_latency::debug_enabled() {
+        return Ok(());
+    }
+
+    let display_report_received_at_ms = crate::mail_latency::now_ms();
+    let backend_sse_to_display_report_ms = timing
+        .backend_sse_at_ms
+        .map(|server_ms| display_report_received_at_ms.saturating_sub(server_ms));
+    let frontend_sse_to_display_ms = timing.frontend_sse_to_display_ms.unwrap_or_else(|| {
+        timing
+            .displayed_at_ms
+            .saturating_sub(timing.frontend_sse_at_ms)
+    });
+    let push_to_display_report_ms = timing
+        .backend_received_at_ms
+        .map(|push_ms| display_report_received_at_ms.saturating_sub(push_ms));
+    let message_to_display_report_ms = timing
+        .message_received_at_ms
+        .map(|message_ms| display_report_received_at_ms.saturating_sub(message_ms));
+    let client_clock_offset_at_report_ms =
+        display_report_received_at_ms.saturating_sub(timing.displayed_at_ms);
+
+    tracing::debug!(
+        target: "pebble::mail_latency",
+        stage = "frontend_message_displayed",
+        account_id = timing.account_id.as_deref().unwrap_or(""),
+        message_id = timing.message_id.as_str(),
+        source = timing.source.as_deref().unwrap_or(""),
+        active_folder_id = timing.active_folder_id.as_deref().unwrap_or(""),
+        backend_received_at_ms = ?timing.backend_received_at_ms,
+        backend_sse_at_ms = ?timing.backend_sse_at_ms,
+        frontend_sse_at_ms = timing.frontend_sse_at_ms,
+        displayed_at_ms = timing.displayed_at_ms,
+        display_report_received_at_ms,
+        client_clock_offset_at_report_ms,
+        backend_sse_to_display_report_ms = ?backend_sse_to_display_report_ms,
+        frontend_sse_to_display_ms,
+        push_to_display_report_ms = ?push_to_display_report_ms,
+        message_to_display_report_ms = ?message_to_display_report_ms,
+        "mail latency event"
+    );
+
+    Ok(())
 }
 
 #[cfg(test)]

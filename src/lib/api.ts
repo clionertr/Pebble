@@ -76,6 +76,23 @@ export async function readAppLog(maxBytes: number): Promise<AppLogSnapshot> {
   return invoke<AppLogSnapshot>("read_app_log", { maxBytes });
 }
 
+export interface MailDisplayTiming {
+  accountId?: string | null;
+  messageId: string;
+  source?: string | null;
+  activeFolderId?: string | null;
+  backendReceivedAtMs?: number | null;
+  backendSseAtMs?: number | null;
+  messageReceivedAtMs?: number | null;
+  frontendSseAtMs: number;
+  displayedAtMs: number;
+  frontendSseToDisplayMs?: number | null;
+}
+
+export async function recordMailDisplayTiming(timing: MailDisplayTiming): Promise<void> {
+  return invoke<void>("record_mail_display_timing", { timing });
+}
+
 export async function getGlobalProxy(): Promise<HttpProxyConfig | null> {
   return invoke<HttpProxyConfig | null>("get_global_proxy");
 }

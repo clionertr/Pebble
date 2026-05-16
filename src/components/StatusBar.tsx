@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useUIStore, type RealtimeStatus } from "../stores/ui.store";
 import { useMailStore } from "@/stores/mail.store";
 import { stopSync } from "@/lib/api";
+import { rememberMailNewLatencyEvent } from "@/lib/mailLatencyLogging";
 import { useSyncMutation } from "@/hooks/mutations/useSyncMutation";
 import {
   pendingMailOpsSummaryQueryKey,
@@ -27,6 +28,13 @@ interface MailNewPayload {
   subject?: string;
   from?: string;
   received_at?: number;
+  latency?: {
+    source?: string | null;
+    backend_received_at_ms?: number | null;
+    backend_sse_at_ms?: number | null;
+    message_received_at_ms?: number | null;
+    history_id?: string | null;
+  } | null;
 }
 
 interface SyncProgressPayload {
@@ -127,6 +135,7 @@ export default function StatusBar() {
   // Listen for new mail events: incremental data refresh
   useEffect(() => {
     const unlisten = listen<MailNewPayload>("mail:new", (event) => {
+      rememberMailNewLatencyEvent(event.payload);
       queryClient.refetchQueries({ queryKey: ["messages"] });
       queryClient.refetchQueries({ queryKey: ["threads"] });
       if (event.payload.account_id) {

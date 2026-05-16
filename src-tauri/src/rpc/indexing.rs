@@ -4,8 +4,8 @@
 //! Tantivy, and applies rule-engine actions. Split out of `sync_cmd.rs`
 //! so the sync lifecycle and the indexing pipeline can evolve independently.
 
+use crate::mail_latency::{self, MailLatencyPayload};
 use crate::rpc::pending_mail_ops::queue_pending_mail_op;
-
 
 use pebble_core::{FolderRole, PebbleError};
 use pebble_rules::RuleEngine;
@@ -16,9 +16,10 @@ use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
+
+const PUSH_HINT_MAX_AGE_MS: i64 = 5 * 60 * 1000;
 
 /// Rebuild the search index from all messages in the store.
 ///
@@ -72,7 +73,64 @@ pub fn do_reindex(store: &Store, search: &TantivySearch) -> std::result::Result<
 /// Receive newly stored messages from the sync worker and index them for search.
 /// Also emits `mail:new` events to notify the frontend, and applies rule engine actions.
 /// Batches messages and commits periodically for efficiency.
-fn new_mail_event_payload(stored: &pebble_mail::StoredMessage) -> serde_json::Value {
+async fn mail_latency_payload(
+    state: &crate::state::AppState,
+    stored: &pebble_mail::StoredMessage,
+    backend_sse_at_ms: i64,
+) -> MailLatencyPayload {
+    let message_received_at_ms = mail_latency::seconds_to_ms(stored.message.date);
+    let hint = state
+        .mail_latency_hints
+        .lock()
+        .await
+        .get(&stored.message.account_id)
+        .cloned();
+    let active_hint = hint.filter(|hint| {
+        backend_sse_at_ms.saturating_sub(hint.backend_received_at_ms) <= PUSH_HINT_MAX_AGE_MS
+    });
+
+    MailLatencyPayload {
+        source: active_hint
+            .as_ref()
+            .map(|hint| hint.source.to_string())
+            .unwrap_or_else(|| "poll_or_manual".to_string()),
+        backend_received_at_ms: active_hint
+            .as_ref()
+            .map(|hint| hint.backend_received_at_ms),
+        backend_sse_at_ms,
+        message_received_at_ms,
+        history_id: active_hint.and_then(|hint| hint.history_id),
+    }
+}
+
+async fn new_mail_event_payload(
+    state: &crate::state::AppState,
+    stored: &pebble_mail::StoredMessage,
+) -> serde_json::Value {
+    let backend_sse_at_ms = mail_latency::now_ms();
+    let latency = mail_latency_payload(state, stored, backend_sse_at_ms).await;
+    mail_latency::log_mail_latency(
+        "backend_mail_new_sse",
+        Some(&stored.message.account_id),
+        Some(&stored.message.id),
+        Some(&latency.source),
+        || format!(
+            "backend_sse_at_ms={} backend_received_at_ms={:?} message_received_at_ms={:?} message_to_sse_ms={:?} push_to_sse_ms={:?}",
+            latency.backend_sse_at_ms,
+            latency.backend_received_at_ms,
+            latency.message_received_at_ms,
+            mail_latency::elapsed_ms(latency.message_received_at_ms, latency.backend_sse_at_ms),
+            mail_latency::elapsed_ms(latency.backend_received_at_ms, latency.backend_sse_at_ms),
+        ),
+    );
+
+    new_mail_event_payload_with_latency(stored, latency)
+}
+
+fn new_mail_event_payload_with_latency(
+    stored: &pebble_mail::StoredMessage,
+    latency: MailLatencyPayload,
+) -> serde_json::Value {
     serde_json::json!({
         "account_id": stored.message.account_id,
         "message_id": stored.message.id,
@@ -81,6 +139,7 @@ fn new_mail_event_payload(stored: &pebble_mail::StoredMessage) -> serde_json::Va
         "subject": stored.message.subject,
         "from": stored.message.from_address,
         "received_at": stored.message.date,
+        "latency": latency,
     })
 }
 
@@ -227,7 +286,7 @@ pub async fn index_new_messages(
             }
         };
 
-        state.emit("mail:new", new_mail_event_payload(&stored));
+        state.emit("mail:new", new_mail_event_payload(state, &stored).await);
         maybe_send_new_mail_notification(store, &stored);
 
         if let Some(ref engine) = engine {
@@ -502,9 +561,10 @@ fn queue_remote_rule_action(
 #[cfg(test)]
 mod rule_writeback_tests {
     use super::{
-        apply_rule_action, new_mail_event_payload, notification_open_payload,
+        apply_rule_action, new_mail_event_payload_with_latency, notification_open_payload,
         should_send_new_mail_notification,
     };
+    use crate::mail_latency::MailLatencyPayload;
     use pebble_core::*;
     use pebble_rules::types::RuleAction;
     use pebble_store::pending_ops::PendingMailOpStatus;
@@ -560,7 +620,16 @@ mod rule_writeback_tests {
             notify: true,
         };
 
-        let payload = new_mail_event_payload(&stored);
+        let payload = new_mail_event_payload_with_latency(
+            &stored,
+            MailLatencyPayload {
+                source: "poll_or_manual".to_string(),
+                backend_received_at_ms: None,
+                backend_sse_at_ms: 1_700_000_100_000,
+                message_received_at_ms: Some(1_700_000_000_000),
+                history_id: None,
+            },
+        );
 
         assert_eq!(payload["account_id"], "account-1");
         assert_eq!(payload["message_id"], "message-1");
@@ -569,6 +638,7 @@ mod rule_writeback_tests {
         assert_eq!(payload["subject"], "Hello");
         assert_eq!(payload["from"], "sender@example.com");
         assert_eq!(payload["received_at"], 1_700_000_000);
+        assert_eq!(payload["latency"]["source"], "poll_or_manual");
     }
 
     fn test_folder(account_id: &str) -> Folder {

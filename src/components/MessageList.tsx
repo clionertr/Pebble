@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Inbox, Archive, Trash2, MailOpen, MailCheck, Star, X } from "lucide-react";
 import type { MessageSummary } from "@/lib/api";
 import { getMessageLabelsBatch, batchArchive, batchDelete, batchMarkRead, batchStar } from "@/lib/api";
+import { markDisplayedMessagesForMailLatencyLogging } from "@/lib/mailLatencyLogging";
 import { useAccountsQuery, useFoldersForAccountsQuery } from "@/hooks/queries";
 import { useMailStore } from "@/stores/mail.store";
 import { useToastStore } from "@/stores/toast.store";
@@ -73,6 +74,10 @@ export default function MessageList({
     staleTime: 60_000,
     enabled: messageIds.length > 0,
   });
+
+  useEffect(() => {
+    markDisplayedMessagesForMailLatencyLogging(messages, activeFolderId);
+  }, [messages, activeFolderId]);
 
   const virtualizer = useVirtualizer({
     count: messages.length,
