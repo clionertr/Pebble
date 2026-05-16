@@ -3,6 +3,7 @@ import i18n from "@/lib/i18n";
 import { getInitialLanguage, LANGUAGE_STORAGE_KEY, type Language } from "@/lib/language";
 import { useComposeStore } from "./compose.store";
 import { useMailStore } from "./mail.store";
+import { deferPersist } from "@/lib/deferPersist";
 
 export type ActiveView = "inbox" | "kanban" | "settings" | "search" | "snoozed" | "starred" | "compose";
 export type SettingsTab = "accounts" | "general" | "proxy" | "appearance" | "privacy" | "rules" | "remoteWrites" | "translation" | "shortcuts" | "cloudSync" | "about";
@@ -128,12 +129,12 @@ export const useUIStore = create<UIState>((set) => ({
   realtimeMode: initialRealtimeMode,
   notificationsEnabled: initialNotificationsEnabled,
   setNotificationsEnabled: (enabled) => {
-    localStorage.setItem(NOTIFICATIONS_KEY, String(enabled));
+    deferPersist(() => localStorage.setItem(NOTIFICATIONS_KEY, String(enabled)));
     set({ notificationsEnabled: enabled });
   },
   keepRunningInBackground: initialKeepRunningInBackground,
   setKeepRunningInBackground: (enabled) => {
-    localStorage.setItem(KEEP_RUNNING_BACKGROUND_KEY, String(enabled));
+    deferPersist(() => localStorage.setItem(KEEP_RUNNING_BACKGROUND_KEY, String(enabled)));
     set({ keepRunningInBackground: enabled });
   },
   previousView: "inbox",
@@ -183,13 +184,13 @@ export const useUIStore = create<UIState>((set) => ({
     set({ activeView: "inbox" });
   },
   setTheme: (theme) => {
-    localStorage.setItem("pebble-theme", theme);
+    deferPersist(() => localStorage.setItem("pebble-theme", theme));
     applyThemeToDom(theme);
     set({ theme });
   },
   setLanguage: (lang) => {
     i18n.changeLanguage(lang);
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+    deferPersist(() => localStorage.setItem(LANGUAGE_STORAGE_KEY, lang));
     set({ language: lang });
   },
   setSyncStatus: (status) => set({ syncStatus: status }),
@@ -204,8 +205,8 @@ export const useUIStore = create<UIState>((set) => ({
     })),
   setRealtimeMode: (mode) => {
     const pollInterval = realtimePreferenceToPollInterval(mode);
-    localStorage.setItem(REALTIME_PREFERENCE_KEY, mode);
-    localStorage.setItem("pebble-poll-interval", String(pollInterval));
+    deferPersist(() => localStorage.setItem(REALTIME_PREFERENCE_KEY, mode));
+    deferPersist(() => localStorage.setItem("pebble-poll-interval", String(pollInterval)));
     set({
       realtimeMode: mode,
       pollInterval,
@@ -213,21 +214,21 @@ export const useUIStore = create<UIState>((set) => ({
   },
   pollInterval: realtimePreferenceToPollInterval(initialRealtimeMode),
   setPollInterval: (secs) => {
-    localStorage.setItem("pebble-poll-interval", String(secs));
+    deferPersist(() => localStorage.setItem("pebble-poll-interval", String(secs)));
     set({ pollInterval: secs });
   },
   searchQuery: "",
   setSearchQuery: (q) => set({ searchQuery: q }),
   settingsTab: (sessionStorage.getItem("pebble-settings-tab") as SettingsTab) || "accounts",
   setSettingsTab: (tab) => {
-    sessionStorage.setItem("pebble-settings-tab", tab);
+    deferPersist(() => sessionStorage.setItem("pebble-settings-tab", tab));
     set({ settingsTab: tab });
   },
   pendingRuleDraftText: null,
   setPendingRuleDraftText: (text) => set({ pendingRuleDraftText: text }),
   showFolderUnreadCount: localStorage.getItem("pebble-show-unread-count") === "true",
   setShowFolderUnreadCount: (show) => {
-    localStorage.setItem("pebble-show-unread-count", String(show));
+    deferPersist(() => localStorage.setItem("pebble-show-unread-count", String(show)));
     set({ showFolderUnreadCount: show });
   },
 }));

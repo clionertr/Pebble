@@ -24,9 +24,12 @@ pub async fn advanced_search(
     query: AdvancedSearchQuery,
     limit: Option<usize>,
 ) -> std::result::Result<Vec<SearchHit>, PebbleError> {
+    const SNIPPET_MAX_LEN: usize = 150;
+
     let search = state.search.clone();
+    let store = state.store.clone();
     let limit = limit.unwrap_or(50);
-    tokio::task::spawn_blocking(move || {
+    let mut hits = tokio::task::spawn_blocking(move || {
         search.advanced_search(AdvancedSearchParams {
             text: query.text.as_deref(),
             from: query.from.as_deref(),
@@ -40,5 +43,18 @@ pub async fn advanced_search(
         })
     })
     .await
-    .map_err(|e| PebbleError::Internal(format!("Task join error: {e}")))?
+    .map_err(|e| PebbleError::Internal(format!("Task join error: {e}")))??;
+
+    for hit in &mut hits {
+        if let Ok(Some(msg)) = store.get_message(&hit.message_id) {
+            let body = msg.body_text.trim();
+            hit.snippet = if body.len() > SNIPPET_MAX_LEN {
+                format!("{}…", &body[..body.floor_char_boundary(SNIPPET_MAX_LEN)])
+            } else {
+                body.to_string()
+            };
+        }
+    }
+
+    Ok(hits)
 }

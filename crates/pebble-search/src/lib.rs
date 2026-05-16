@@ -39,7 +39,7 @@ fn schema_text_field_matches(
 }
 
 fn schema_needs_rebuild(existing_schema: &Schema) -> bool {
-    !schema_text_field_matches(existing_schema, "body_text", schema::BODY_TOKENIZER, true)
+    !schema_text_field_matches(existing_schema, "body_text", schema::BODY_TOKENIZER, false)
         || !schema_text_field_matches(existing_schema, "subject", schema::NGRAM_TOKENIZER, true)
         || !schema_text_field_matches(
             existing_schema,
@@ -54,15 +54,6 @@ fn schema_needs_rebuild(existing_schema: &Schema) -> bool {
             schema::NGRAM_TOKENIZER,
             false,
         )
-}
-
-fn make_snippet(doc: &TantivyDocument, field: tantivy::schema::Field) -> String {
-    let body = doc.get_first(field).and_then(|v| v.as_str()).unwrap_or("");
-    if body.len() > SNIPPET_MAX_LEN {
-        format!("{}…", &body[..body.floor_char_boundary(SNIPPET_MAX_LEN)])
-    } else {
-        body.to_string()
-    }
 }
 
 pub struct AdvancedSearchParams<'a> {
@@ -170,6 +161,12 @@ impl TantivySearch {
     /// Returns true if the index was rebuilt due to schema changes and needs re-population.
     pub fn needs_reindex(&self) -> bool {
         self.needs_reindex
+    }
+
+    fn make_snippet(&self, _doc: &TantivyDocument) -> String {
+        // Body is now INDEXED-only; return empty snippet.
+        // Callers should enrich snippets from SQLite via pebble_store.
+        String::new()
     }
 
     /// Returns the number of documents in the index.
@@ -345,7 +342,7 @@ impl TantivySearch {
                 .unwrap_or("")
                 .to_string();
 
-            let snippet = make_snippet(&doc, ss.body_text);
+            let snippet = self.make_snippet(&doc);
 
             let subject = doc
                 .get_first(ss.subject)
@@ -488,7 +485,7 @@ impl TantivySearch {
                 .unwrap_or("")
                 .to_string();
 
-            let snippet = make_snippet(&doc, ss.body_text);
+            let snippet = self.make_snippet(&doc);
 
             let subject = doc
                 .get_first(ss.subject)
@@ -843,15 +840,12 @@ mod tests {
         engine.commit().unwrap();
 
         let hits = engine.search("quarterly", 10).unwrap();
-        assert!(!hits.is_empty());
+        assert!(!hits.is_empty(), "search should still find documents by body text");
+        // Snippet is empty because body_text is INDEXED-only (not stored).
+        // Production code enriches snippets from SQLite via pebble_store.
         assert!(
-            hits[0].snippet.contains("quarterly"),
-            "snippet should contain body text, got: {}",
-            hits[0].snippet
-        );
-        assert!(
-            !hits[0].snippet.contains("Invoice"),
-            "snippet should not be the subject"
+            hits[0].snippet.is_empty(),
+            "snippet should be empty when body not stored in Tantivy"
         );
     }
 

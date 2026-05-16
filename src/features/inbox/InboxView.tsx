@@ -6,7 +6,6 @@ import MessageList from "@/components/MessageList";
 import MessageDetail from "@/components/MessageDetail";
 import ThreadView from "./ThreadView";
 import ThreadItem from "@/components/ThreadItem";
-import SearchBar from "@/components/SearchBar";
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useTranslation } from "react-i18next";
@@ -110,9 +109,6 @@ export default function InboxView() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       <div className="inbox-toolbar-row">
-        <div className="inbox-toolbar-search">
-          <SearchBar onSearch={() => {}} onClear={() => {}} />
-        </div>
         {isTrashFolder && messages.length > 0 && (
           <>
             <button

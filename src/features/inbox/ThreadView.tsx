@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { ArrowLeft, MessageSquare, ChevronDown } from "lucide-react";
 import { useMailStore } from "@/stores/mail.store";
 import { useAccountsQuery, useFoldersForAccountsQuery, useThreadMessagesQuery, useThreadsQuery } from "@/hooks/queries";
 import { folderIdsForSelection } from "@/lib/folderAggregation";
@@ -25,6 +25,14 @@ export default function ThreadView() {
   const { data: threadMessages = [], isLoading } = useThreadMessagesQuery(selectedThreadId);
   const { data: threads = [] } = useThreadsQuery(queryFolderId, 50, 0, queryFolderIds);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [showAllMessages, setShowAllMessages] = useState(false);
+
+  const COLLAPSE_THRESHOLD = 5;
+  const shouldCollapse = threadMessages.length > COLLAPSE_THRESHOLD;
+  const visibleMessages = shouldCollapse && !showAllMessages
+    ? threadMessages.slice(0, 3)
+    : threadMessages;
+  const hiddenCount = threadMessages.length - visibleMessages.length;
 
   const thread = threads.find((t) => t.thread_id === selectedThreadId);
 
@@ -68,13 +76,27 @@ export default function ThreadView() {
 
       {/* Messages */}
       <div ref={scrollRef} className="scroll-region thread-message-scroll" style={{ flex: 1, overflow: "auto", padding: "16px" }}>
-        {threadMessages.map((msg, i) => (
+        {visibleMessages.map((msg, i) => (
           <ThreadMessageBubble
             key={msg.id}
             message={msg}
-            defaultExpanded={i === threadMessages.length - 1}
+            defaultExpanded={i === visibleMessages.length - 1 && !shouldCollapse}
           />
         ))}
+        {shouldCollapse && !showAllMessages && hiddenCount > 0 && (
+          <button
+            onClick={() => setShowAllMessages(true)}
+            style={{
+              display: "flex", alignItems: "center", gap: "6px", margin: "8px auto",
+              padding: "6px 16px", border: "1px solid var(--color-border)", borderRadius: "8px",
+              background: "var(--color-bg-secondary)", color: "var(--color-text-secondary)",
+              cursor: "pointer", fontSize: "13px",
+            }}
+          >
+            <ChevronDown size={14} />
+            {t("thread.showAllMessages", "Show all {{count}} messages", { count: threadMessages.length })}
+          </button>
+        )}
       </div>
     </div>
   );
