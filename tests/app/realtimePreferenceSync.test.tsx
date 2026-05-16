@@ -13,8 +13,8 @@ vi.mock("../../src/lib/api", () => ({
   setRealtimePreference: vi.fn(() => Promise.resolve()),
 }));
 
-vi.mock("../../src/stores/ui.store", () => ({
-  useUIStore: (selector: (state: {
+vi.mock("../../src/stores/sync.store", () => ({
+  useSyncStore: (selector: (state: {
     realtimeMode: typeof mocks.realtimeMode;
     notificationsEnabled: boolean;
   }) => unknown) =>

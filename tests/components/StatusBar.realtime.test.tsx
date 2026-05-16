@@ -60,8 +60,16 @@ vi.mock("../../src/stores/ui.store", () => ({
   useUIStore: (selector: (state: typeof mocks.uiState) => unknown) => selector(mocks.uiState),
 }));
 
+vi.mock("../../src/stores/sync.store", () => ({
+  useSyncStore: (selector: (state: typeof mocks.uiState) => unknown) => selector(mocks.uiState),
+}));
+
 vi.mock("../../src/stores/mail.store", () => ({
   useMailStore: (selector: (state: typeof mocks.mailState) => unknown) => selector(mocks.mailState),
+}));
+
+vi.mock("../../src/hooks/useDelayedIdleReady", () => ({
+  useDelayedIdleReady: () => true,
 }));
 
 vi.mock("../../src/hooks/mutations/useSyncMutation", () => ({

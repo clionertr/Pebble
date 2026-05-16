@@ -14,6 +14,7 @@ import {
   pendingMailOpsSummaryQueryKey,
   usePendingMailOpsSummary,
 } from "@/hooks/queries";
+import { useDelayedIdleReady } from "@/hooks/useDelayedIdleReady";
 
 interface MailErrorPayload {
   error_type: string;
@@ -65,7 +66,8 @@ export default function StatusBar() {
   const activeAccountId = useMailStore((s) => s.activeAccountId);
   const syncMutation = useSyncMutation();
   const queryClient = useQueryClient();
-  const { data: pendingOpsSummary } = usePendingMailOpsSummary(activeAccountId);
+  const statusDataReady = useDelayedIdleReady(3000);
+  const { data: pendingOpsSummary } = usePendingMailOpsSummary(activeAccountId, statusDataReady);
   const syncStatusRef = useRef(syncStatus);
 
   useEffect(() => {

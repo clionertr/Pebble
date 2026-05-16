@@ -13,6 +13,13 @@ interface QueuedRequest {
 let requestQueue: QueuedRequest[] = [];
 let batchTimeout: ReturnType<typeof setTimeout> | null = null;
 
+const IMMEDIATE_RPC_METHODS = new Set([
+  "list_accounts",
+  "list_folders",
+  "list_messages",
+  "list_threads",
+]);
+
 const processBatch = async (requests: QueuedRequest[], retries = 3): Promise<void> => {
   const payload = requests.map(req => ({ method: req.method, params: req.params }));
   
@@ -52,6 +59,11 @@ const processBatch = async (requests: QueuedRequest[], retries = 3): Promise<voi
 
 export const invoke = async <T>(method: string, args: any = {}): Promise<T> => { 
   return new Promise((resolve, reject) => {
+    if (IMMEDIATE_RPC_METHODS.has(method)) {
+      void processBatch([{ method, params: args, resolve, reject }]);
+      return;
+    }
+
     requestQueue.push({ method, params: args, resolve, reject });
     
     if (!batchTimeout) {

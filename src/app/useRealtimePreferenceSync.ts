@@ -24,5 +24,5 @@ export function useRealtimePreferenceSync() {
     return () => {
       cancelled = true;
     };
-  }, [realtimeMode]);
+  }, [realtimeMode, notificationsEnabled]);
 }

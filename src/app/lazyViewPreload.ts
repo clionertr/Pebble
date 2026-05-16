@@ -1,4 +1,5 @@
 export type LazyViewImporter = () => Promise<unknown>;
+export type ScheduledIdleWork = () => void | Promise<unknown>;
 
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
@@ -16,8 +17,8 @@ export function createLazyViewPreloader(importers: readonly LazyViewImporter[]) 
   };
 }
 
-export function scheduleLazyViewPreload(
-  preload: () => Promise<unknown>,
+export function scheduleIdleWork(
+  work: ScheduledIdleWork,
   win: Window = window,
   delayMs: number = 0
 ) {
@@ -26,7 +27,7 @@ export function scheduleLazyViewPreload(
   let isIdleHandle = false;
 
   const run = () => {
-    void preload();
+    void work();
   };
 
   const scheduleRun = () => {
@@ -51,4 +52,12 @@ export function scheduleLazyViewPreload(
       win.clearTimeout(handle);
     }
   };
+}
+
+export function scheduleLazyViewPreload(
+  preload: () => Promise<unknown>,
+  win: Window = window,
+  delayMs: number = 0
+) {
+  return scheduleIdleWork(preload, win, delayMs);
 }

@@ -93,6 +93,13 @@ vi.mock("../../src/components/Skeleton", () => ({
   MessageListSkeleton: () => <div>Loading messages</div>,
 }));
 
+vi.mock("../../src/app/lazyViewPreload", () => ({
+  scheduleIdleWork: (work: () => void) => {
+    work();
+    return vi.fn();
+  },
+}));
+
 import MessageList from "../../src/components/MessageList";
 
 function makeMessage(id: string): MessageSummary {

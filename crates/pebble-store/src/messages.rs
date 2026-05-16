@@ -287,9 +287,12 @@ impl Store {
         self.with_read(|conn| {
             let sql = format!(
                 "SELECT m.{} FROM messages m
-                 JOIN message_folders mf ON m.id = mf.message_id
-                 WHERE mf.folder_id = ?1 AND m.is_deleted = 0
-                 ORDER BY m.date DESC
+                 WHERE m.is_deleted = 0
+                   AND EXISTS (
+                       SELECT 1 FROM message_folders mf
+                       WHERE mf.message_id = m.id AND mf.folder_id = ?1
+                   )
+                 ORDER BY m.date DESC, m.id ASC
                  LIMIT ?2 OFFSET ?3",
                 MSG_SUMMARY_SELECT.replace(", ", ", m.")
             );
@@ -413,10 +416,13 @@ impl Store {
             let placeholders: Vec<String> =
                 (1..=folder_ids.len()).map(|i| format!("?{}", i)).collect();
             let sql = format!(
-                "SELECT DISTINCT m.{} FROM messages m
-                 JOIN message_folders mf ON m.id = mf.message_id
-                 WHERE mf.folder_id IN ({}) AND m.is_deleted = 0
-                 ORDER BY m.date DESC
+                "SELECT m.{} FROM messages m
+                 WHERE m.is_deleted = 0
+                   AND EXISTS (
+                       SELECT 1 FROM message_folders mf
+                       WHERE mf.message_id = m.id AND mf.folder_id IN ({})
+                   )
+                 ORDER BY m.date DESC, m.id ASC
                  LIMIT ?{} OFFSET ?{}",
                 MSG_SUMMARY_SELECT.replace(", ", ", m."),
                 placeholders.join(", "),
@@ -455,7 +461,10 @@ impl Store {
 
     /// Fetch a message plus its account provider type in a single JOIN,
     /// avoiding a separate `get_account` call from `resolve_message_context`.
-    pub fn get_message_with_provider(&self, id: &str) -> Result<Option<(Message, pebble_core::ProviderType)>> {
+    pub fn get_message_with_provider(
+        &self,
+        id: &str,
+    ) -> Result<Option<(Message, pebble_core::ProviderType)>> {
         self.with_read(|conn| {
             let sql = format!(
                 "SELECT {MSG_SELECT}, a.provider FROM messages m \
@@ -1507,6 +1516,110 @@ mod remote_id_scope_tests {
         let attachments = store.list_attachments_by_message(&updated.id).unwrap();
         assert_eq!(attachments.len(), 1);
         assert_eq!(attachments[0].filename, "new.pdf");
+    }
+
+    #[test]
+    fn list_messages_by_folders_returns_each_message_once() {
+        let store = Store::open_in_memory().unwrap();
+        let account = make_account();
+        store.insert_account(&account).unwrap();
+
+        let inbox = make_folder(&account.id, "INBOX", FolderRole::Inbox, 0);
+        let archive = make_folder(&account.id, "Archive", FolderRole::Archive, 1);
+        store.insert_folder(&inbox).unwrap();
+        store.insert_folder(&archive).unwrap();
+
+        let mut newest = make_message(&account.id, "newest");
+        newest.date = 2_000;
+        let mut older = make_message(&account.id, "older");
+        older.date = 1_000;
+
+        store
+            .insert_message(&newest, &[inbox.id.clone(), archive.id.clone()])
+            .unwrap();
+        store
+            .insert_message(&older, std::slice::from_ref(&inbox.id))
+            .unwrap();
+
+        let messages = store
+            .list_messages_by_folders(&[inbox.id, archive.id], 50, 0)
+            .unwrap();
+        let ids: Vec<_> = messages.into_iter().map(|message| message.id).collect();
+
+        assert_eq!(ids, vec![newest.id, older.id]);
+    }
+
+    #[test]
+    fn list_messages_uses_stable_same_date_order_for_pagination() {
+        let store = Store::open_in_memory().unwrap();
+        let account = make_account();
+        store.insert_account(&account).unwrap();
+
+        let inbox = make_folder(&account.id, "INBOX", FolderRole::Inbox, 0);
+        store.insert_folder(&inbox).unwrap();
+
+        let mut first = make_message(&account.id, "first");
+        first.id = "message-a".to_string();
+        first.date = 2_000;
+        let mut second = make_message(&account.id, "second");
+        second.id = "message-b".to_string();
+        second.date = 2_000;
+
+        store
+            .insert_message(&second, std::slice::from_ref(&inbox.id))
+            .unwrap();
+        store
+            .insert_message(&first, std::slice::from_ref(&inbox.id))
+            .unwrap();
+
+        let page_one = store.list_messages_by_folder(&inbox.id, 1, 0).unwrap();
+        let page_two = store.list_messages_by_folder(&inbox.id, 1, 1).unwrap();
+
+        assert_eq!(page_one[0].id, "message-a");
+        assert_eq!(page_two[0].id, "message-b");
+    }
+
+    #[test]
+    fn list_messages_excludes_deleted_messages() {
+        let store = Store::open_in_memory().unwrap();
+        let account = make_account();
+        store.insert_account(&account).unwrap();
+
+        let inbox = make_folder(&account.id, "INBOX", FolderRole::Inbox, 0);
+        let archive = make_folder(&account.id, "Archive", FolderRole::Archive, 1);
+        store.insert_folder(&inbox).unwrap();
+        store.insert_folder(&archive).unwrap();
+
+        let visible = make_message(&account.id, "visible");
+        let mut deleted = make_message(&account.id, "deleted");
+        deleted.is_deleted = true;
+
+        store
+            .insert_message(&visible, &[inbox.id.clone(), archive.id.clone()])
+            .unwrap();
+        store
+            .insert_message(&deleted, &[inbox.id.clone(), archive.id.clone()])
+            .unwrap();
+
+        let single_folder = store.list_messages_by_folder(&inbox.id, 50, 0).unwrap();
+        let multi_folder = store
+            .list_messages_by_folders(&[inbox.id, archive.id], 50, 0)
+            .unwrap();
+
+        assert_eq!(
+            single_folder
+                .into_iter()
+                .map(|message| message.id)
+                .collect::<Vec<_>>(),
+            vec![visible.id.clone()],
+        );
+        assert_eq!(
+            multi_folder
+                .into_iter()
+                .map(|message| message.id)
+                .collect::<Vec<_>>(),
+            vec![visible.id],
+        );
     }
 }
 

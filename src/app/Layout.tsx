@@ -17,7 +17,7 @@ import { useKeyboard } from "../hooks/useKeyboard";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { buildCommands } from "../features/command-palette/commands";
 import { useEffect, lazy, Suspense, Component, type ReactNode, type ErrorInfo } from "react";
-import { scheduleLazyViewPreload } from "./lazyViewPreload";
+import { scheduleIdleWork, scheduleLazyViewPreload } from "./lazyViewPreload";
 import { useRealtimePreferenceSync } from "./useRealtimePreferenceSync";
 import { useRealtimeSyncTriggers } from "./useRealtimeSyncTriggers";
 import { useNotificationOpenNavigation } from "./useNotificationOpenNavigation";
@@ -42,7 +42,6 @@ import i18next from "i18next";
 import { WifiOff } from "lucide-react";
 import { listen } from "../tauri-mock";
 import { useQueryClient } from "@tanstack/react-query";
-import { setNotificationsEnabled as setBackendNotificationsEnabled } from "@/lib/api";
 
 export default function Layout() {
   const activeView = useUIStore((s) => s.activeView);
@@ -52,7 +51,6 @@ export default function Layout() {
   const theme = useThemeStore((s) => s.theme);
   const isMobile = useUIStore((s) => s.isMobile);
   const setIsMobile = useUIStore((s) => s.setIsMobile);
-  const notificationsEnabled = useSyncStore((s) => s.notificationsEnabled);
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const drawerOpen = useUIStore((s) => s.drawerOpen);
@@ -70,18 +68,21 @@ export default function Layout() {
 
   // Load kanban cards at startup so MessageItem can show kanban indicators
   useEffect(() => {
-    useKanbanStore.getState().fetchCards();
+    return scheduleIdleWork(
+      () => useKanbanStore.getState().fetchCards(),
+      window,
+      5000,
+    );
   }, []);
 
   useEffect(() => {
-    // Priority 1: ComposeView (might be opened anytime)
-    const cleanup1 = scheduleLazyViewPreload(loadComposeView, window, 500);
-    // Priority 2: Settings, Search (likely to be used, but not as urgent)
+    // Preload likely views only after the startup inbox has had time to paint.
+    const cleanup1 = scheduleLazyViewPreload(loadComposeView, window, 5000);
     const cleanup2 = scheduleLazyViewPreload(() => {
       void loadSettingsView();
       void loadSearchView();
       return Promise.resolve();
-    }, window, 3000);
+    }, window, 7000);
     
     return () => {
       cleanup1();
@@ -101,12 +102,6 @@ export default function Layout() {
   useEffect(() => {
     useCommandStore.getState().registerCommands(buildCommands(t));
   }, [t]);
-
-  // Keep the Rust notification gate aligned with the single frontend preference source.
-  useEffect(() => {
-    setBackendNotificationsEnabled(notificationsEnabled)
-      .catch((err) => console.warn("Failed to sync notification preference to backend", err));
-  }, [notificationsEnabled]);
 
   // Global listener: refresh data when snoozed messages are restored
   useEffect(() => {

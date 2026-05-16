@@ -14,7 +14,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { List, MessageSquare, Mail, Trash2, Inbox, CheckSquare } from "lucide-react";
 import { MessageListSkeleton } from "@/components/Skeleton";
 import { emptyTrash } from "@/lib/api";
-import { folderIdsForSelection, roleForSelection } from "@/lib/folderAggregation";
+import { buildAllAccountsFolders, folderIdsForSelection, roleForSelection } from "@/lib/folderAggregation";
 import type { ThreadSummary } from "@/lib/api";
 
 const EMPTY_THREADS: ThreadSummary[] = [];
@@ -26,6 +26,7 @@ export default function InboxView() {
   const activeAccountId = useMailStore((s) => s.activeAccountId);
   const selectedMessageId = useMailStore((s) => s.selectedMessageId);
   const setSelectedMessage = useMailStore((s) => s.setSelectedMessage);
+  const setActiveFolderId = useMailStore((s) => s.setActiveFolderId);
   const threadView = useMailStore((s) => s.threadView);
   const toggleThreadView = useMailStore((s) => s.toggleThreadView);
   const selectedThreadId = useMailStore((s) => s.selectedThreadId);
@@ -36,14 +37,31 @@ export default function InboxView() {
     [accounts, activeAccountId],
   );
   const { data: folders = [] } = useFoldersForAccountsQuery(folderAccountIds);
+  const allAccountsMode = accounts.length > 1 && !activeAccountId;
+  const displayedFolders = useMemo(
+    () => allAccountsMode ? buildAllAccountsFolders(folders) : folders,
+    [allAccountsMode, folders],
+  );
+  const defaultFolderId = useMemo(() => {
+    if (displayedFolders.length === 0) return null;
+    const inbox = displayedFolders.find((folder) => folder.role === "inbox");
+    return (inbox ?? displayedFolders[0]).id;
+  }, [displayedFolders]);
+  const effectiveFolderId = activeFolderId ?? defaultFolderId;
   const queryClient = useQueryClient();
   const addToast = useToastStore((s) => s.addToast);
   const isMobile = useUIStore((s) => s.isMobile);
   const [showTrashConfirm, setShowTrashConfirm] = useState(false);
 
-  const activeFolderRole = roleForSelection(activeFolderId, folders);
+  useEffect(() => {
+    if (!activeFolderId && defaultFolderId) {
+      setActiveFolderId(defaultFolderId);
+    }
+  }, [activeFolderId, defaultFolderId, setActiveFolderId]);
+
+  const activeFolderRole = roleForSelection(effectiveFolderId, folders);
   const isTrashFolder = activeFolderRole === "trash";
-  const selectedFolderIds = folderIdsForSelection(activeFolderId, folders);
+  const selectedFolderIds = folderIdsForSelection(effectiveFolderId, folders);
   const queryFolderId = selectedFolderIds[0] ?? null;
   const queryFolderIds = selectedFolderIds.length > 1 ? selectedFolderIds : undefined;
 
@@ -79,7 +97,7 @@ export default function InboxView() {
   const showDetail = detailOpen;
 
   // No accounts or no folder selected — show welcome / setup prompt
-  if (accounts.length === 0 || !activeFolderId) {
+  if (accounts.length === 0 || !effectiveFolderId) {
     return (
       <div className="fade-in" style={{
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",

@@ -14,6 +14,7 @@ import { roleForSelection } from "@/lib/folderAggregation";
 import { assignAccountColors, getAccountColor, getAccountLabel } from "@/lib/accountColors";
 import MessageItem from "./MessageItem";
 import { MessageListSkeleton } from "./Skeleton";
+import { scheduleIdleWork } from "@/app/lazyViewPreload";
 
 interface Props {
   messages: MessageSummary[];
@@ -68,11 +69,17 @@ export default function MessageList({
   const spamFolderId = activeFolderRole !== "spam" ? spamFolder?.id : undefined;
   const messageIds = useMemo(() => messages.map((m) => m.id), [messages]);
   const messageIdsKey = useMemo(() => messageIds.join(","), [messageIds]);
+  const [labelsReady, setLabelsReady] = useState(false);
+  useEffect(() => {
+    setLabelsReady(false);
+    if (messageIds.length === 0) return;
+    return scheduleIdleWork(() => setLabelsReady(true), window, 300);
+  }, [messageIds.length, messageIdsKey]);
   const { data: labelsByMessage = {} } = useQuery({
     queryKey: ["message-labels", messageIdsKey],
     queryFn: () => getMessageLabelsBatch(messageIds),
     staleTime: 60_000,
-    enabled: messageIds.length > 0,
+    enabled: labelsReady && messageIds.length > 0,
   });
 
   useEffect(() => {

@@ -150,6 +150,7 @@ vi.mock("../../src/hooks/useKeyboard", () => ({
 
 vi.mock("../../src/app/lazyViewPreload", () => ({
   createLazyViewPreloader: vi.fn(() => vi.fn().mockResolvedValue([])),
+  scheduleIdleWork: vi.fn(() => vi.fn()),
   scheduleLazyViewPreload: vi.fn(() => vi.fn()),
 }));
 
