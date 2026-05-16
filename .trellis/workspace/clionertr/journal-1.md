@@ -180,3 +180,46 @@ Implemented per-account Gmail API Pub/Sub realtime sync with configurable fallba
 ### Next Steps
 
 - None - task complete
+
+
+## Session 6: Pebble 性能与UX全面优化 — P0/P1/P2 15个任务全部完成
+
+**Date**: 2026-05-16
+**Task**: Pebble 性能与UX全面优化 — P0/P1/P2 15个任务全部完成
+**Package**: pebble
+**Branch**: `001-improve-experience`
+
+### Summary
+
+完成 05-15-improve-ux-mail-latency-performance 全部 15 个子任务:
+P0: 异步阻塞修复, 推送绕过断路器, SSE重连+丢弃监控, 闪屏移除, A11y修复
+P1: 缓存精准失效, 数据库复合索引, Tantivy双存消除, Zustand拆分, IMAP连接池
+P2: RPC超时+并发, 线程虚拟化, N+1 JOIN优化, 搜索框移除, 延迟持久化
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5f9a8c9` | (see git log) |
+| `25fc972` | (see git log) |
+| `08ef8c0` | (see git log) |
+| `1dbf154` | (see git log) |
+| `3d968e2` | (see git log) |
+| `7753af4` | (see git log) |
+| `98aa840` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

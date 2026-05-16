@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 5
-- **Last Active**: 2026-05-14
+- **Total Sessions**: 6
+- **Last Active**: 2026-05-16
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~182 | Active |
+| `journal-1.md` | ~225 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 6 | 2026-05-16 | Pebble 性能与UX全面优化 — P0/P1/P2 15个任务全部完成 | `5f9a8c9`, `25fc972`, `08ef8c0`, `1dbf154`, `3d968e2`, `7753af4`, `98aa840` | `001-improve-experience` |
 | 5 | 2026-05-14 | Gmail Pub/Sub realtime sync | `bf7621c`, `82acafb`, `b8af4b9` | `001-improve-experience` |
 | 4 | 2026-05-06 | Optimize Docker Build Caching | `78b512d`, `2e17041`, `e890d9f` | `001-improve-experience` |
 | 3 | 2026-05-05 | Fix Build Error | `c6a9b0b` | `master` |
