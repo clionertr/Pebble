@@ -13,6 +13,7 @@ pub mod folders;
 pub mod gmail_labels;
 pub mod gmail_realtime;
 pub mod health;
+pub mod imap_pool;
 pub mod indexing;
 pub mod kanban;
 pub mod labels;

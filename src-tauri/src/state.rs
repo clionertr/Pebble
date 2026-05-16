@@ -1,5 +1,6 @@
 use crate::mail_latency::MailLatencyHint;
 use crate::realtime::SyncTrigger;
+use crate::rpc::imap_pool::ImapConnectionPool;
 use pebble_crypto::CryptoService;
 use pebble_search::TantivySearch;
 use pebble_store::Store;
@@ -38,6 +39,7 @@ pub struct AppState {
     pub attachments_dir: PathBuf,
     pub notifications_enabled: Arc<AtomicBool>,
     pub tx: broadcast::Sender<EventPayload>,
+    pub imap_pool: ImapConnectionPool,
 }
 
 impl AppState {
@@ -61,6 +63,7 @@ impl AppState {
             attachments_dir,
             notifications_enabled: Arc::new(AtomicBool::new(true)),
             tx,
+            imap_pool: ImapConnectionPool::new(),
         }
     }
 

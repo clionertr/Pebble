@@ -187,12 +187,14 @@ pub async fn archive_message(
                     let uid: u32 = msg.remote_id.parse().map_err(|e| {
                         PebbleError::Internal(format!("Invalid remote_id (not a UID): {e}"))
                     })?;
-                    match connect_imap(&state, &msg.account_id).await {
+                    match state.imap_pool.get(&state, &msg.account_id).await {
                         Ok(imap) => {
                             let result = imap
                                 .move_message(&source_folder.remote_id, uid, &inbox.remote_id)
                                 .await;
-                            let _ = imap.disconnect().await;
+                            if result.is_err() {
+                                state.imap_pool.evict(&msg.account_id).await;
+                            }
                             match result {
                                 Ok(()) => RemoteMutationOutcome::Applied,
                                 Err(e) => {
@@ -363,7 +365,7 @@ pub async fn archive_message(
                         let uid: u32 = msg.remote_id.parse().map_err(|e| {
                             PebbleError::Internal(format!("Invalid remote_id (not a UID): {e}"))
                         })?;
-                        match connect_imap(&state, &msg.account_id).await {
+                        match state.imap_pool.get(&state, &msg.account_id).await {
                             Ok(imap) => {
                                 let result = imap
                                     .move_message(
@@ -372,7 +374,9 @@ pub async fn archive_message(
                                         &archive_folder.remote_id,
                                     )
                                     .await;
-                                let _ = imap.disconnect().await;
+                                if result.is_err() {
+                                    state.imap_pool.evict(&msg.account_id).await;
+                                }
                                 match result {
                                     Ok(()) => RemoteMutationOutcome::Applied,
                                     Err(e) => {
@@ -671,7 +675,7 @@ pub async fn delete_message(
                 RemoteMutationOutcome::LocalOnly
             } else {
                 let uid = parse_imap_uid(&msg.remote_id)?;
-                match connect_imap(&state, &msg.account_id).await {
+                match state.imap_pool.get(&state, &msg.account_id).await {
                     Ok(imap) => {
                         let result = if !is_permanent && can_move_to_remote_trash {
                             let trash = trash_folder.as_ref().expect("checked above");
@@ -680,7 +684,9 @@ pub async fn delete_message(
                         } else {
                             imap.delete_message(&source_folder.remote_id, uid).await
                         };
-                        let _ = imap.disconnect().await;
+                        if result.is_err() {
+                            state.imap_pool.evict(&msg.account_id).await;
+                        }
                         match result {
                             Ok(()) => RemoteMutationOutcome::Applied,
                             Err(e) => {
@@ -900,12 +906,14 @@ pub async fn restore_message(
             } else {
                 let source_folder = source_folder.as_ref().expect("checked above");
                 let uid = parse_imap_uid(&msg.remote_id)?;
-                match connect_imap(&state, &msg.account_id).await {
+                match state.imap_pool.get(&state, &msg.account_id).await {
                     Ok(imap) => {
                         let result = imap
                             .move_message(&source_folder.remote_id, uid, &inbox.remote_id)
                             .await;
-                        let _ = imap.disconnect().await;
+                        if result.is_err() {
+                            state.imap_pool.evict(&msg.account_id).await;
+                        }
                         match result {
                             Ok(()) => RemoteMutationOutcome::Applied,
                             Err(e) => {
@@ -1044,12 +1052,14 @@ pub async fn move_to_folder(
             if is_local_move {
                 RemoteMutationOutcome::LocalOnly
             } else if let Ok(uid) = msg.remote_id.parse::<u32>() {
-                match connect_imap(&state, &msg.account_id).await {
+                match state.imap_pool.get(&state, &msg.account_id).await {
                     Ok(imap) => {
                         let result = imap
                             .move_message(&source_folder.remote_id, uid, &target_folder.remote_id)
                             .await;
-                        let _ = imap.disconnect().await;
+                        if result.is_err() {
+                            state.imap_pool.evict(&msg.account_id).await;
+                        }
                         match result {
                             Ok(()) => {
                                 info!(
