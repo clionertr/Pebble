@@ -90,8 +90,8 @@ export default function StatusBar() {
 
   function refreshMailQueries() {
     queryClient.invalidateQueries({ queryKey: ["folders"] });
-    queryClient.refetchQueries({ queryKey: ["messages"] });
-    queryClient.refetchQueries({ queryKey: ["threads"] });
+    queryClient.invalidateQueries({ queryKey: ["messages"] });
+    queryClient.invalidateQueries({ queryKey: ["threads"] });
     queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
   }
 
@@ -136,8 +136,8 @@ export default function StatusBar() {
   useEffect(() => {
     const unlisten = listen<MailNewPayload>("mail:new", (event) => {
       rememberMailNewLatencyEvent(event.payload);
-      queryClient.refetchQueries({ queryKey: ["messages"] });
-      queryClient.refetchQueries({ queryKey: ["threads"] });
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      queryClient.invalidateQueries({ queryKey: ["threads"] });
       if (event.payload.account_id) {
         queryClient.invalidateQueries({ queryKey: ["folders", event.payload.account_id] });
         queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", event.payload.account_id] });
@@ -152,8 +152,8 @@ export default function StatusBar() {
         queryKey: pendingMailOpsSummaryQueryKey(activeAccountId),
       });
       queryClient.invalidateQueries({ queryKey: ["folders"] });
-      queryClient.refetchQueries({ queryKey: ["messages"] });
-      queryClient.refetchQueries({ queryKey: ["threads"] });
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      queryClient.invalidateQueries({ queryKey: ["threads"] });
     });
     return () => { unlisten.then((fn) => fn()); };
   }, [activeAccountId, queryClient]);

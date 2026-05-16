@@ -2,7 +2,7 @@ use pebble_core::{PebbleError, Result};
 use rusqlite::Connection;
 use std::collections::HashSet;
 
-const CURRENT_VERSION: u32 = 11;
+const CURRENT_VERSION: u32 = 12;
 const ACCOUNT_COLOR_PRESETS: [&str; 12] = [
     "#0ea5e9", "#22c55e", "#f59e0b", "#8b5cf6", "#f43f5e", "#14b8a6", "#6366f1", "#f97316",
     "#06b6d4", "#ec4899", "#84cc16", "#3b82f6",
@@ -280,9 +280,22 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                 .map_err(|e| PebbleError::Storage(format!("Migration V11 failed: {e}")))?;
         }
         backfill_account_colors(&tx)?;
-        set_schema_version(&tx, CURRENT_VERSION)?;
+        set_schema_version(&tx, 11)?;
         tx.commit()
             .map_err(|e| PebbleError::Storage(format!("Migration V11 commit failed: {e}")))?;
+    }
+
+    if version < 12 {
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| PebbleError::Storage(format!("Migration V12 begin failed: {e}")))?;
+        tx.execute_batch(
+            "CREATE INDEX IF NOT EXISTS idx_messages_account_deleted_date ON messages(account_id, is_deleted, date);",
+        )
+        .map_err(|e| PebbleError::Storage(format!("Migration V12 failed: {e}")))?;
+        set_schema_version(&tx, CURRENT_VERSION)?;
+        tx.commit()
+            .map_err(|e| PebbleError::Storage(format!("Migration V12 commit failed: {e}")))?;
     }
 
     Ok(())
@@ -444,6 +457,12 @@ mod tests {
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS messages (
+                id TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                is_deleted INTEGER NOT NULL DEFAULT 0,
+                date INTEGER NOT NULL
+            );
             PRAGMA user_version = 10;",
         )
         .unwrap();
@@ -453,9 +472,11 @@ mod tests {
         let version: u32 = conn
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 11);
+        assert_eq!(version, 12);
         conn.prepare("SELECT color FROM accounts LIMIT 0")
             .expect("accounts.color should exist after V11");
+        conn.prepare("SELECT id FROM messages LIMIT 0")
+            .expect("messages should exist");
     }
 
     #[test]
@@ -474,6 +495,13 @@ mod tests {
             VALUES
                 ('account-1', 'one@example.com', 'One', 'gmail', 1, 1),
                 ('account-2', 'two@example.com', 'Two', 'gmail', 2, 2);
+
+            CREATE TABLE IF NOT EXISTS messages (
+                id TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                is_deleted INTEGER NOT NULL DEFAULT 0,
+                date INTEGER NOT NULL
+            );
             PRAGMA user_version = 10;",
         )
         .unwrap();
@@ -492,5 +520,36 @@ mod tests {
             colors,
             vec![Some("#0ea5e9".to_string()), Some("#22c55e".to_string())]
         );
+    }
+
+    #[test]
+    fn migration_v12_adds_account_deleted_date_index() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE messages (
+                id TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                is_deleted INTEGER NOT NULL DEFAULT 0,
+                date INTEGER NOT NULL
+            );
+            PRAGMA user_version = 11;",
+        )
+        .unwrap();
+
+        run_migrations(&conn).unwrap();
+
+        let version: u32 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 12);
+
+        let index_count: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_messages_account_deleted_date'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(index_count, 1, "expected idx_messages_account_deleted_date to exist");
     }
 }
