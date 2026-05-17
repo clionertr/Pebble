@@ -21,6 +21,7 @@ fn is_exempt(path: &str) -> bool {
         || path == "/api/auth/login"
         || path == "/api/auth/logout"
         || path == "/api/auth/status"
+        || path.starts_with("/api/docs")
 }
 
 /// Auth middleware — validates session cookie.

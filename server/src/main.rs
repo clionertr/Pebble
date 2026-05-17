@@ -131,6 +131,7 @@ async fn main() {
         .route("/auth/callback", get(auth::callback_handler))
         .merge(api::api_routes())
         .merge(api::auth_api::auth_routes())
+        .merge(api::docs::docs_routes())
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             middleware::auth_middleware,

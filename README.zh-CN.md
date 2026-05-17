@@ -291,17 +291,20 @@ Pebble/
 |   |-- components/         通用 UI 组件
 |   |-- features/           收件箱、写信、搜索、看板、设置等功能
 |   |-- hooks/              React hooks 和查询工具
-|   |-- lib/                HTTP API 客户端、i18n、通用工具
+|   |-- lib/                HTTP API 客户端、SSE 客户端、i18n、通用工具
 |   |-- stores/             Zustand 状态管理
-|   `-- tauri-mock.ts       HTTP/SSE 桥接（替代 Tauri IPC）
-|-- server/              Rust HTTP 后端 (Axum)
+|   `-- sse-client.ts       SSE 事件监听 (EventSource)
+|-- server/                 Rust HTTP 后端 (Axum)
 |   `-- src/
 |       |-- main.rs         服务器入口，路由注册
 |       |-- auth.rs         OAuth 登录和回调处理
 |       |-- state.rs        共享应用状态
+|       |-- session.rs      Cookie 会话 + 限流器
+|       |-- middleware/      Auth 中间件（Cookie 验证）
+|       |-- api/            REST API 处理器（80+ 端点）
 |       |-- realtime/       后台同步工作线程
 |       |-- snooze_watcher.rs 稍后提醒定时后台任务
-|       `-- rpc/            JSON-RPC 命令处理
+|       `-- rpc/            旧版 JSON-RPC 处理器（已弃用）
 |-- crates/                 Rust 工作区
 |   |-- pebble-core/        共享类型和错误定义
 |   |-- pebble-store/       SQLite 持久化

@@ -1,0 +1,241 @@
+// OpenAPI documentation — serves spec JSON at /api/docs/openapi.json.
+
+use axum::{Json, Router, routing::get};
+use serde_json::{json, Value};
+
+pub fn docs_routes<S: Clone + Send + Sync + 'static>() -> Router<S> {
+    Router::new()
+        .route("/api/docs/openapi.json", get(openapi_spec))
+}
+
+async fn openapi_spec() -> Json<Value> {
+    Json(build_spec())
+}
+
+fn build_spec() -> Value {
+    let mut spec = json!({
+        "openapi": "3.0.3",
+        "info": {
+            "title": "Pebble Webmail API",
+            "version": "0.0.4",
+            "description": "Single-user self-hosted Webmail REST API. Cookie-based auth via /api/auth/login."
+        },
+        "servers": [{ "url": "/", "description": "Same-origin" }],
+        "paths": {}
+    });
+
+    let paths = spec["paths"].as_object_mut().unwrap();
+
+    // Health
+    paths.insert("/api/health".into(), json!({
+        "get": { "summary": "Health check", "responses": { "200": { "description": "ok" }, "401": { "description": "Unauthorized" } } }
+    }));
+
+    // Shell
+    paths.insert("/api/shell".into(), json!({
+        "get": { "summary": "Shell: accounts + folders + unread counts", "responses": { "200": { "description": "Shell data" } } }
+    }));
+
+    // Messages
+    paths.insert("/api/inbox".into(), json!({
+        "get": { "summary": "List inbox/thread messages", "parameters": [
+            { "name": "accountId", "in": "query", "schema": { "type": "string" } },
+            { "name": "folderId", "in": "query", "schema": { "type": "string" } },
+            { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+            { "name": "offset", "in": "query", "schema": { "type": "integer" } }
+        ], "responses": { "200": { "description": "Messages" } } }
+    }));
+
+    paths.insert("/api/starred".into(), json!({
+        "get": { "summary": "List starred messages", "parameters": [
+            { "name": "accountId", "in": "query", "schema": { "type": "string" } }
+        ], "responses": { "200": { "description": "Starred messages" } } }
+    }));
+
+    paths.insert("/api/messages/batch".into(), json!({
+        "post": { "summary": "Batch fetch messages", "responses": { "200": { "description": "Messages array" } } }
+    }));
+
+    paths.insert("/api/messages/send".into(), json!({
+        "post": { "summary": "Send email", "responses": { "200": { "description": "Sent" } } }
+    }));
+
+    paths.insert("/api/messages/{id}".into(), json!({
+        "get": { "summary": "Get a message", "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ], "responses": { "200": { "description": "Message" }, "404": { "description": "Not found" } } },
+        "patch": { "summary": "Update message flags" },
+        "delete": { "summary": "Delete message" }
+    }));
+
+    paths.insert("/api/messages/{id}/archive".into(), json!({
+        "post": { "summary": "Archive a message" }
+    }));
+
+    paths.insert("/api/messages/{id}/move".into(), json!({
+        "post": { "summary": "Move message to folder" }
+    }));
+
+    paths.insert("/api/messages/{id}/restore".into(), json!({
+        "post": { "summary": "Restore deleted message" }
+    }));
+
+    // Batch mutations
+    for (path, summary) in [
+        ("/api/messages/batch/archive", "Batch archive"),
+        ("/api/messages/batch/delete", "Batch delete"),
+        ("/api/messages/batch/read", "Batch mark read"),
+        ("/api/messages/batch/star", "Batch star"),
+    ] {
+        paths.insert(path.into(), json!({ "post": { "summary": summary } }));
+    }
+
+    // Auth
+    paths.insert("/api/auth/login".into(), json!({
+        "post": { "summary": "Login", "responses": { "200": { "description": "Logged in" }, "401": { "description": "Wrong password" }, "429": { "description": "Rate limited" } } }
+    }));
+    paths.insert("/api/auth/logout".into(), json!({
+        "post": { "summary": "Logout" }
+    }));
+    paths.insert("/api/auth/status".into(), json!({
+        "get": { "summary": "Check auth status" }
+    }));
+
+    // Threads
+    paths.insert("/api/threads/{id}/messages".into(), json!({
+        "get": { "summary": "List thread messages" }
+    }));
+
+    // Search
+    paths.insert("/api/search".into(), json!({
+        "get": { "summary": "Search messages", "parameters": [
+            { "name": "q", "in": "query", "schema": { "type": "string" } }
+        ] }
+    }));
+
+    // Kanban
+    paths.insert("/api/kanban".into(), json!({
+        "get": { "summary": "List kanban cards + notes" }
+    }));
+
+    // Snoozed
+    paths.insert("/api/snoozed".into(), json!({
+        "get": { "summary": "List snoozed messages" }
+    }));
+
+    // Labels
+    paths.insert("/api/labels".into(), json!({
+        "get": { "summary": "List labels" }
+    }));
+    paths.insert("/api/messages/{id}/labels".into(), json!({
+        "get": { "summary": "Get message labels" },
+        "post": { "summary": "Add label to message" }
+    }));
+
+    // Rules
+    paths.insert("/api/rules".into(), json!({
+        "get": { "summary": "List rules" },
+        "post": { "summary": "Create rule" }
+    }));
+    paths.insert("/api/rules/{id}".into(), json!({
+        "put": { "summary": "Update rule" },
+        "delete": { "summary": "Delete rule" }
+    }));
+
+    // Translate
+    paths.insert("/api/translate".into(), json!({
+        "post": { "summary": "Translate text" }
+    }));
+    paths.insert("/api/translate/config".into(), json!({
+        "get": { "summary": "Get translate config" },
+        "put": { "summary": "Save translate config" }
+    }));
+    paths.insert("/api/translate/test".into(), json!({
+        "post": { "summary": "Test translate connection" }
+    }));
+
+    // Contacts
+    paths.insert("/api/contacts".into(), json!({
+        "get": { "summary": "Search contacts" }
+    }));
+
+    // Accounts
+    paths.insert("/api/accounts".into(), json!({
+        "get": { "summary": "List accounts" }
+    }));
+    paths.insert("/api/accounts/{id}/signature".into(), json!({
+        "get": { "summary": "Get email signature" },
+        "put": { "summary": "Set email signature" }
+    }));
+    paths.insert("/api/accounts/{id}/sync/trigger".into(), json!({
+        "post": { "summary": "Trigger sync for account" }
+    }));
+    paths.insert("/api/accounts/{id}/trash".into(), json!({
+        "delete": { "summary": "Empty trash" }
+    }));
+
+    // Drafts
+    paths.insert("/api/drafts".into(), json!({
+        "post": { "summary": "Save draft" }
+    }));
+    paths.insert("/api/drafts/{id}".into(), json!({
+        "delete": { "summary": "Delete draft" }
+    }));
+
+    // Attachments
+    paths.insert("/api/attachments/stage".into(), json!({
+        "post": { "summary": "Upload attachment (multipart/form-data)" }
+    }));
+    paths.insert("/api/attachments/{id}".into(), json!({
+        "get": { "summary": "Download attachment (streaming)" }
+    }));
+    paths.insert("/api/messages/{id}/attachments".into(), json!({
+        "get": { "summary": "List message attachments" }
+    }));
+
+    // Templates
+    paths.insert("/api/templates".into(), json!({
+        "get": { "summary": "List templates" },
+        "post": { "summary": "Save template" }
+    }));
+    paths.insert("/api/templates/{id}".into(), json!({
+        "delete": { "summary": "Delete template" }
+    }));
+
+    // Trusted Senders
+    paths.insert("/api/trusted-senders".into(), json!({
+        "get": { "summary": "List trusted senders" },
+        "post": { "summary": "Trust a sender" }
+    }));
+    paths.insert("/api/trusted-senders/check".into(), json!({
+        "get": { "summary": "Check if sender is trusted" }
+    }));
+
+    // Preferences
+    paths.insert("/api/preferences/realtime".into(), json!({
+        "put": { "summary": "Set realtime preference" }
+    }));
+    paths.insert("/api/preferences/notifications".into(), json!({
+        "put": { "summary": "Set notifications preference" }
+    }));
+
+    // Diagnostics
+    paths.insert("/api/logs".into(), json!({
+        "get": { "summary": "Read app logs" }
+    }));
+    paths.insert("/api/diagnostics/mail-timing".into(), json!({
+        "post": { "summary": "Record mail timing" }
+    }));
+
+    // Cloud Sync
+    for (path, summary) in [
+        ("/api/cloud-sync/webdav/test", "Test WebDAV connection"),
+        ("/api/cloud-sync/webdav/backup", "Backup to WebDAV"),
+        ("/api/cloud-sync/webdav/preview", "Preview WebDAV backup"),
+        ("/api/cloud-sync/webdav/restore", "Restore from WebDAV"),
+    ] {
+        paths.insert(path.into(), json!({ "post": { "summary": summary } }));
+    }
+
+    spec
+}

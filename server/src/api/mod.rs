@@ -2,6 +2,7 @@ pub mod accounts;
 pub mod attachments;
 pub mod auth_api;
 pub mod compose;
+pub mod docs;
 pub mod error;
 pub mod labels;
 pub mod messages;

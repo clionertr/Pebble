@@ -291,17 +291,20 @@ Pebble/
 |   |-- components/         Shared UI components
 |   |-- features/           Inbox, compose, search, Kanban, settings
 |   |-- hooks/              React hooks and query helpers
-|   |-- lib/                HTTP API client, i18n, utilities
+|   |-- lib/                HTTP API client, SSE client, i18n, utilities
 |   |-- stores/             Zustand stores
-|   `-- tauri-mock.ts       HTTP/SSE bridge (replaces Tauri IPC)
-|-- server/              Rust HTTP backend (Axum)
+|   `-- sse-client.ts       SSE event listener (EventSource)
+|-- server/                 Rust HTTP backend (Axum)
 |   `-- src/
 |       |-- main.rs         Server entry point, route registration
 |       |-- auth.rs         OAuth login & callback handlers
 |       |-- state.rs        Shared application state
+|       |-- session.rs      Cookie-based session + rate limiter
+|       |-- middleware/      Auth middleware (cookie validation)
+|       |-- api/            REST API handlers (80+ endpoints)
 |       |-- realtime/       Background sync workers
 |       |-- snooze_watcher.rs  Snooze timer background task
-|       `-- rpc/            JSON-RPC command handlers
+|       `-- rpc/            Legacy JSON-RPC handlers (deprecated)
 |-- crates/                 Rust workspace crates
 |   |-- pebble-core/        Shared types and errors
 |   |-- pebble-store/       SQLite persistence
