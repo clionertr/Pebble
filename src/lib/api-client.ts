@@ -52,8 +52,100 @@ export function apiDelete<T>(path: string): Promise<T> {
   return request<T>('DELETE', path);
 }
 
+// ── Auth ─────────────────────────────────────────────────────────────
+
+export interface AuthStatus { authenticated: boolean }
+
+export function login(password: string): Promise<AuthStatus> {
+  return apiPost<AuthStatus>(`${BASE}/auth/login`, { password });
+}
+
+export function logout(): Promise<AuthStatus> {
+  return apiPost<AuthStatus>(`${BASE}/auth/logout`);
+}
+
+export function getAuthStatus(): Promise<AuthStatus> {
+  return apiGet<AuthStatus>(`${BASE}/auth/status`);
+}
+
 // ── Health ────────────────────────────────────────────────────────────
 
 export function healthCheck(): Promise<string> {
   return apiGet<string>(`${BASE}/health`);
+}
+
+// ── Shell (composite) ─────────────────────────────────────────────────
+
+export interface ShellData {
+  accounts: unknown[];
+  folders: Record<string, unknown[]>;
+  unreadCounts: Record<string, Record<string, number>>;
+}
+
+export function getShell(): Promise<ShellData> {
+  return apiGet<ShellData>(`${BASE}/shell`);
+}
+
+// ── Messages (reads) ──────────────────────────────────────────────────
+
+export interface InboxParams {
+  accountId: string;
+  folderId: string;
+  limit?: number;
+  offset?: number;
+  folderIds?: string[];
+}
+
+export function getInbox(params: InboxParams) {
+  const qs = new URLSearchParams({ accountId: params.accountId, folderId: params.folderId });
+  if (params.limit) qs.set('limit', String(params.limit));
+  if (params.offset) qs.set('offset', String(params.offset));
+  if (params.folderIds?.length) qs.set('folderIds', params.folderIds.join(','));
+  return apiGet<{ messages: unknown[]; total: number; hasMore: boolean }>(
+    `${BASE}/inbox?${qs}`,
+  );
+}
+
+export function getStarred(accountId: string, limit?: number, offset?: number) {
+  const qs = new URLSearchParams({ accountId });
+  if (limit) qs.set('limit', String(limit));
+  if (offset) qs.set('offset', String(offset));
+  return apiGet<{ messages: unknown[]; total: number; hasMore: boolean }>(
+    `${BASE}/starred?${qs}`,
+  );
+}
+
+export function getMessage(id: string) {
+  return apiGet<unknown>(`${BASE}/messages/${encodeURIComponent(id)}`);
+}
+
+export function getMessagesBatch(messageIds: string[]) {
+  return apiPost<unknown[]>(`${BASE}/messages/batch`, { messageIds });
+}
+
+// ── Threads ───────────────────────────────────────────────────────────
+
+export function listThreadMessages(threadId: string) {
+  return apiGet<unknown[]>(`${BASE}/threads/${encodeURIComponent(threadId)}/messages`);
+}
+
+// ── Search ────────────────────────────────────────────────────────────
+
+export function searchMessages(q: string, limit?: number) {
+  const qs = new URLSearchParams({ q });
+  if (limit) qs.set('limit', String(limit));
+  return apiGet<{ hits: unknown[]; total: number }>(`${BASE}/search?${qs}`);
+}
+
+// ── Kanban ────────────────────────────────────────────────────────────
+
+export function getKanban(column?: string) {
+  const qs = column ? `?column=${encodeURIComponent(column)}` : '';
+  return apiGet<{ cards: unknown[]; notes: Record<string, string> }>(`${BASE}/kanban${qs}`);
+}
+
+// ── Snooze ────────────────────────────────────────────────────────────
+
+export function getSnoozed() {
+  return apiGet<unknown[]>(`${BASE}/snoozed`);
 }

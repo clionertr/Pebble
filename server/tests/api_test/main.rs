@@ -3,6 +3,8 @@
 
 mod auth;
 mod health;
+mod messages;
+mod shell;
 
 use pebble::state::AppState;
 use pebble::api::api_routes;

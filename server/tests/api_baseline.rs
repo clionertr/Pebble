@@ -2,13 +2,6 @@
 // Verify that the API skeleton compiles and ApiError types work correctly.
 
 use pebble::api::error::ApiError;
-use pebble::api::api_routes;
-
-/// Test that the API router can be created without panicking.
-#[test]
-fn api_router_creation() {
-    let _router = api_routes::<()>();
-}
 
 /// Test that ApiError types map to correct HTTP status codes.
 #[test]

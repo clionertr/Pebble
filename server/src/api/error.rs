@@ -44,5 +44,14 @@ impl IntoResponse for ApiError {
     }
 }
 
-// PebbleError → ApiError conversion will be added in Phase 1
-// when we decide which PebbleError variants map to which HTTP status codes.
+// PebbleError → ApiError conversion
+impl From<pebble_core::PebbleError> for ApiError {
+    fn from(e: pebble_core::PebbleError) -> Self {
+        match e {
+            pebble_core::PebbleError::TokenExpired(msg)
+            | pebble_core::PebbleError::Auth(msg) => Self::unauthorized(msg),
+            pebble_core::PebbleError::Validation(msg) => Self::bad_request(msg),
+            _ => Self::internal(e.to_string()),
+        }
+    }
+}
