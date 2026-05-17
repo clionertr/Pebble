@@ -1,4 +1,4 @@
-import { invoke } from "../tauri-mock";
+import { invoke } from "../lib/sse-client";
 
 // Re-export all IPC types so existing `import { Foo } from "@/lib/api"` keeps working.
 export type {
@@ -425,10 +425,6 @@ export async function setRealtimePreference(mode: RealtimePreference): Promise<v
 
 export async function setNotificationsEnabled(enabled: boolean): Promise<void> {
   return invoke<void>("set_notifications_enabled", { enabled });
-}
-
-export async function setTrayMenuLabels(showLabel: string, hideLabel: string, quitLabel: string): Promise<void> {
-  return invoke<void>("set_tray_menu_labels", { showLabel, hideLabel, quitLabel });
 }
 
 export async function stopSync(accountId: string): Promise<void> {

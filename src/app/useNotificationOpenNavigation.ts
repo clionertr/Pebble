@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { listen } from "../tauri-mock";
+import { listen } from "../lib/sse-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMailStore } from "../stores/mail.store";
 import { useUIStore } from "../stores/ui.store";

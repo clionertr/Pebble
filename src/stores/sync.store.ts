@@ -17,7 +17,6 @@ export interface RealtimeStatus {
 const REALTIME_PREFERENCE_KEY = "pebble-realtime-mode";
 const REALTIME_PREFERENCES = new Set<RealtimePreference>(["realtime", "balanced", "battery", "manual"]);
 const NOTIFICATIONS_KEY = "pebble-notifications-enabled";
-const KEEP_RUNNING_BACKGROUND_KEY = "pebble-keep-running-background";
 
 function readRealtimePreference(): RealtimePreference {
   const stored = localStorage.getItem(REALTIME_PREFERENCE_KEY);
@@ -28,11 +27,6 @@ function readRealtimePreference(): RealtimePreference {
 
 export function readNotificationsEnabledPreference(): boolean {
   const stored = localStorage.getItem(NOTIFICATIONS_KEY);
-  return stored === null ? true : stored === "true";
-}
-
-export function readKeepRunningInBackgroundPreference(): boolean {
-  const stored = localStorage.getItem(KEEP_RUNNING_BACKGROUND_KEY);
   return stored === null ? true : stored === "true";
 }
 
@@ -55,7 +49,6 @@ interface SyncState {
   realtimeMode: RealtimePreference;
   pollInterval: number;
   notificationsEnabled: boolean;
-  keepRunningInBackground: boolean;
   setSyncStatus: (status: "idle" | "syncing" | "error") => void;
   setNetworkStatus: (status: NetworkStatus) => void;
   setLastMailError: (error: string | null) => void;
@@ -63,7 +56,6 @@ interface SyncState {
   setRealtimeMode: (mode: RealtimePreference) => void;
   setPollInterval: (secs: number) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
-  setKeepRunningInBackground: (enabled: boolean) => void;
 }
 
 export const useSyncStore = create<SyncState>((set) => ({
@@ -74,7 +66,6 @@ export const useSyncStore = create<SyncState>((set) => ({
   realtimeMode: initialRealtimeMode,
   pollInterval: realtimePreferenceToPollInterval(initialRealtimeMode),
   notificationsEnabled: readNotificationsEnabledPreference(),
-  keepRunningInBackground: readKeepRunningInBackgroundPreference(),
   setSyncStatus: (status) => set({ syncStatus: status }),
   setNetworkStatus: (status) => set({ networkStatus: status }),
   setLastMailError: (error) => set({ lastMailError: error }),
@@ -95,9 +86,5 @@ export const useSyncStore = create<SyncState>((set) => ({
   setNotificationsEnabled: (enabled) => {
     deferPersist(() => localStorage.setItem(NOTIFICATIONS_KEY, String(enabled)));
     set({ notificationsEnabled: enabled });
-  },
-  setKeepRunningInBackground: (enabled) => {
-    deferPersist(() => localStorage.setItem(KEEP_RUNNING_BACKGROUND_KEY, String(enabled)));
-    set({ keepRunningInBackground: enabled });
   },
 }));

@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listen } from "../tauri-mock";
-import { File, FileText, Image, FileArchive, Film, Music, Download, Loader, Check } from "lucide-react";
-import { listAttachments, downloadAttachment } from "@/lib/api";
+import { listen } from "../lib/sse-client";
+import { File, FileText, Image, FileArchive, Film, Music, Download, Loader } from "lucide-react";
+import { listAttachments } from "@/lib/api";
 import type { Attachment } from "@/lib/api";
-import { sanitizeFilename } from "@/lib/sanitizeFilename";
 import { useToastStore } from "@/stores/toast.store";
 
 interface Props {
@@ -40,7 +39,6 @@ export default function AttachmentList({ messageId }: Props) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [downloadedPaths, setDownloadedPaths] = useState<Record<string, string>>({});
   const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
 
   // Listen for download progress events
@@ -81,12 +79,12 @@ export default function AttachmentList({ messageId }: Props) {
   async function handleDownload(attachment: Attachment) {
     setDownloadingId(attachment.id);
     try {
-      const { downloadDir } = await import("../tauri-mock");
-      const dir = await downloadDir();
-      const safeName = sanitizeFilename(attachment.filename);
-      const savePath = `${dir}/${safeName}`;
-      const downloadedPath = await downloadAttachment(attachment.id, savePath);
-      setDownloadedPaths((prev) => ({ ...prev, [attachment.id]: downloadedPath }));
+      // Trigger browser download via the streaming attachment endpoint
+      const anchor = document.createElement('a');
+      anchor.href = `/api/attachments/${encodeURIComponent(attachment.id)}`;
+      anchor.download = attachment.filename;
+      anchor.click();
+      setDownloadingId(null);
       setDownloadProgress((prev) => { const next = { ...prev }; delete next[attachment.id]; return next; });
     } catch (err) {
       console.error("Failed to download attachment:", err);
@@ -174,7 +172,7 @@ export default function AttachmentList({ messageId }: Props) {
                   onClick={() => handleDownload(attachment)}
                   disabled={isDownloading}
                   aria-label={t("attachments.download") + ": " + attachment.filename}
-                  title={isDownloading ? t("attachments.downloading") : downloadedPaths[attachment.id] ? downloadedPaths[attachment.id] : t("attachments.download")}
+                  title={isDownloading ? t("attachments.downloading") : t("attachments.download")}
                   style={{
                     background: "none",
                     border: "none",
@@ -189,8 +187,6 @@ export default function AttachmentList({ messageId }: Props) {
                 >
                   {isDownloading ? (
                     <Loader size={14} className="spinner" />
-                  ) : downloadedPaths[attachment.id] ? (
-                    <Check size={14} style={{ color: "var(--color-accent)" }} />
                   ) : (
                     <Download size={14} />
                   )}

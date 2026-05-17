@@ -46,17 +46,10 @@ export default function GeneralTab() {
   const setRealtimeMode = useSyncStore((s) => s.setRealtimeMode);
   const notificationsEnabled = useSyncStore((s) => s.notificationsEnabled);
   const setNotificationsEnabled = useSyncStore((s) => s.setNotificationsEnabled);
-  const keepRunningInBackground = useSyncStore((s) => s.keepRunningInBackground);
-  const setKeepRunningInBackground = useSyncStore((s) => s.setKeepRunningInBackground);
 
   const toggleNotifications = useCallback(() => {
     setNotificationsEnabled(!notificationsEnabled);
   }, [notificationsEnabled, setNotificationsEnabled]);
-
-  const quitOnClose = !keepRunningInBackground;
-  const toggleQuitOnClose = useCallback(() => {
-    setKeepRunningInBackground(quitOnClose);
-  }, [quitOnClose, setKeepRunningInBackground]);
 
   const showUnreadCount = useUIStore((s) => s.showFolderUnreadCount);
   const setShowUnreadCount = useUIStore((s) => s.setShowFolderUnreadCount);
@@ -131,24 +124,6 @@ export default function GeneralTab() {
       <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "16px", marginTop: "32px" }}>
         {t("settings.closeBehavior", "Close Behavior")}
       </h3>
-      <label
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          cursor: "pointer",
-          fontSize: "13px",
-          color: "var(--color-text-primary)",
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={quitOnClose}
-          onChange={toggleQuitOnClose}
-        />
-        <span>{t("settings.quitOnClose", "Quit app when window is closed")}</span>
-      </label>
-
       <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "16px", marginTop: "32px" }}>
         {t("settings.folderCounts", "Folder Counts")}
       </h3>

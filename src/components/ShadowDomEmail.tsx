@@ -1,6 +1,4 @@
 import { useRef, useLayoutEffect } from "react";
-import { invoke } from "../tauri-mock";
-import { openMailtoUrl } from "@/app/useMailtoOpen";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 
 interface ShadowDomEmailProps {
@@ -110,16 +108,9 @@ export function ShadowDomEmail({ html, className }: ShadowDomEmailProps) {
       const href = anchor?.getAttribute("href")?.trim();
       if (!href) return;
 
-      if (/^mailto:/i.test(href)) {
-        event.preventDefault();
-        void openMailtoUrl(href);
-        return;
-      }
-
       if (/^https?:\/\//i.test(href)) {
         event.preventDefault();
-        void invoke("open_external_url", { url: href })
-          .catch((err) => console.warn("Failed to open email body link", err));
+        window.open(href, '_blank', 'noopener,noreferrer');
       }
     };
 

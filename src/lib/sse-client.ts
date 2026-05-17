@@ -1,3 +1,7 @@
+// SSE client + RPC bridge for the web application.
+// Formerly tauri-mock.ts — desktop stubs (getCurrentWindow, getVersion,
+// downloadDir) removed in Phase 6.
+
 export interface Event<T> {
   event: string;
   payload: T;
@@ -25,23 +29,23 @@ const URGENT_BATCH_DELAY_MS = 0;
 
 const processBatch = async (requests: QueuedRequest[], retries = 3): Promise<void> => {
   const payload = requests.map(req => ({ method: req.method, params: req.params }));
-  
+
   try {
     const res = await fetch('/rpc/batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    
+
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
     }
-    
+
     const results = await res.json();
     if (!Array.isArray(results) || results.length !== requests.length) {
       throw new Error("Invalid batch response format");
     }
-    
+
     for (let i = 0; i < requests.length; i++) {
       const data = results[i];
       if (data && typeof data === 'object' && 'error' in data) {
@@ -82,7 +86,7 @@ function scheduleBatch(delayMs: number) {
   batchTimeout = setTimeout(flushQueuedBatch, delayMs);
 }
 
-export const invoke = async <T>(method: string, args: any = {}): Promise<T> => { 
+export const invoke = async <T>(method: string, args: any = {}): Promise<T> => {
   return new Promise((resolve, reject) => {
     requestQueue.push({ method, params: args, resolve, reject });
     scheduleBatch(URGENT_RPC_METHODS.has(method) ? URGENT_BATCH_DELAY_MS : DEFAULT_BATCH_DELAY_MS);
@@ -138,7 +142,7 @@ class SseClient {
 
   listen<T>(event: string, handler: (e: Event<T>) => void): () => void {
     if (!this.source) this.connect();
-    
+
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
       this.source!.addEventListener(event, (e: MessageEvent) => {
@@ -153,9 +157,9 @@ class SseClient {
         }
       });
     }
-    
+
     this.listeners.get(event)!.add(handler);
-    
+
     return () => {
       const callbacks = this.listeners.get(event);
       if (callbacks) {
@@ -170,26 +174,6 @@ const sseClient = new SseClient();
 export const listen = async <T>(
   event: string,
   handler: (event: Event<T>) => void
-): Promise<() => void> => { 
+): Promise<() => void> => {
   return sseClient.listen(event, handler);
 };
-
-export const getCurrentWindow = () => ({ 
-  hide: async () => {}, 
-  close: async () => {}, 
-  minimize: async () => {}, 
-  maximize: async () => {}, 
-  unmaximize: async () => {}, 
-  toggleMaximize: async () => {}, 
-  startDragging: async () => {}, 
-  isMaximized: async () => false, 
-  setFocus: async () => {}, 
-  show: async () => {},
-  onCloseRequested: async (cb: (event: any) => void) => {
-    console.log('Mock onCloseRequested', cb);
-    return () => {};
-  }
-});
-
-export const getVersion = async () => "0.0.0";
-export const downloadDir = async () => "/tmp";

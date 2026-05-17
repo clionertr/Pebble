@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode, Ref } from "react";
 import { useTranslation } from "react-i18next";
-import { getVersion } from "../../tauri-mock";
-import { invoke } from "../../tauri-mock";
+import { invoke } from "../../lib/sse-client";
 import { Copy, RefreshCw, X } from "lucide-react";
 import iconUrl from "@/assets/app-icon.png";
 import { readAppLog, type AppLogSnapshot } from "@/lib/api";
+
+const APP_VERSION = "0.0.4";
 
 const REPO = "QingJ01/Pebble";
 const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 function openUrl(url: string) {
-  invoke("open_external_url", { url }).catch((err) => console.warn("Failed to open external URL", err));
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 interface UpdateState {
@@ -39,7 +40,7 @@ export default function AboutTab() {
   const diagnosticClickTimer = useRef<number | null>(null);
 
   useEffect(() => {
-    getVersion().then(setAppVersion).catch(() => setAppVersion("0.1.0"));
+    setAppVersion(APP_VERSION);
   }, []);
 
   useEffect(() => () => {

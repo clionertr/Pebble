@@ -1,4 +1,4 @@
-import { invoke } from "../tauri-mock";
+import { invoke } from "../lib/sse-client";
 
 const LEGACY_STORAGE_KEY = "pebble-signatures";
 

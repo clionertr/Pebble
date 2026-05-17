@@ -21,9 +21,6 @@ import { scheduleIdleWork, scheduleLazyViewPreload } from "./lazyViewPreload";
 import { useRealtimePreferenceSync } from "./useRealtimePreferenceSync";
 import { useRealtimeSyncTriggers } from "./useRealtimeSyncTriggers";
 import { useNotificationOpenNavigation } from "./useNotificationOpenNavigation";
-import { useCloseToBackground } from "./useCloseToBackground";
-import { useTrayI18n } from "./useTrayI18n";
-import { useMailtoOpen } from "./useMailtoOpen";
 
 const loadSettingsView = () => import("../features/settings/SettingsView");
 const loadComposeView = () => import("../features/compose/ComposeView");
@@ -40,7 +37,7 @@ const StarredView = lazy(loadStarredView);
 import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import { WifiOff } from "lucide-react";
-import { listen } from "../tauri-mock";
+import { listen } from "../lib/sse-client";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function Layout() {
@@ -94,9 +91,6 @@ export default function Layout() {
   useRealtimePreferenceSync();
   useRealtimeSyncTriggers();
   useNotificationOpenNavigation();
-  useCloseToBackground();
-  useTrayI18n();
-  useMailtoOpen();
 
   // Re-register commands when language changes
   useEffect(() => {
