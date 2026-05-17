@@ -294,7 +294,7 @@ Pebble/
 |   |-- lib/                HTTP API 客户端、i18n、通用工具
 |   |-- stores/             Zustand 状态管理
 |   `-- tauri-mock.ts       HTTP/SSE 桥接（替代 Tauri IPC）
-|-- src-tauri/              Rust HTTP 后端 (Axum)
+|-- server/              Rust HTTP 后端 (Axum)
 |   `-- src/
 |       |-- main.rs         服务器入口，路由注册
 |       |-- auth.rs         OAuth 登录和回调处理

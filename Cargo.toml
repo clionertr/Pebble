@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "src-tauri",
+    "server",
     "crates/pebble-core",
     "crates/pebble-store",
     "crates/pebble-privacy",

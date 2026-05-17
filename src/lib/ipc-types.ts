@@ -105,7 +105,7 @@ export interface PendingMailOp {
   next_retry_at: number | null;
 }
 
-/** @rust src-tauri/src/commands/diagnostics.rs -> AppLogSnapshot */
+/** @rust server/src/commands/diagnostics.rs -> AppLogSnapshot */
 export interface AppLogSnapshot {
   path: string;
   content: string;
@@ -141,7 +141,7 @@ export type PrivacyMode = "Strict" | { TrustSender: string } | "LoadOnce" | "Off
 /** @rust pebble-mail/src/imap.rs → ConnectionSecurity (rename_all = "lowercase") */
 export type ConnectionSecurity = "tls" | "starttls" | "plain";
 
-/** @rust src-tauri/src/commands/accounts.rs → AddAccountRequest */
+/** @rust server/src/commands/accounts.rs → AddAccountRequest */
 export interface AddAccountRequest {
   email: string;
   display_name: string;
@@ -164,16 +164,16 @@ export interface HttpProxyConfig {
   port: number;
 }
 
-/** @rust src-tauri/src/commands/network.rs -> AccountProxyMode */
+/** @rust server/src/commands/network.rs -> AccountProxyMode */
 export type AccountProxyMode = "inherit" | "disabled" | "custom";
 
-/** @rust src-tauri/src/commands/network.rs -> AccountProxySetting */
+/** @rust server/src/commands/network.rs -> AccountProxySetting */
 export interface AccountProxySetting {
   mode: AccountProxyMode;
   proxy: HttpProxyConfig | null;
 }
 
-/** @rust src-tauri/src/gmail_realtime.rs -> GmailRealtimeStatus */
+/** @rust server/src/gmail_realtime.rs -> GmailRealtimeStatus */
 export type GmailRealtimeStatus =
   | "not_enabled"
   | "enabling"
@@ -183,7 +183,7 @@ export type GmailRealtimeStatus =
   | "reconnect_required"
   | "config_missing";
 
-/** @rust src-tauri/src/gmail_realtime.rs -> GmailRealtimeConfig */
+/** @rust server/src/gmail_realtime.rs -> GmailRealtimeConfig */
 export interface GmailRealtimeConfig {
   accountId: string;
   enabled: boolean;
@@ -263,7 +263,7 @@ export interface Rule {
 // ─── Search types ───────────────────────────────────────────────────────────────
 
 /**
- * @rust src-tauri/src/commands/advanced_search.rs → AdvancedSearchQuery
+ * @rust server/src/commands/advanced_search.rs → AdvancedSearchQuery
  * (rename_all = "camelCase")
  */
 export interface AdvancedSearchQuery {

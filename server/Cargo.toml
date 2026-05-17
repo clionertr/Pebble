@@ -27,3 +27,11 @@ semver = { workspace = true }
 base64 = "0.22"
 tower-http = { version = "0.6.8", features = ["cors", "compression-full"] }
 tokio-stream = { version = "0.1.18", features = ["sync"] }
+axum-extra = { version = "0.9", features = ["cookie"] }
+cookie = { version = "0.18" }
+bcrypt = "0.16"
+uuid = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+tower = "0.5"

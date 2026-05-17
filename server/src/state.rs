@@ -1,6 +1,7 @@
 use crate::mail_latency::MailLatencyHint;
 use crate::realtime::SyncTrigger;
 use crate::rpc::imap_pool::ImapConnectionPool;
+use crate::session::SessionStore;
 use pebble_crypto::CryptoService;
 use pebble_search::TantivySearch;
 use pebble_store::Store;
@@ -41,6 +42,7 @@ pub struct AppState {
     pub tx: broadcast::Sender<EventPayload>,
     pub imap_pool: ImapConnectionPool,
     pub rpc_semaphore: Arc<Semaphore>,
+    pub session_store: Arc<SessionStore>,
 }
 
 impl AppState {
@@ -50,6 +52,7 @@ impl AppState {
         crypto: CryptoService,
         snooze_stop_tx: std::sync::mpsc::Sender<()>,
         attachments_dir: PathBuf,
+        password_hash: String,
     ) -> Self {
         let (tx, _rx) = broadcast::channel(100);
         Self {
@@ -66,6 +69,7 @@ impl AppState {
             tx,
             imap_pool: ImapConnectionPool::new(),
             rpc_semaphore: Arc::new(Semaphore::new(64)),
+            session_store: Arc::new(SessionStore::new(password_hash)),
         }
     }
 

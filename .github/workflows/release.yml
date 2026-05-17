@@ -64,17 +64,17 @@ jobs:
           $version = $Matches.version
 
           $packageVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $tauriVersion = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          $cargoToml = Get-Content src-tauri/Cargo.toml -Raw
+          $tauriVersion = (Get-Content server/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $cargoToml = Get-Content server/Cargo.toml -Raw
           if ($cargoToml -notmatch '(?m)^version\s*=\s*"(?<version>[^"]+)"') {
-            throw "Could not read src-tauri/Cargo.toml package version."
+            throw "Could not read server/Cargo.toml package version."
           }
           $cargoVersion = $Matches.version
 
           $versions = @{
             "package.json" = $packageVersion
-            "src-tauri/tauri.conf.json" = $tauriVersion
-            "src-tauri/Cargo.toml" = $cargoVersion
+            "server/tauri.conf.json" = $tauriVersion
+            "server/Cargo.toml" = $cargoVersion
           }
           foreach ($entry in $versions.GetEnumerator()) {
             if ($entry.Value -ne $version) {
@@ -242,19 +242,19 @@ jobs:
           version="${BASH_REMATCH[1]}"
 
           package_version="$(node -e "const fs = require('node:fs'); console.log(JSON.parse(fs.readFileSync('package.json', 'utf8')).version)")"
-          tauri_version="$(node -e "const fs = require('node:fs'); console.log(JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')).version)")"
-          cargo_version="$(sed -nE 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' src-tauri/Cargo.toml | head -n 1)"
+          tauri_version="$(node -e "const fs = require('node:fs'); console.log(JSON.parse(fs.readFileSync('server/tauri.conf.json', 'utf8')).version)")"
+          cargo_version="$(sed -nE 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' server/Cargo.toml | head -n 1)"
 
           if [[ "$package_version" != "$version" ]]; then
             echo "package.json version '$package_version' does not match tag '$tag'." >&2
             exit 1
           fi
           if [[ "$tauri_version" != "$version" ]]; then
-            echo "src-tauri/tauri.conf.json version '$tauri_version' does not match tag '$tag'." >&2
+            echo "server/tauri.conf.json version '$tauri_version' does not match tag '$tag'." >&2
             exit 1
           fi
           if [[ "$cargo_version" != "$version" ]]; then
-            echo "src-tauri/Cargo.toml version '$cargo_version' does not match tag '$tag'." >&2
+            echo "server/Cargo.toml version '$cargo_version' does not match tag '$tag'." >&2
             exit 1
           fi
 

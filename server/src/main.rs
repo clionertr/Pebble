@@ -1,10 +1,13 @@
 mod account_colors;
+mod api;
 mod auth;
 mod events;
 mod gmail_realtime;
 mod mail_latency;
+mod middleware;
 mod realtime;
 mod rpc;
+mod session;
 mod snooze_watcher;
 mod state;
 
@@ -94,12 +97,19 @@ async fn main() {
     std::fs::create_dir_all(&attachments_dir).unwrap();
 
     let (snooze_stop_tx, snooze_stop_rx) = std::sync::mpsc::channel::<()>();
+    let password_hash = std::env::var("PEBBLE_PASSWORD_HASH")
+        .unwrap_or_else(|_| {
+            tracing::warn!("PEBBLE_PASSWORD_HASH not set, using default (insecure)");
+            // Default bcrypt hash of "admin" — change in production!
+            "$2b$12$LJ3m4ys3rxImvlLzyGRbPOcAIORMzJDGJnRi4ZVXNIs6pS8bJGxKW".to_string()
+        });
     let state = Arc::new(AppState::new(
         store,
         search,
         crypto,
         snooze_stop_tx,
         attachments_dir,
+        password_hash,
     ));
 
     let store_clone = state.store.clone();
@@ -119,6 +129,12 @@ async fn main() {
         )
         .route("/auth/login", get(auth::login_handler))
         .route("/auth/callback", get(auth::callback_handler))
+        .merge(api::api_routes())
+        .merge(api::auth_api::auth_routes())
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::auth_middleware,
+        ))
         .layer(
             tower_http::cors::CorsLayer::new()
                 .allow_origin(tower_http::cors::Any)

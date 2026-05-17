@@ -294,7 +294,7 @@ Pebble/
 |   |-- lib/                HTTP API client, i18n, utilities
 |   |-- stores/             Zustand stores
 |   `-- tauri-mock.ts       HTTP/SSE bridge (replaces Tauri IPC)
-|-- src-tauri/              Rust HTTP backend (Axum)
+|-- server/              Rust HTTP backend (Axum)
 |   `-- src/
 |       |-- main.rs         Server entry point, route registration
 |       |-- auth.rs         OAuth login & callback handlers

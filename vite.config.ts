@@ -20,9 +20,13 @@ export default defineConfig({
     host: host || "127.0.0.1",
     hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
     watch: {
-      ignored: ["**/src-tauri/**"],
+      ignored: ["**/server/**"],
     },
     proxy: {
+      "/api": {
+        target: "http://127.0.0.1:3000",
+        changeOrigin: true,
+      },
       "/rpc": {
         target: "http://127.0.0.1:3000",
         changeOrigin: true,
