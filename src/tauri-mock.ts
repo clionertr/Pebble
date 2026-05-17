@@ -12,13 +12,16 @@ interface QueuedRequest {
 
 let requestQueue: QueuedRequest[] = [];
 let batchTimeout: ReturnType<typeof setTimeout> | null = null;
+let batchDelayMs: number | null = null;
 
-const IMMEDIATE_RPC_METHODS = new Set([
+const URGENT_RPC_METHODS = new Set([
   "list_accounts",
   "list_folders",
   "list_messages",
   "list_threads",
 ]);
+const DEFAULT_BATCH_DELAY_MS = 50;
+const URGENT_BATCH_DELAY_MS = 0;
 
 const processBatch = async (requests: QueuedRequest[], retries = 3): Promise<void> => {
   const payload = requests.map(req => ({ method: req.method, params: req.params }));
@@ -57,23 +60,32 @@ const processBatch = async (requests: QueuedRequest[], retries = 3): Promise<voi
   }
 };
 
+function flushQueuedBatch() {
+  const queueToProcess = requestQueue;
+  requestQueue = [];
+  batchTimeout = null;
+  batchDelayMs = null;
+  if (queueToProcess.length === 0) return;
+  void processBatch(queueToProcess);
+}
+
+function scheduleBatch(delayMs: number) {
+  if (batchTimeout && batchDelayMs !== null && batchDelayMs <= delayMs) {
+    return;
+  }
+
+  if (batchTimeout) {
+    clearTimeout(batchTimeout);
+  }
+
+  batchDelayMs = delayMs;
+  batchTimeout = setTimeout(flushQueuedBatch, delayMs);
+}
+
 export const invoke = async <T>(method: string, args: any = {}): Promise<T> => { 
   return new Promise((resolve, reject) => {
-    if (IMMEDIATE_RPC_METHODS.has(method)) {
-      void processBatch([{ method, params: args, resolve, reject }]);
-      return;
-    }
-
     requestQueue.push({ method, params: args, resolve, reject });
-    
-    if (!batchTimeout) {
-      batchTimeout = setTimeout(() => {
-        const queueToProcess = requestQueue;
-        requestQueue = [];
-        batchTimeout = null;
-        processBatch(queueToProcess);
-      }, 50);
-    }
+    scheduleBatch(URGENT_RPC_METHODS.has(method) ? URGENT_BATCH_DELAY_MS : DEFAULT_BATCH_DELAY_MS);
   });
 };
 
