@@ -1,5 +1,7 @@
 pub mod accounts;
+pub mod attachments;
 pub mod auth_api;
+pub mod compose;
 pub mod error;
 pub mod labels;
 pub mod messages;
@@ -16,6 +18,8 @@ pub fn api_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/health", get(health_check))
         .merge(accounts::account_routes())
+        .merge(attachments::attachment_routes())
+        .merge(compose::compose_routes())
         .merge(labels::label_routes())
         .merge(messages::message_routes())
         .merge(resources::resource_routes())
