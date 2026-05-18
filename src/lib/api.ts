@@ -129,18 +129,6 @@ export async function updateGlobalProxy(
   return client.updateGlobalProxy(proxyHost, proxyPort);
 }
 
-/** @deprecated OAuth sign-in must start through `startOAuthLogin` and `/auth/login`. */
-export async function completeOAuthFlow(
-  _provider: string,
-  _email: string,
-  _displayName: string,
-  _proxyHost?: string,
-  _proxyPort?: number,
-): Promise<Account> {
-  // OAuth flow now handled entirely by /auth/login redirect + /auth/callback.
-  throw new Error("completeOAuthFlow is deprecated; use startOAuthLogin + /auth/login redirect");
-}
-
 export function startOAuthLogin(
   provider: "gmail" | "outlook",
   proxyHost?: string,
@@ -445,11 +433,6 @@ export async function listAttachments(messageId: string): Promise<Attachment[]> 
 
 export async function getAttachmentPath(attachmentId: string): Promise<string | null> {
   return client.getAttachmentDownloadUrl(attachmentId);
-}
-
-export async function downloadAttachment(_attachmentId: string, _saveTo: string): Promise<string> {
-  // Browser handles download natively via anchor click on the download URL.
-  return "downloaded";
 }
 
 // ─── Kanban API ──────────────────────────────────────────────────────────────
