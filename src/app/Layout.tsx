@@ -17,6 +17,8 @@ import { useKeyboard } from "../hooks/useKeyboard";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { buildCommands } from "../features/command-palette/commands";
 import { useEffect, lazy, Suspense, Component, type ReactNode, type ErrorInfo } from "react";
+import { useAuth } from "../features/auth/AuthContext";
+import LoginView from "../features/auth/LoginView";
 import { scheduleIdleWork, scheduleLazyViewPreload } from "./lazyViewPreload";
 import { useRealtimePreferenceSync } from "./useRealtimePreferenceSync";
 import { useRealtimeSyncTriggers } from "./useRealtimeSyncTriggers";
@@ -39,6 +41,7 @@ import i18next from "i18next";
 import { WifiOff } from "lucide-react";
 import { listen } from "../lib/sse-client";
 import { useQueryClient } from "@tanstack/react-query";
+import iconUrl from "@/assets/app-icon.png";
 
 export default function Layout() {
   const activeView = useUIStore((s) => s.activeView);
@@ -52,6 +55,7 @@ export default function Layout() {
   const queryClient = useQueryClient();
   const drawerOpen = useUIStore((s) => s.drawerOpen);
   const setDrawerOpen = useUIStore((s) => s.setDrawerOpen);
+  const { authState } = useAuth();
 
   useKeyboard();
 
@@ -125,6 +129,14 @@ export default function Layout() {
     }
   }, [theme]);
 
+  if (authState === "loading") {
+    return <AuthLoadingSpinner />;
+  }
+
+  if (authState === "unauthenticated") {
+    return <LoginView />;
+  }
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       <TitleBar />
@@ -176,6 +188,24 @@ function ViewLoadingFallback() {
       fontSize: "13px",
     }}>
       {i18next.t("common.loading", "Loading...")}
+    </div>
+  );
+}
+
+function AuthLoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center h-screen bg-[var(--color-bg-primary)]">
+      <div className="text-center">
+        <img
+          src={iconUrl}
+          alt="Pebble"
+          className="w-16 h-16 mx-auto mb-4 rounded-xl"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        />
+        <p className="text-sm text-[var(--color-text-secondary)]">
+          {i18next.t("common.loading", "Loading...")}
+        </p>
+      </div>
     </div>
   );
 }

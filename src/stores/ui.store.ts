@@ -3,7 +3,7 @@ import { useComposeStore } from "./compose.store";
 import { useMailStore } from "./mail.store";
 import { deferPersist } from "@/lib/deferPersist";
 
-export type ActiveView = "inbox" | "kanban" | "settings" | "search" | "snoozed" | "starred" | "compose";
+export type ActiveView = "inbox" | "kanban" | "settings" | "search" | "snoozed" | "starred" | "compose" | "login";
 export type SettingsTab = "accounts" | "general" | "proxy" | "appearance" | "privacy" | "rules" | "remoteWrites" | "translation" | "shortcuts" | "cloudSync" | "about";
 
 interface UIState {

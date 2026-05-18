@@ -27,6 +27,11 @@
     "confirm": "确认",
     "send": "发送"
   },
+  "login": {
+    "subtitle": "登录你的自托管邮箱",
+    "passwordPlaceholder": "请输入密码",
+    "submit": "登录"
+  },
   "tray": {
     "show": "显示窗口",
     "hide": "隐藏窗口",

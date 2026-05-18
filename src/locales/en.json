@@ -27,6 +27,11 @@
     "confirm": "Confirm",
     "send": "Send"
   },
+  "login": {
+    "subtitle": "Sign in to your self-hosted mailbox",
+    "passwordPlaceholder": "Enter password",
+    "submit": "Sign in"
+  },
   "tray": {
     "show": "Show Window",
     "hide": "Hide Window",

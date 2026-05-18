@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode, useEffect } from "react";
 import i18next from "i18next";
 import Layout from "./app/Layout";
+import { AuthProvider } from "./features/auth/AuthContext";
 import { logStartupTiming } from "@/lib/startupTiming";
 
 class ErrorBoundary extends Component<
@@ -63,7 +64,9 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <Layout />
+      <AuthProvider>
+        <Layout />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }
