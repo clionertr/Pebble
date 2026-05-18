@@ -68,6 +68,18 @@ fn build_spec() -> Value {
         "delete": { "summary": "Delete message" }
     }));
 
+    paths.insert("/api/messages/{id}/html".into(), json!({
+        "get": { "summary": "Get rendered HTML for message", "parameters": [
+            { "name": "privacyMode", "in": "query", "schema": { "type": "string" } }
+        ] }
+    }));
+
+    paths.insert("/api/messages/{id}/full".into(), json!({
+        "get": { "summary": "Get full message with HTML", "parameters": [
+            { "name": "privacyMode", "in": "query", "schema": { "type": "string" } }
+        ] }
+    }));
+
     paths.insert("/api/messages/{id}/archive".into(), json!({
         "post": { "summary": "Archive a message" }
     }));
@@ -120,15 +132,43 @@ fn build_spec() -> Value {
             { "name": "q", "in": "query", "schema": { "type": "string" } }
         ] }
     }));
+    paths.insert("/api/search/advanced".into(), json!({
+        "post": { "summary": "Advanced search with structured query" }
+    }));
 
     // Kanban
     paths.insert("/api/kanban".into(), json!({
-        "get": { "summary": "List kanban cards + notes" }
+        "get": { "summary": "List kanban cards + notes" },
+        "post": { "summary": "Move message to kanban" }
+    }));
+    paths.insert("/api/kanban/notes".into(), json!({
+        "get": { "summary": "List kanban notes" },
+        "patch": { "summary": "Merge kanban notes" }
+    }));
+    paths.insert("/api/kanban/notes/{id}".into(), json!({
+        "put": { "summary": "Set kanban note" }
+    }));
+    paths.insert("/api/kanban/cards/{id}".into(), json!({
+        "delete": { "summary": "Remove from kanban" }
     }));
 
     // Snoozed
     paths.insert("/api/snoozed".into(), json!({
         "get": { "summary": "List snoozed messages" }
+    }));
+
+    // Pending Ops
+    paths.insert("/api/pending-ops".into(), json!({
+        "get": { "summary": "List pending operations" }
+    }));
+    paths.insert("/api/pending-ops/summary".into(), json!({
+        "get": { "summary": "Pending operations summary" }
+    }));
+    paths.insert("/api/pending-ops/{id}/cancel".into(), json!({
+        "post": { "summary": "Cancel pending operation" }
+    }));
+    paths.insert("/api/pending-ops/{id}".into(), json!({
+        "delete": { "summary": "Delete pending operation" }
     }));
 
     // Labels

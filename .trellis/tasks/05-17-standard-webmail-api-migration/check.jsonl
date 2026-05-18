@@ -1,0 +1,12 @@
+{"file": ".trellis/spec/guides/index.md", "reason": "quality review guidance — all migration phases must pass trellis-check quality gates"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "cross-layer consistency: frontend api-client ↔ backend /api handlers ↔ store queries; auth middleware applies to /api and /events uniformly"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "new api/* handlers must delegate to existing rpc/* functions (thin wrappers); do not duplicate mail/store/search logic"}
+{"file": ".trellis/spec/pebble/backend/index.md", "reason": "verify REST conventions (HTTP methods, status codes, error shape), CORS, auth middleware, SSE, composite endpoint structure"}
+{"file": ".trellis/spec/pebble-store/backend/index.md", "reason": "verify SQLite persistence and migrations preserved; read/write pool patterns unchanged; no schema changes introduced by API migration"}
+{"file": ".trellis/spec/pebble-mail/backend/index.md", "reason": "verify mail sync/send/IMAP/Gmail/Outlook behavior preserved; smtp/delivery pipeline unaffected"}
+{"file": ".trellis/spec/pebble-oauth/backend/index.md", "reason": "verify OAuth login/callback flow preserved; OAUTH_REDIRECT_URL env var; token persistence unchanged"}
+{"file": ".trellis/spec/pebble-privacy/backend/index.md", "reason": "verify privacy/sanitization/tracker-blocking preserved; rendered HTML endpoint unchanged"}
+{"file": ".trellis/spec/pebble-crypto/backend/index.md", "reason": "verify credential encryption constraints; bcrypt hash for login; OAuth token encryption unchanged"}
+{"file": ".trellis/spec/pebble-search/backend/index.md", "reason": "verify Tantivy search behavior preserved by /api/search endpoints"}
+{"file": ".trellis/spec/pebble-rules/backend/index.md", "reason": "verify rule matching/actions preserved under REST /api/rules CRUD"}
+{"file": ".trellis/spec/pebble-translate/backend/index.md", "reason": "verify translate behavior preserved under /api/translate endpoints"}

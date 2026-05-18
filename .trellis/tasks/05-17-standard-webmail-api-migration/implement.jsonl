@@ -1,0 +1,12 @@
+{"file": ".trellis/spec/guides/index.md", "reason": "cross-cutting planning and implementation guidance — every phase must follow test-first contract"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "frontend/backend/SSE/auth migration crosses all layers; each handler change affects both sides; auth middleware affects every endpoint"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "api/* handlers delegate to existing rpc/* functions as internal service layer; do not reimplement mail/store/search logic"}
+{"file": ".trellis/spec/pebble/backend/index.md", "reason": "Axum backend: REST /api routes, SSE /events, auth middleware, OAuth /auth/*, Gmail webhook /webhook/gmail, CORS, compression"}
+{"file": ".trellis/spec/pebble-store/backend/index.md", "reason": "SQLite read/write pool used by /api endpoints; no schema or migration changes"}
+{"file": ".trellis/spec/pebble-mail/backend/index.md", "reason": "mail sync/send/IMAP/Gmail provider behavior preserved through API migration"}
+{"file": ".trellis/spec/pebble-oauth/backend/index.md", "reason": "OAuth login/callback preserved; OAUTH_REDIRECT_URL env var for deployment; token refresh unchanged"}
+{"file": ".trellis/spec/pebble-privacy/backend/index.md", "reason": "email HTML rendering, sanitization, tracker blocking preserved through /api/messages/:id/html"}
+{"file": ".trellis/spec/pebble-crypto/backend/index.md", "reason": "single-user bcrypt auth; OAuth token encryption; SameSite=Strict cookie; rate limiting"}
+{"file": ".trellis/spec/pebble-search/backend/index.md", "reason": "Tantivy full-text search; /api/search and /api/search/advanced endpoints"}
+{"file": ".trellis/spec/pebble-rules/backend/index.md", "reason": "email rule engine; /api/rules CRUD endpoints; conditions/actions JSON validation"}
+{"file": ".trellis/spec/pebble-translate/backend/index.md", "reason": "translation providers (DeepL, LLM, etc.); /api/translate endpoints"}
