@@ -13,8 +13,8 @@ use crate::state::AppState;
 pub fn label_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/labels", get(list_labels))
-        .route("/api/messages/{id}/labels", get(get_labels).post(add_label))
-        .route("/api/messages/{id}/labels/{name}", delete(remove_label))
+        .route("/api/messages/:id/labels", get(get_labels).post(add_label))
+        .route("/api/messages/:id/labels/:name", delete(remove_label))
         .route("/api/messages/batch/labels", post(get_labels_batch))
 }
 

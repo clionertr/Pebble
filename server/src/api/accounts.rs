@@ -14,18 +14,19 @@ use crate::api::error::ApiError;
 pub fn account_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/accounts", get(list_accounts).post(add_account_handler))
-        .route("/api/accounts/{id}", patch(update_account_handler).delete(delete_account_handler))
-        .route("/api/accounts/{id}/signature", get(get_signature).put(set_signature))
-        .route("/api/accounts/{id}/sync/start", post(start_sync_handler))
-        .route("/api/accounts/{id}/sync/trigger", post(trigger_sync))
-        .route("/api/accounts/{id}/sync/stop", post(stop_sync_handler))
-        .route("/api/accounts/{id}/test-connection", post(test_connection_handler))
-        .route("/api/accounts/{id}/gmail-realtime", get(get_gmail_realtime).put(update_gmail_realtime_handler))
-        .route("/api/accounts/{id}/gmail-realtime/enable", post(enable_gmail_realtime_handler))
-        .route("/api/accounts/{id}/gmail-realtime/disable", post(disable_gmail_realtime_handler))
-        .route("/api/accounts/{id}/proxy", get(get_account_proxy_handler).put(update_account_proxy_handler))
-        .route("/api/accounts/{id}/proxy-setting", get(get_proxy_setting_handler).put(update_proxy_setting_handler))
-        .route("/api/accounts/{id}/trash", delete(empty_trash_handler))
+        .route("/api/accounts/:id", patch(update_account_handler).delete(delete_account_handler))
+        .route("/api/accounts/:id/signature", get(get_signature).put(set_signature))
+        .route("/api/accounts/:id/sync/start", post(start_sync_handler))
+        .route("/api/accounts/:id/sync/trigger", post(trigger_sync))
+        .route("/api/accounts/:id/sync/stop", post(stop_sync_handler))
+        .route("/api/accounts/:id/test-connection", post(test_connection_handler))
+        .route("/api/accounts/:id/gmail-realtime", get(get_gmail_realtime).put(update_gmail_realtime_handler))
+        .route("/api/accounts/:id/gmail-realtime/enable", post(enable_gmail_realtime_handler))
+        .route("/api/accounts/:id/gmail-realtime/disable", post(disable_gmail_realtime_handler))
+        .route("/api/accounts/:id/proxy", get(get_account_proxy_handler).put(update_account_proxy_handler))
+        .route("/api/accounts/:id/proxy-setting", get(get_proxy_setting_handler).put(update_proxy_setting_handler))
+        .route("/api/accounts/:id/folders", get(list_folders_handler))
+        .route("/api/accounts/:id/trash", delete(empty_trash_handler))
         .route("/api/imap/test-connection", post(test_imap_handler))
 }
 
@@ -347,4 +348,17 @@ async fn update_proxy_setting_handler(
         body.proxy_port,
     ).await?;
     Ok(Json(()))
+}
+
+// ── Folders ───────────────────────────────────────────────────────────
+
+async fn list_folders_handler(
+    State(state): State<Arc<AppState>>,
+    Path(account_id): Path<String>,
+) -> Result<Json<Vec<pebble_core::Folder>>, ApiError> {
+    let folders = crate::rpc::folders::list_folders(
+        axum::extract::State(state),
+        account_id,
+    ).await?;
+    Ok(Json(folders))
 }

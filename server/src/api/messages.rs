@@ -36,16 +36,16 @@ pub fn message_routes() -> Router<Arc<AppState>> {
         // Reads
         .route("/api/inbox", get(inbox_handler))
         .route("/api/starred", get(starred_handler))
-        .route("/api/messages/{id}", get(get_message_handler))
-        .route("/api/messages/{id}/html", get(html_handler))
-        .route("/api/messages/{id}/full", get(full_handler))
+        .route("/api/messages/:id", get(get_message_handler))
+        .route("/api/messages/:id/html", get(html_handler))
+        .route("/api/messages/:id/full", get(full_handler))
         .route("/api/messages/batch", post(batch_messages_handler))
         // Mutations — single
-        .route("/api/messages/{id}/flags", patch(update_flags_handler))
-        .route("/api/messages/{id}/archive", post(archive_handler))
-        .route("/api/messages/{id}/restore", post(restore_handler))
-        .route("/api/messages/{id}/move", post(move_handler))
-        .route("/api/messages/{id}", delete(delete_handler))
+        .route("/api/messages/:id/flags", patch(update_flags_handler))
+        .route("/api/messages/:id/archive", post(archive_handler))
+        .route("/api/messages/:id/restore", post(restore_handler))
+        .route("/api/messages/:id/move", post(move_handler))
+        .route("/api/messages/:id", delete(delete_handler))
         // Mutations — batch
         .route("/api/messages/batch/archive", post(batch_archive_handler))
         .route("/api/messages/batch/delete", post(batch_delete_handler))
@@ -53,8 +53,8 @@ pub fn message_routes() -> Router<Arc<AppState>> {
         .route("/api/messages/batch/star", post(batch_star_handler))
         .route("/api/pending-ops", get(list_pending_ops_handler))
         .route("/api/pending-ops/summary", get(pending_ops_summary_handler))
-        .route("/api/pending-ops/{id}/cancel", post(cancel_pending_op_handler))
-        .route("/api/pending-ops/{id}", delete(delete_pending_op_handler))
+        .route("/api/pending-ops/:id/cancel", post(cancel_pending_op_handler))
+        .route("/api/pending-ops/:id", delete(delete_pending_op_handler))
 }
 
 async fn inbox_handler(

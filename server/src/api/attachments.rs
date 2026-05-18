@@ -12,9 +12,9 @@ use crate::state::AppState;
 
 pub fn attachment_routes() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/api/messages/{id}/attachments", get(list_attachments_handler))
+        .route("/api/messages/:id/attachments", get(list_attachments_handler))
         .route("/api/attachments/stage", post(stage_handler))
-        .route("/api/attachments/{id}", get(download_handler))
+        .route("/api/attachments/:id", get(download_handler))
 }
 
 // ── List ──────────────────────────────────────────────────────────────

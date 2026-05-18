@@ -37,13 +37,13 @@ pub struct KanbanQuery {
 pub fn thread_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/threads", get(list_threads))
-        .route("/api/threads/{id}/messages", get(list_thread_messages))
+        .route("/api/threads/:id/messages", get(list_thread_messages))
         .route("/api/search", get(search_messages))
         .route("/api/search/advanced", post(advanced_search_handler))
         .route("/api/kanban", get(list_kanban))
         .route("/api/kanban/cards", post(move_to_kanban_handler))
-        .route("/api/kanban/cards/{messageId}", delete(remove_from_kanban_handler))
-        .route("/api/kanban/notes/{messageId}", put(set_kanban_note_handler))
+        .route("/api/kanban/cards/:messageId", delete(remove_from_kanban_handler))
+        .route("/api/kanban/notes/:messageId", put(set_kanban_note_handler))
         .route("/api/kanban/notes", get(list_kanban_notes_handler).patch(merge_kanban_notes_handler))
         .route("/api/snoozed", get(list_snoozed))
 }

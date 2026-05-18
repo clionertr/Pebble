@@ -14,7 +14,7 @@ pub fn compose_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/messages/send", post(send_handler))
         .route("/api/drafts", post(save_draft_handler))
-        .route("/api/drafts/{id}", delete(delete_draft_handler))
+        .route("/api/drafts/:id", delete(delete_draft_handler))
 }
 
 // ── Send ─────────────────────────────────────────────────────────────

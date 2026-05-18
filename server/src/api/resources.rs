@@ -15,7 +15,7 @@ use crate::state::AppState;
 pub fn resource_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/rules", get(list_rules).post(create_rule))
-        .route("/api/rules/{id}", put(update_rule).delete(delete_rule))
+        .route("/api/rules/:id", put(update_rule).delete(delete_rule))
         .route("/api/translate", post(translate_text))
         .route("/api/translate/config", get(get_translate_config).put(save_translate_config))
         .route("/api/translate/test", post(test_translate))
@@ -27,7 +27,7 @@ pub fn resource_routes() -> Router<Arc<AppState>> {
         .route("/api/trusted-senders", get(list_trusted).post(trust_sender_handler))
         .route("/api/trusted-senders/check", get(check_trusted))
         .route("/api/templates", get(list_templates).post(save_template))
-        .route("/api/templates/{id}", delete(delete_template))
+        .route("/api/templates/:id", delete(delete_template))
         .route("/api/preferences/realtime", put(set_realtime))
         .route("/api/preferences/notifications", put(set_notifications))
         .route("/api/logs", get(read_logs))
