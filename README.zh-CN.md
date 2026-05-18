@@ -188,13 +188,19 @@ server {
     root /path/to/Pebble/dist;
     index index.html;
 
+    # 安全头
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" always;
+
     # 前端 SPA —— 回退到 index.html 以支持客户端路由
     location / {
         try_files $uri $uri/ /index.html;
     }
 
     # 后端 API、SSE、OAuth 和 Gmail Pub/Sub webhook
-    location ~ ^/(rpc|events|auth|webhook) {
+    location ~ ^/(api|rpc|events|auth|webhook) {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

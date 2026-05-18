@@ -188,13 +188,19 @@ server {
     root /path/to/Pebble/dist;
     index index.html;
 
+    # Security headers
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" always;
+
     # Frontend SPA — fall back to index.html for client-side routing
     location / {
         try_files $uri $uri/ /index.html;
     }
 
     # Backend API, SSE, OAuth, and Gmail Pub/Sub webhook
-    location ~ ^/(rpc|events|auth|webhook) {
+    location ~ ^/(api|rpc|events|auth|webhook) {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
