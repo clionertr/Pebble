@@ -89,11 +89,18 @@ export default function StatusBar() {
     };
   }, [setLastMailError]);
 
-  function refreshMailQueries() {
-    queryClient.invalidateQueries({ queryKey: ["folders"] });
-    queryClient.invalidateQueries({ queryKey: ["messages"] });
-    queryClient.invalidateQueries({ queryKey: ["threads"] });
-    queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
+  function refreshMailQueries(accountId?: string | null) {
+    if (accountId) {
+      queryClient.invalidateQueries({ queryKey: ["folders", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["messages", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["threads", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["folders"] });
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      queryClient.invalidateQueries({ queryKey: ["threads"] });
+      queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
+    }
   }
 
   function isActiveAccountEvent(accountId?: string | null) {
@@ -107,7 +114,7 @@ export default function StatusBar() {
       if (syncStatusRef.current !== "error") {
         updateSyncStatus("idle");
       }
-      refreshMailQueries();
+      refreshMailQueries(event.payload?.account_id);
     });
     return () => { unlisten.then((fn) => fn()); };
   }, [activeAccountId, setSyncStatus, queryClient]);
@@ -122,7 +129,7 @@ export default function StatusBar() {
         updateSyncStatus("syncing");
       } else if (status === "completed") {
         updateSyncStatus("idle");
-        refreshMailQueries();
+        refreshMailQueries(account_id);
       } else if (status === "error") {
         updateSyncStatus("error");
         if (message) {
@@ -137,11 +144,15 @@ export default function StatusBar() {
   useEffect(() => {
     const unlisten = listen<MailNewPayload>("mail:new", (event) => {
       rememberMailNewLatencyEvent(event.payload);
-      queryClient.invalidateQueries({ queryKey: ["messages"] });
-      queryClient.invalidateQueries({ queryKey: ["threads"] });
-      if (event.payload.account_id) {
-        queryClient.invalidateQueries({ queryKey: ["folders", event.payload.account_id] });
-        queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", event.payload.account_id] });
+      const aid = event.payload.account_id;
+      if (aid) {
+        queryClient.invalidateQueries({ queryKey: ["messages", aid] });
+        queryClient.invalidateQueries({ queryKey: ["threads", aid] });
+        queryClient.invalidateQueries({ queryKey: ["folders", aid] });
+        queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", aid] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["messages"] });
+        queryClient.invalidateQueries({ queryKey: ["threads"] });
       }
     });
     return () => { unlisten.then((fn) => fn()); };
@@ -152,9 +163,7 @@ export default function StatusBar() {
       queryClient.invalidateQueries({
         queryKey: pendingMailOpsSummaryQueryKey(activeAccountId),
       });
-      queryClient.invalidateQueries({ queryKey: ["folders"] });
-      queryClient.invalidateQueries({ queryKey: ["messages"] });
-      queryClient.invalidateQueries({ queryKey: ["threads"] });
+      refreshMailQueries(activeAccountId);
     });
     return () => { unlisten.then((fn) => fn()); };
   }, [activeAccountId, queryClient]);

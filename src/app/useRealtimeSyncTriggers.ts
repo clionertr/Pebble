@@ -48,17 +48,10 @@ export function useRealtimeSyncTriggers() {
         triggerAccount(accountId, "window_focus", true);
       }
     };
-    const onBlur = () => {
-      for (const accountId of accountIds) {
-        triggerAccount(accountId, "window_blur", false);
-      }
-    };
 
     window.addEventListener("focus", onFocus);
-    window.addEventListener("blur", onBlur);
     return () => {
       window.removeEventListener("focus", onFocus);
-      window.removeEventListener("blur", onBlur);
     };
   }, [accountIds, pollInterval, realtimeMode]);
 
