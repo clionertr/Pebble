@@ -32,11 +32,6 @@
     "passwordPlaceholder": "Enter password",
     "submit": "Sign in"
   },
-  "tray": {
-    "show": "Show Window",
-    "hide": "Hide Window",
-    "quit": "Quit Pebble"
-  },
   "sidebar": {
     "inbox": "Inbox",
     "sent": "Sent",
@@ -175,9 +170,7 @@
     "realtimeModeBatteryDesc": "Checks about every 60 seconds while you are active and slows down in the background.",
     "realtimeModeManualDesc": "Stops background checks. Use Sync now to run a single pass.",
     "notifications": "Notifications",
-    "enableNotifications": "Enable desktop notifications",
-    "closeBehavior": "Close Behavior",
-    "quitOnClose": "Quit app when window is closed",
+    "enableNotifications": "Enable notifications",
     "folderCounts": "Folder Counts",
     "showUnreadCount": "Show unread count badges in sidebar",
     "globalProxy": "Global Proxy",
@@ -284,7 +277,7 @@
   "about": {
     "title": "About",
     "version": "Version",
-    "description": "A local-first desktop email client built with Rust and React. Mail, search index, and attachments stay on your device. No telemetry. Outbound traffic happens only when you use a feature that requires it: mail sync with your provider, translation, WebDAV settings backup, external message images you choose to load, or a manual GitHub update check.",
+    "description": "A self-hosted webmail app built with Rust and React. Mail, search index, and attachments stay on your server. No telemetry. Outbound traffic happens only when you use a feature that requires it: mail sync with your provider, translation, WebDAV settings backup, external message images you choose to load, or a manual GitHub update check.",
     "features": "Supports Gmail, Outlook, and IMAP accounts. Includes Kanban board, full-text search, snooze, rules engine, built-in translation, and optional WebDAV settings backup.",
     "license": "Open source under AGPL-3.0 license.",
     "updates": "Updates",

@@ -154,7 +154,7 @@ export default function AboutTab() {
         <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.7, margin: "0 0 8px" }}>
           {t(
             "about.description",
-            "A local-first desktop email client built with Rust and React. Mail, search index, and attachments stay on your device. No telemetry. Outbound traffic happens only when you use a feature that requires it: mail sync with your provider, translation (sends the selected text to the service you configure), or WebDAV settings backup (runs against the server you provide).",
+            "A self-hosted webmail app built with Rust and React. Mail, search index, and attachments stay on your server. No telemetry. Outbound traffic happens only when you use a feature that requires it: mail sync with your provider, translation, or WebDAV settings backup.",
           )}
         </p>
         <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.7, margin: "0 0 8px" }}>

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import type { Message } from "@/lib/ipc-types";
-import type { Account } from "@/lib/ipc-types";
+import type { Account, Message } from "@/lib/api-types";
 import type { ComposePrefill } from "@/stores/compose.store";
 
 interface DraftRecipients {

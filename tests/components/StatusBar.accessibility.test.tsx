@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -39,7 +39,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 
-vi.mock("../../src/tauri-mock", () => ({
+vi.mock("../../src/lib/sse-client", () => ({
   listen: mocks.listen,
 }));
 
@@ -57,8 +57,6 @@ vi.mock("react-i18next", () => ({
         "status.remoteWritesPending": `${mocks.pendingOpsSummary.total_active_count} remote writes pending`,
         "status.remoteWritesRetrying": `${mocks.pendingOpsSummary.in_progress_count} remote writes retrying`,
         "status.realtimeConnected": "Realtime connected",
-        "status.keepRunningInBackground": "Keep running in background on close",
-        "status.exitOnClose": "Exit on close",
       };
       return labels[key] ?? fallback ?? key;
     },
@@ -161,16 +159,5 @@ describe("StatusBar accessibility", () => {
     const status = screen.getByRole("status", { name: /realtime connected/i });
     expect(status.getAttribute("aria-live")).toBe("polite");
     expect(status.getAttribute("aria-atomic")).toBe("true");
-  });
-
-  it("exposes the close-to-background toggle as an icon button", () => {
-    render(<StatusBar />);
-
-    const toggle = screen.getByRole("button", { name: "Keep running in background on close" });
-    expect(toggle.getAttribute("aria-pressed")).toBe("false");
-
-    fireEvent.click(toggle);
-
-    expect(mocks.uiState.setKeepRunningInBackground).toHaveBeenCalledWith(true);
   });
 });

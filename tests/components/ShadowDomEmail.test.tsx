@@ -1,26 +1,19 @@
 import { fireEvent, render, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ShadowDomEmail } from "@/components/ShadowDomEmail";
 
 const mocks = vi.hoisted(() => ({
-  invoke: vi.fn(),
-  openMailtoUrl: vi.fn(),
-}));
-
-vi.mock("../../src/tauri-mock", () => ({
-  invoke: mocks.invoke,
-}));
-
-vi.mock("@/app/useMailtoOpen", () => ({
-  openMailtoUrl: mocks.openMailtoUrl,
+  open: vi.fn(),
 }));
 
 describe("ShadowDomEmail", () => {
   beforeEach(() => {
-    mocks.invoke.mockReset();
-    mocks.openMailtoUrl.mockReset();
-    mocks.invoke.mockResolvedValue(undefined);
-    mocks.openMailtoUrl.mockResolvedValue(true);
+    mocks.open.mockReset();
+    vi.stubGlobal("open", mocks.open);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("uses app theme variables instead of hardcoded light text styles", async () => {
@@ -93,7 +86,7 @@ describe("ShadowDomEmail", () => {
     expect(shadowMarkup).toContain("min-height: 0 !important");
   });
 
-  it("opens http and https links through the external URL command", async () => {
+  it("opens http and https links in a new browser tab", async () => {
     const { container } = render(
       <ShadowDomEmail html={'<a href="http://pebble.byebug.cn/">Pebble</a>'} />,
     );
@@ -105,24 +98,7 @@ describe("ShadowDomEmail", () => {
 
     fireEvent.click(host!.shadowRoot!.querySelector("a")!);
 
-    expect(mocks.invoke).toHaveBeenCalledWith("open_external_url", {
-      url: "http://pebble.byebug.cn/",
-    });
+    expect(mocks.open).toHaveBeenCalledWith("http://pebble.byebug.cn/", "_blank", "noopener,noreferrer");
   });
 
-  it("opens mailto links through the compose mailto handler", async () => {
-    const { container } = render(
-      <ShadowDomEmail html={'<a href="mailto:qingj1314@163.com">qingj1314@163.com</a>'} />,
-    );
-    const host = container.firstChild as HTMLDivElement | null;
-
-    await waitFor(() => {
-      expect(host?.shadowRoot?.querySelector("a")).not.toBeNull();
-    });
-
-    fireEvent.click(host!.shadowRoot!.querySelector("a")!);
-
-    expect(mocks.openMailtoUrl).toHaveBeenCalledWith("mailto:qingj1314@163.com");
-    expect(mocks.invoke).not.toHaveBeenCalled();
-  });
 });

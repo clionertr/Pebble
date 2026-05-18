@@ -11,7 +11,7 @@ function stubNavigatorLanguage(language: string) {
   });
 }
 
-describe("UI store language initialization", () => {
+describe("Theme store language initialization", () => {
   afterEach(() => {
     localStorage.clear();
     vi.resetModules();
@@ -22,26 +22,26 @@ describe("UI store language initialization", () => {
     localStorage.removeItem("pebble-language");
     stubNavigatorLanguage("zh-Hans-CN");
 
-    const { useUIStore } = await import("../../src/stores/ui.store");
+    const { useThemeStore } = await import("../../src/stores/theme.store");
 
-    expect(useUIStore.getState().language).toBe("zh");
+    expect(useThemeStore.getState().language).toBe("zh");
   });
 
   it("uses English for first launch on a non-Chinese system", async () => {
     localStorage.removeItem("pebble-language");
     stubNavigatorLanguage("ja-JP");
 
-    const { useUIStore } = await import("../../src/stores/ui.store");
+    const { useThemeStore } = await import("../../src/stores/theme.store");
 
-    expect(useUIStore.getState().language).toBe("en");
+    expect(useThemeStore.getState().language).toBe("en");
   });
 
   it("does not override a saved user language", async () => {
     localStorage.setItem("pebble-language", "en");
     stubNavigatorLanguage("zh-CN");
 
-    const { useUIStore } = await import("../../src/stores/ui.store");
+    const { useThemeStore } = await import("../../src/stores/theme.store");
 
-    expect(useUIStore.getState().language).toBe("en");
+    expect(useThemeStore.getState().language).toBe("en");
   });
 });

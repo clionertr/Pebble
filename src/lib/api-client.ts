@@ -1,4 +1,4 @@
-// Typed HTTP API client — replaces the RPC invoke() pattern.
+// 类型化 HTTP API 客户端：前端统一通过 REST 访问后端。
 // Each function wraps a standard fetch() call to the /api endpoints.
 // In Phase 3+, this expands to cover all read/mutation endpoints.
 
@@ -303,7 +303,7 @@ export function setKanbanContextNote(messageId: string, note: string) {
 }
 
 export function mergeKanbanContextNotes(notes: Record<string, string>) {
-  return apiPatch<Record<string, string>>(`${BASE}/kanban/notes`, { notes });
+  return apiPatch<Record<string, string>>(`${BASE}/kanban/notes`, notes);
 }
 
 export function listKanbanContextNotes() {
@@ -365,7 +365,7 @@ export function saveDraft(params: {
   existingDraftId?: string;
   attachmentPaths?: string[];
 }) {
-  return apiPost<{ draftId: string }>(`${BASE}/drafts`, params);
+  return apiPost<string>(`${BASE}/drafts`, params);
 }
 
 export function deleteDraft(accountId: string, draftId: string) {
@@ -396,7 +396,12 @@ export async function stageAttachment(file: File): Promise<string> {
     throw new ApiError(res.status, err);
   }
   const data = await res.json();
-  return (data as { path: string }).path;
+  const staged = data as { attachments?: Array<{ path?: string }> };
+  const path = staged.attachments?.[0]?.path;
+  if (!path) {
+    throw new ApiError(500, { error: 'Attachment upload response did not include a path' });
+  }
+  return path;
 }
 
 // ── Contacts ───────────────────────────────────────────────────────────
@@ -424,7 +429,7 @@ export function deleteEmailTemplate(id: string) {
 // ── Signatures ─────────────────────────────────────────────────────────
 
 export function getEmailSignature(accountId: string) {
-  return apiGet<{ signature: string }>(`${BASE}/accounts/${encodeURIComponent(accountId)}/signature`);
+  return apiGet<string>(`${BASE}/accounts/${encodeURIComponent(accountId)}/signature`);
 }
 
 export function setEmailSignature(accountId: string, signature: string) {
@@ -503,7 +508,7 @@ export function getGlobalProxy() {
 }
 
 export function updateGlobalProxy(proxyHost?: string, proxyPort?: number) {
-  return apiPut<void>(`${BASE}/proxy`, { proxyHost, proxyPort });
+  return apiPut<void>(`${BASE}/proxy`, { proxy_host: proxyHost, proxy_port: proxyPort });
 }
 
 // ── Preferences ────────────────────────────────────────────────────────
@@ -545,7 +550,7 @@ export function getAccountProxy(accountId: string) {
 }
 
 export function updateAccountProxy(accountId: string, proxyHost?: string, proxyPort?: number) {
-  return apiPut<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy`, { proxyHost, proxyPort });
+  return apiPut<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy`, { proxy_host: proxyHost, proxy_port: proxyPort });
 }
 
 export function getAccountProxySetting(accountId: string) {
@@ -553,13 +558,13 @@ export function getAccountProxySetting(accountId: string) {
 }
 
 export function updateAccountProxySetting(accountId: string, mode: string, proxyHost?: string, proxyPort?: number) {
-  return apiPut<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy-setting`, { mode, proxyHost, proxyPort });
+  return apiPut<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy-setting`, { mode, proxy_host: proxyHost, proxy_port: proxyPort });
 }
 
 // ── Sync commands ──────────────────────────────────────────────────────
 
 export function startSync(accountId: string, pollIntervalSecs?: number) {
-  return apiPost<string>(`${BASE}/accounts/${encodeURIComponent(accountId)}/sync/start`, { pollIntervalSecs });
+  return apiPost<string>(`${BASE}/accounts/${encodeURIComponent(accountId)}/sync/start`, { poll_interval_secs: pollIntervalSecs });
 }
 
 export function triggerSync(accountId: string, reason: string) {
@@ -577,7 +582,7 @@ export function getGmailRealtimeConfig(accountId: string) {
 }
 
 export function enableGmailRealtime(accountId: string, fallbackIntervalMinutes?: number) {
-  return apiPost<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime/enable`, { fallbackIntervalMinutes });
+  return apiPost<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime/enable`, { fallback_interval_minutes: fallbackIntervalMinutes });
 }
 
 export function disableGmailRealtime(accountId: string) {
@@ -585,5 +590,5 @@ export function disableGmailRealtime(accountId: string) {
 }
 
 export function updateGmailRealtimeConfig(accountId: string, fallbackIntervalMinutes: number) {
-  return apiPut<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime`, { fallbackIntervalMinutes });
+  return apiPut<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime`, { fallback_interval_minutes: fallbackIntervalMinutes });
 }

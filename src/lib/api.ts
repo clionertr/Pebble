@@ -32,7 +32,7 @@ export type {
   TranslateConfig,
   TranslateResult,
   TrustedSender,
-} from "./ipc-types";
+} from "./api-types";
 
 import type {
   Account,
@@ -64,7 +64,7 @@ import type {
   TranslateConfig,
   TranslateResult,
   TrustedSender,
-} from "./ipc-types";
+} from "./api-types";
 
 // ─── Account API ─────────────────────────────────────────────────────────────
 
@@ -225,10 +225,18 @@ export async function updateAccount(
   accountColor?: string,
 ): Promise<void> {
   return client.updateAccount(accountId, {
-    email, displayName, password,
-    imapHost, imapPort, smtpHost, smtpPort,
-    imapSecurity, smtpSecurity,
-    proxyHost, proxyPort, accountColor,
+    email,
+    display_name: displayName,
+    password,
+    imap_host: imapHost,
+    imap_port: imapPort,
+    smtp_host: smtpHost,
+    smtp_port: smtpPort,
+    imap_security: imapSecurity,
+    smtp_security: smtpSecurity,
+    proxy_host: proxyHost,
+    proxy_port: proxyPort,
+    account_color: accountColor,
   });
 }
 
@@ -327,8 +335,8 @@ export async function archiveMessage(messageId: string): Promise<string> {
   }
   archivingIds.add(messageId);
   try {
-    const res = await client.archiveMessage(messageId) as { targetFolder?: string };
-    return res.targetFolder ?? "archived";
+    const res = await client.archiveMessage(messageId) as string | { targetFolder?: string };
+    return typeof res === "string" ? res : res.targetFolder ?? "archived";
   } finally {
     archivingIds.delete(messageId);
   }
@@ -647,8 +655,7 @@ export async function saveDraft(args: {
   existingDraftId?: string;
   attachmentPaths?: string[];
 }): Promise<string> {
-  const result = await client.saveDraft(args);
-  return result.draftId;
+  return client.saveDraft(args);
 }
 
 export async function deleteDraft(accountId: string, draftId: string): Promise<void> {

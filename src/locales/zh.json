@@ -32,11 +32,6 @@
     "passwordPlaceholder": "请输入密码",
     "submit": "登录"
   },
-  "tray": {
-    "show": "显示窗口",
-    "hide": "隐藏窗口",
-    "quit": "退出 Pebble"
-  },
   "sidebar": {
     "inbox": "收件箱",
     "sent": "已发送",
@@ -175,9 +170,7 @@
     "realtimeModeBatteryDesc": "活跃时约每 60 秒检查一次，后台会进一步放慢。",
     "realtimeModeManualDesc": "停止后台检查。使用立即同步时只运行一轮。",
     "notifications": "通知",
-    "enableNotifications": "启用桌面通知",
-    "closeBehavior": "关闭行为",
-    "quitOnClose": "关闭窗口时退出应用",
+    "enableNotifications": "启用通知",
     "folderCounts": "文件夹计数",
     "showUnreadCount": "在侧边栏显示未读数徽章",
     "globalProxy": "全局代理",
@@ -284,7 +277,7 @@
   "about": {
     "title": "关于",
     "version": "版本",
-    "description": "使用 Rust 和 React 构建的隐私优先桌面邮件客户端。邮件、搜索索引和附件都保存在本地设备。无遥测。翻译等可选功能仅将选中的文本发送到你配置的服务商。",
+    "description": "使用 Rust 和 React 构建的自托管 Webmail。邮件、搜索索引和附件都保存在你的服务器。无遥测。只有在使用邮件同步、翻译、WebDAV 备份或外部图片等功能时，才会访问对应的外部服务。",
     "features": "支持 Gmail、Outlook 和 IMAP 账户。内置看板、全文搜索、延后提醒、规则引擎、双语翻译，以及可选的 WebDAV 设置备份。",
     "license": "基于 AGPL-3.0 许可证开源。",
     "updates": "更新",

@@ -6,7 +6,7 @@ import { Markdown as MarkdownExtension } from "tiptap-markdown";
 import TurndownService from "turndown";
 import { getSignature } from "@/lib/signatures";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
-import type { Message } from "@/lib/ipc-types";
+import type { Message } from "@/lib/api-types";
 import type { TFunction } from "i18next";
 
 export type EditorMode = "rich" | "markdown" | "html";

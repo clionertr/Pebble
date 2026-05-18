@@ -1,11 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-
-
-import { invoke } from "../../src/tauri-mock";
-const mockInvoke = vi.mocked(invoke);
-
-// Import after mocking
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { accountsQueryKey } from "../../src/hooks/queries/useAccountsQuery";
 import {
   enableGmailRealtime,
@@ -13,27 +6,43 @@ import {
   getGmailRealtimeConfig,
   getOAuthAccountProxy,
   listAccounts,
+  updateAccount,
   updateGmailRealtimeConfig,
   updateGlobalProxy,
   updateOAuthAccountProxy,
-  updateAccount,
 } from "../../src/lib/api";
 
-vi.mock("../../src/tauri-mock", () => ({
-  invoke: vi.fn(),
-}));
+function jsonResponse(value: unknown) {
+  return new Response(JSON.stringify(value), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
+function fetchMock() {
+  return vi.mocked(fetch);
+}
+
+function lastRequest() {
+  const [url, init] = fetchMock().mock.calls.at(-1)!;
+  return { url: new URL(String(url)), init: init as RequestInit };
+}
 
 describe("useAccountsQuery", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("should have correct query key", () => {
     expect(accountsQueryKey).toEqual(["accounts"]);
   });
 
-  it("listAccounts should call the correct Tauri command", async () => {
+  it("listAccounts reads accounts from the REST API", async () => {
     const mockAccounts = [
       {
         id: "a1",
@@ -44,59 +53,65 @@ describe("useAccountsQuery", () => {
         updated_at: 1000,
       },
     ];
-    mockInvoke.mockResolvedValueOnce(mockAccounts);
+    fetchMock().mockResolvedValueOnce(jsonResponse(mockAccounts));
 
     const result = await listAccounts();
 
     expect(result).toEqual(mockAccounts);
-    expect(mockInvoke).toHaveBeenCalledWith("list_accounts");
+    const request = lastRequest();
+    expect(request.url.pathname).toBe("/api/accounts");
+    expect(request.init.method).toBe("GET");
+    expect(request.init.credentials).toBe("same-origin");
   });
 
-  it("getOAuthAccountProxy should call the correct Tauri command", async () => {
-    mockInvoke.mockResolvedValueOnce({ host: "127.0.0.1", port: 7890 });
+  it("getOAuthAccountProxy reuses the account proxy REST endpoint", async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse({ host: "127.0.0.1", port: 7890 }));
 
     const result = await getOAuthAccountProxy("account-1");
 
     expect(result).toEqual({ host: "127.0.0.1", port: 7890 });
-    expect(mockInvoke).toHaveBeenCalledWith("get_oauth_account_proxy", {
-      accountId: "account-1",
-    });
+    expect(lastRequest().url.pathname).toBe("/api/accounts/account-1/proxy");
   });
 
-  it("updateOAuthAccountProxy should call the correct Tauri command", async () => {
-    mockInvoke.mockResolvedValueOnce(undefined);
+  it("updateOAuthAccountProxy sends snake_case proxy fields", async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse(null));
 
     await updateOAuthAccountProxy("account-1", "127.0.0.1", 7890);
 
-    expect(mockInvoke).toHaveBeenCalledWith("update_oauth_account_proxy", {
-      accountId: "account-1",
-      proxyHost: "127.0.0.1",
-      proxyPort: 7890,
+    const request = lastRequest();
+    expect(request.url.pathname).toBe("/api/accounts/account-1/proxy");
+    expect(request.init.method).toBe("PUT");
+    expect(JSON.parse(String(request.init.body))).toEqual({
+      proxy_host: "127.0.0.1",
+      proxy_port: 7890,
     });
   });
 
-  it("getGlobalProxy should call the correct Tauri command", async () => {
-    mockInvoke.mockResolvedValueOnce({ host: "127.0.0.1", port: 7890 });
+  it("getGlobalProxy reads the global proxy endpoint", async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse({ host: "127.0.0.1", port: 7890 }));
 
     const result = await getGlobalProxy();
 
     expect(result).toEqual({ host: "127.0.0.1", port: 7890 });
-    expect(mockInvoke).toHaveBeenCalledWith("get_global_proxy");
+    expect(lastRequest().url.pathname).toBe("/api/proxy");
   });
 
-  it("updateGlobalProxy should call the correct Tauri command", async () => {
-    mockInvoke.mockResolvedValueOnce(undefined);
+  it("updateGlobalProxy sends snake_case proxy fields", async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse(null));
 
     await updateGlobalProxy("127.0.0.1", 7890);
 
-    expect(mockInvoke).toHaveBeenCalledWith("update_global_proxy", {
-      proxyHost: "127.0.0.1",
-      proxyPort: 7890,
+    const request = lastRequest();
+    expect(request.url.pathname).toBe("/api/proxy");
+    expect(request.init.method).toBe("PUT");
+    expect(JSON.parse(String(request.init.body))).toEqual({
+      proxy_host: "127.0.0.1",
+      proxy_port: 7890,
     });
   });
 
-  it("updateAccount should include accountColor when saving an account color", async () => {
-    mockInvoke.mockResolvedValueOnce(undefined);
+  it("updateAccount sends backend account field names", async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse(null));
 
     await updateAccount(
       "account-1",
@@ -114,63 +129,42 @@ describe("useAccountsQuery", () => {
       "#22c55e",
     );
 
-    expect(mockInvoke).toHaveBeenCalledWith("update_account", {
-      accountId: "account-1",
+    const request = lastRequest();
+    expect(request.url.pathname).toBe("/api/accounts/account-1");
+    expect(request.init.method).toBe("PATCH");
+    expect(JSON.parse(String(request.init.body))).toEqual({
       email: "user@example.com",
-      displayName: "User",
-      password: undefined,
-      imapHost: undefined,
-      imapPort: undefined,
-      smtpHost: undefined,
-      smtpPort: undefined,
-      imapSecurity: undefined,
-      smtpSecurity: undefined,
-      proxyHost: undefined,
-      proxyPort: undefined,
-      accountColor: "#22c55e",
+      display_name: "User",
+      account_color: "#22c55e",
     });
   });
 
-  it("getGmailRealtimeConfig should call the correct Tauri command", async () => {
-    mockInvoke.mockResolvedValueOnce({
-      accountId: "account-1",
-      enabled: false,
-      status: "not_enabled",
-      configMissing: false,
-      topicName: null,
-      expirationMs: null,
-      lastWatchHistoryId: null,
-      lastWatchAt: null,
-      lastError: null,
-      fallbackIntervalMinutes: 15,
-    });
+  it("getGmailRealtimeConfig reads the account realtime endpoint", async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse({ account_id: "account-1" }));
 
     await getGmailRealtimeConfig("account-1");
 
-    expect(mockInvoke).toHaveBeenCalledWith("get_gmail_realtime_config", {
-      accountId: "account-1",
-    });
+    expect(lastRequest().url.pathname).toBe("/api/accounts/account-1/gmail-realtime");
   });
 
-  it("enableGmailRealtime should pass the fallback interval", async () => {
-    mockInvoke.mockResolvedValueOnce({});
+  it("enableGmailRealtime sends the fallback interval", async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse({}));
 
     await enableGmailRealtime("account-1", 30);
 
-    expect(mockInvoke).toHaveBeenCalledWith("enable_gmail_realtime", {
-      accountId: "account-1",
-      fallbackIntervalMinutes: 30,
-    });
+    const request = lastRequest();
+    expect(request.url.pathname).toBe("/api/accounts/account-1/gmail-realtime/enable");
+    expect(JSON.parse(String(request.init.body))).toEqual({ fallback_interval_minutes: 30 });
   });
 
-  it("updateGmailRealtimeConfig should pass the fallback interval", async () => {
-    mockInvoke.mockResolvedValueOnce({});
+  it("updateGmailRealtimeConfig sends the fallback interval", async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse({}));
 
     await updateGmailRealtimeConfig("account-1", 45);
 
-    expect(mockInvoke).toHaveBeenCalledWith("update_gmail_realtime_config", {
-      accountId: "account-1",
-      fallbackIntervalMinutes: 45,
-    });
+    const request = lastRequest();
+    expect(request.url.pathname).toBe("/api/accounts/account-1/gmail-realtime");
+    expect(request.init.method).toBe("PUT");
+    expect(JSON.parse(String(request.init.body))).toEqual({ fallback_interval_minutes: 45 });
   });
 });

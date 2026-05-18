@@ -7,7 +7,7 @@ vi.mock("react-i18next", () => ({
   },
 }));
 
-describe("UIStore realtime initialization", () => {
+describe("SyncStore realtime initialization", () => {
   beforeEach(() => {
     vi.resetModules();
     localStorage.clear();
@@ -17,9 +17,9 @@ describe("UIStore realtime initialization", () => {
     localStorage.setItem("pebble-realtime-mode", "manual");
     localStorage.setItem("pebble-poll-interval", "0");
 
-    const { useUIStore } = await import("../../src/stores/ui.store");
+    const { useSyncStore } = await import("../../src/stores/sync.store");
 
-    expect(useUIStore.getState().realtimeMode).toBe("manual");
-    expect(useUIStore.getState().pollInterval).toBe(0);
+    expect(useSyncStore.getState().realtimeMode).toBe("manual");
+    expect(useSyncStore.getState().pollInterval).toBe(0);
   });
 });

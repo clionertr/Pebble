@@ -4,21 +4,20 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MessageSummary } from "../../src/lib/api";
 
-
-
-import { invoke } from "../../src/tauri-mock";
 import {
   STARRED_MESSAGES_PAGE_SIZE,
   starredMessagesQueryKey,
   useStarredMessagesQuery,
 } from "../../src/hooks/queries/useStarredMessagesQuery";
 
-vi.mock("../../src/tauri-mock", () => ({
-  invoke: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  listStarredMessages: vi.fn(),
 }));
 
-
-const mockInvoke = vi.mocked(invoke);
+vi.mock("../../src/lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/lib/api")>()),
+  listStarredMessages: mocks.listStarredMessages,
+}));
 
 function makeMessage(id: string): MessageSummary {
   return {
@@ -74,18 +73,14 @@ describe("useStarredMessagesQuery", () => {
       makeMessage(`m-${index + 1}`),
     );
     const secondPage = [makeMessage("m-51")];
-    mockInvoke.mockResolvedValueOnce(firstPage).mockResolvedValueOnce(secondPage);
+    mocks.listStarredMessages.mockResolvedValueOnce(firstPage).mockResolvedValueOnce(secondPage);
 
     const { result } = renderHook(() => useStarredMessagesQuery("account-1"), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.data).toHaveLength(STARRED_MESSAGES_PAGE_SIZE));
-    expect(mockInvoke).toHaveBeenCalledWith("list_starred_messages", {
-      accountId: "account-1",
-      limit: STARRED_MESSAGES_PAGE_SIZE,
-      offset: 0,
-    });
+    expect(mocks.listStarredMessages).toHaveBeenCalledWith("account-1", STARRED_MESSAGES_PAGE_SIZE, 0);
     expect(result.current.hasNextPage).toBe(true);
 
     await act(async () => {
@@ -93,11 +88,7 @@ describe("useStarredMessagesQuery", () => {
     });
 
     await waitFor(() => expect(result.current.data).toHaveLength(STARRED_MESSAGES_PAGE_SIZE + 1));
-    expect(mockInvoke).toHaveBeenLastCalledWith("list_starred_messages", {
-      accountId: "account-1",
-      limit: STARRED_MESSAGES_PAGE_SIZE,
-      offset: STARRED_MESSAGES_PAGE_SIZE,
-    });
+    expect(mocks.listStarredMessages).toHaveBeenLastCalledWith("account-1", STARRED_MESSAGES_PAGE_SIZE, STARRED_MESSAGES_PAGE_SIZE);
     expect(result.current.hasNextPage).toBe(false);
   });
 
@@ -106,7 +97,7 @@ describe("useStarredMessagesQuery", () => {
       makeMessage(`m-${index + 1}`),
     );
     const secondPage = [makeMessage("m-50"), makeMessage("m-51")];
-    mockInvoke.mockResolvedValueOnce(firstPage).mockResolvedValueOnce(secondPage);
+    mocks.listStarredMessages.mockResolvedValueOnce(firstPage).mockResolvedValueOnce(secondPage);
 
     const { result } = renderHook(() => useStarredMessagesQuery("account-1", 1), {
       wrapper: createWrapper(),
@@ -118,10 +109,6 @@ describe("useStarredMessagesQuery", () => {
       await result.current.fetchNextPage();
     });
 
-    expect(mockInvoke).toHaveBeenLastCalledWith("list_starred_messages", {
-      accountId: "account-1",
-      limit: STARRED_MESSAGES_PAGE_SIZE,
-      offset: STARRED_MESSAGES_PAGE_SIZE - 1,
-    });
+    expect(mocks.listStarredMessages).toHaveBeenLastCalledWith("account-1", STARRED_MESSAGES_PAGE_SIZE, STARRED_MESSAGES_PAGE_SIZE - 1);
   });
 });

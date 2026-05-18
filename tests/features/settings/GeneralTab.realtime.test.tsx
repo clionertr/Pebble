@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import GeneralTab from "../../../src/features/settings/GeneralTab";
 import { useUIStore } from "../../../src/stores/ui.store";
+import { useSyncStore } from "../../../src/stores/sync.store";
 
 vi.mock("react-i18next", () => ({
   initReactI18next: {
@@ -24,9 +25,7 @@ vi.mock("react-i18next", () => ({
         "settings.syncInterval": "Sync Interval",
         "settings.syncIntervalDesc": "How often to check for new messages (seconds)",
         "settings.notifications": "Notifications",
-        "settings.enableNotifications": "Enable desktop notifications",
-        "settings.closeBehavior": "Close Behavior",
-        "settings.quitOnClose": "Quit app when window is closed",
+        "settings.enableNotifications": "Enable notifications",
         "settings.folderCounts": "Folder Counts",
         "settings.showUnreadCount": "Show unread count badges in sidebar",
       };
@@ -39,20 +38,21 @@ describe("GeneralTab realtime mode", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    useUIStore.setState({
-      pollInterval: 15,
+    useSyncStore.setState({
+      pollInterval: 3,
       realtimeMode: "realtime",
-      showFolderUnreadCount: false,
       notificationsEnabled: true,
-      keepRunningInBackground: true,
+    });
+    useUIStore.setState({
+      showFolderUnreadCount: false,
     });
   });
 
   it("defaults to realtime mode", () => {
-    expect(useUIStore.getState().realtimeMode).toBe("realtime");
+    expect(useSyncStore.getState().realtimeMode).toBe("realtime");
   });
 
-  it("shows realtime strategy choices and persists selection", () => {
+  it("shows realtime strategy choices and persists selection", async () => {
     render(<GeneralTab />);
 
     expect(screen.getByRole("button", { name: "Realtime (recommended)" })).toBeTruthy();
@@ -66,31 +66,19 @@ describe("GeneralTab realtime mode", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Battery saver" }));
 
-    expect(useUIStore.getState().realtimeMode).toBe("battery");
-    expect(localStorage.getItem("pebble-realtime-mode")).toBe("battery");
+    expect(useSyncStore.getState().realtimeMode).toBe("battery");
+    await waitFor(() => expect(localStorage.getItem("pebble-realtime-mode")).toBe("battery"));
   });
 
-  it("shows the persisted desktop notification state and updates it through the UI store", () => {
+  it("shows the persisted notification state and updates it through the UI store", async () => {
     render(<GeneralTab />);
 
-    const checkbox = screen.getByRole("checkbox", { name: "Enable desktop notifications" });
+    const checkbox = screen.getByRole("checkbox", { name: "Enable notifications" });
     expect((checkbox as HTMLInputElement).checked).toBe(true);
 
     fireEvent.click(checkbox);
 
-    expect(useUIStore.getState().notificationsEnabled).toBe(false);
-    expect(localStorage.getItem("pebble-notifications-enabled")).toBe("false");
-  });
-
-  it("shows close-window behavior and persists quit-on-close through the UI store", () => {
-    render(<GeneralTab />);
-
-    const checkbox = screen.getByRole("checkbox", { name: "Quit app when window is closed" });
-    expect((checkbox as HTMLInputElement).checked).toBe(false);
-
-    fireEvent.click(checkbox);
-
-    expect(useUIStore.getState().keepRunningInBackground).toBe(false);
-    expect(localStorage.getItem("pebble-keep-running-background")).toBe("false");
+    expect(useSyncStore.getState().notificationsEnabled).toBe(false);
+    await waitFor(() => expect(localStorage.getItem("pebble-notifications-enabled")).toBe("false"));
   });
 });

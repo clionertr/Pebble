@@ -1,13 +1,15 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AboutTab from "../../../src/features/settings/AboutTab";
-import { invoke } from "../../../src/tauri-mock";
 
-vi.mock("../../../src/tauri-mock", () => ({
-  getVersion: vi.fn().mockResolvedValue("1.2.3"),
-  invoke: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  readAppLog: vi.fn(),
 }));
 
+vi.mock("../../../src/lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../src/lib/api")>()),
+  readAppLog: mocks.readAppLog,
+}));
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -15,24 +17,13 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-
-
-
-
-const mockInvoke = vi.mocked(invoke);
-
 describe("AboutTab diagnostics", () => {
   beforeEach(() => {
-    mockInvoke.mockReset();
-    mockInvoke.mockImplementation((command) => {
-      if (command === "read_app_log") {
-        return Promise.resolve({
-          path: "C:\\Users\\me\\AppData\\Roaming\\Pebble\\logs\\pebble.log",
-          content: "first line\nlatest line",
-          truncated: false,
-        });
-      }
-      return Promise.resolve(null);
+    mocks.readAppLog.mockReset();
+    mocks.readAppLog.mockResolvedValue({
+      path: "/var/lib/pebble/logs/pebble.log",
+      content: "first line\nlatest line",
+      truncated: false,
     });
   });
 
@@ -45,12 +36,12 @@ describe("AboutTab diagnostics", () => {
       fireEvent.click(iconButton);
     }
 
-    expect(mockInvoke).not.toHaveBeenCalledWith("read_app_log", expect.anything());
+    expect(mocks.readAppLog).not.toHaveBeenCalled();
 
     fireEvent.click(iconButton);
 
     await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("read_app_log", { maxBytes: 65536 });
+      expect(mocks.readAppLog).toHaveBeenCalledWith(65536);
     });
     expect(screen.getByRole("dialog", { name: "Diagnostic log" })).toBeTruthy();
     expect(screen.getByText(/latest line/)).toBeTruthy();

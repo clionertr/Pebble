@@ -1,23 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-
-
-import { invoke } from "../../src/tauri-mock";
-const mockInvoke = vi.mocked(invoke);
-
-import {
-  pendingMailOpsQueryKey,
-} from "../../src/hooks/queries/usePendingMailOpsQuery";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { pendingMailOpsQueryKey } from "../../src/hooks/queries/usePendingMailOpsQuery";
 import { listPendingMailOps } from "../../src/lib/api";
 
-vi.mock("../../src/tauri-mock", () => ({
-  invoke: vi.fn(),
-}));
-
+function jsonResponse(value: unknown) {
+  return new Response(JSON.stringify(value), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 describe("usePendingMailOpsQuery", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("should generate correct query key with accountId", () => {
@@ -25,7 +24,7 @@ describe("usePendingMailOpsQuery", () => {
     expect(pendingMailOpsQueryKey(null)).toEqual(["pendingMailOpsList", null]);
   });
 
-  it("listPendingMailOps should call the correct Tauri command", async () => {
+  it("listPendingMailOps reads pending operations from the REST API", async () => {
     const mockOps = [
       {
         id: "op-1",
@@ -39,14 +38,16 @@ describe("usePendingMailOpsQuery", () => {
         updated_at: 456,
       },
     ];
-    mockInvoke.mockResolvedValueOnce(mockOps);
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(mockOps));
 
     const result = await listPendingMailOps("a1");
 
     expect(result).toEqual(mockOps);
-    expect(mockInvoke).toHaveBeenCalledWith("list_pending_mail_ops", {
-      accountId: "a1",
-      limit: 100,
-    });
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    const requestUrl = new URL(String(url));
+    expect(requestUrl.pathname).toBe("/api/pending-ops");
+    expect(requestUrl.searchParams.get("accountId")).toBe("a1");
+    expect(requestUrl.searchParams.get("limit")).toBe("100");
+    expect((init as RequestInit).method).toBe("GET");
   });
 });

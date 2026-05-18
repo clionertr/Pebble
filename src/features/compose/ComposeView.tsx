@@ -20,7 +20,7 @@ import { deleteDraft, stageComposeAttachment } from "@/lib/api";
 import { appendReplyQuoteHtml, useComposeEditor } from "@/hooks/useComposeEditor";
 import { useConfirmStore } from "@/stores/confirm.store";
 import { useToastStore } from "@/stores/toast.store";
-import type { Account } from "@/lib/ipc-types";
+import type { Account } from "@/lib/api-types";
 import type { ComposeAttachment } from "./compose-draft";
 import { ModeButton, EditorToolbar, MarkdownToolbar, composeStyles } from "./ComposeToolbar";
 import { isValidEmailAddress, mergePendingRecipient } from "./recipient-utils";

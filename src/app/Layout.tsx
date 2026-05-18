@@ -22,7 +22,6 @@ import LoginView from "../features/auth/LoginView";
 import { scheduleIdleWork, scheduleLazyViewPreload } from "./lazyViewPreload";
 import { useRealtimePreferenceSync } from "./useRealtimePreferenceSync";
 import { useRealtimeSyncTriggers } from "./useRealtimeSyncTriggers";
-import { useNotificationOpenNavigation } from "./useNotificationOpenNavigation";
 
 const loadSettingsView = () => import("../features/settings/SettingsView");
 const loadComposeView = () => import("../features/compose/ComposeView");
@@ -44,6 +43,20 @@ import { useQueryClient } from "@tanstack/react-query";
 import iconUrl from "@/assets/app-icon.png";
 
 export default function Layout() {
+  const { authState } = useAuth();
+
+  if (authState === "loading") {
+    return <AuthLoadingSpinner />;
+  }
+
+  if (authState === "unauthenticated") {
+    return <LoginView />;
+  }
+
+  return <AuthenticatedLayout />;
+}
+
+function AuthenticatedLayout() {
   const activeView = useUIStore((s) => s.activeView);
   const displayedView = activeView;
   const composeKey = useComposeStore((s) => s.composeKey);
@@ -55,7 +68,6 @@ export default function Layout() {
   const queryClient = useQueryClient();
   const drawerOpen = useUIStore((s) => s.drawerOpen);
   const setDrawerOpen = useUIStore((s) => s.setDrawerOpen);
-  const { authState } = useAuth();
 
   useKeyboard();
 
@@ -94,7 +106,6 @@ export default function Layout() {
   useNetworkStatus();
   useRealtimePreferenceSync();
   useRealtimeSyncTriggers();
-  useNotificationOpenNavigation();
 
   // Re-register commands when language changes
   useEffect(() => {
@@ -128,14 +139,6 @@ export default function Layout() {
       return () => mql.removeEventListener("change", listener);
     }
   }, [theme]);
-
-  if (authState === "loading") {
-    return <AuthLoadingSpinner />;
-  }
-
-  if (authState === "unauthenticated") {
-    return <LoginView />;
-  }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">

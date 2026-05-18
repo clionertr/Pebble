@@ -1,42 +1,41 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "../../src/tauri-mock";
-import { getSignature, setSignature } from "../../src/lib/signatures";
 
-vi.mock("../../src/tauri-mock", () => ({
-  invoke: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  getEmailSignature: vi.fn(),
+  setEmailSignature: vi.fn(),
 }));
 
+vi.mock("../../src/lib/api-client", () => ({
+  getEmailSignature: mocks.getEmailSignature,
+  setEmailSignature: mocks.setEmailSignature,
+}));
 
-
-
-const invokeMock = vi.mocked(invoke);
+import { getSignature, setSignature } from "../../src/lib/signatures";
 
 describe("signatures secure storage", () => {
   beforeEach(() => {
     localStorage.clear();
-    invokeMock.mockReset();
+    mocks.getEmailSignature.mockReset();
+    mocks.setEmailSignature.mockReset();
   });
 
   it("loads signatures from backend storage and clears legacy localStorage", async () => {
     localStorage.setItem("pebble-signatures", JSON.stringify({ "account-1": "legacy" }));
-    invokeMock.mockResolvedValue("secure signature");
+    mocks.getEmailSignature.mockResolvedValue("secure signature");
 
     const signature = await getSignature("account-1");
 
-    expect(invokeMock).toHaveBeenCalledWith("get_email_signature", { accountId: "account-1" });
+    expect(mocks.getEmailSignature).toHaveBeenCalledWith("account-1");
     expect(signature).toBe("secure signature");
     expect(localStorage.getItem("pebble-signatures")).toBeNull();
   });
 
   it("saves signatures through backend storage without writing localStorage", async () => {
-    invokeMock.mockResolvedValue(undefined);
+    mocks.setEmailSignature.mockResolvedValue(undefined);
 
     await setSignature("account-1", "Regards");
 
-    expect(invokeMock).toHaveBeenCalledWith("set_email_signature", {
-      accountId: "account-1",
-      signature: "Regards",
-    });
+    expect(mocks.setEmailSignature).toHaveBeenCalledWith("account-1", "Regards");
     expect(localStorage.getItem("pebble-signatures")).toBeNull();
   });
 });

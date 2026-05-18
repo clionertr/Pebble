@@ -9,9 +9,9 @@ function clearLegacySignatures() {
 }
 
 export async function getSignature(accountId: string): Promise<string> {
-  const result = await client.getEmailSignature(accountId);
+  const signature = await client.getEmailSignature(accountId);
   clearLegacySignatures();
-  return result.signature;
+  return signature;
 }
 
 export async function setSignature(accountId: string, signature: string): Promise<void> {

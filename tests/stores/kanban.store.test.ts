@@ -1,16 +1,25 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
-
-
-import { invoke } from "../../src/tauri-mock";
-import { useKanbanStore } from "../../src/stores/kanban.store";
-
-vi.mock("../../src/tauri-mock", () => ({
-  invoke: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  listKanbanCards: vi.fn(),
+  listKanbanContextNotes: vi.fn(),
+  mergeKanbanContextNotes: vi.fn(),
+  moveToKanban: vi.fn(),
+  removeFromKanban: vi.fn(),
+  setKanbanContextNote: vi.fn(),
 }));
 
+vi.mock("../../src/lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/lib/api")>()),
+  listKanbanCards: mocks.listKanbanCards,
+  listKanbanContextNotes: mocks.listKanbanContextNotes,
+  mergeKanbanContextNotes: mocks.mergeKanbanContextNotes,
+  moveToKanban: mocks.moveToKanban,
+  removeFromKanban: mocks.removeFromKanban,
+  setKanbanContextNote: mocks.setKanbanContextNote,
+}));
 
-const mockedInvoke = vi.mocked(invoke);
+import { useKanbanStore } from "../../src/stores/kanban.store";
 
 describe("KanbanStore", () => {
   beforeEach(() => {
@@ -24,20 +33,13 @@ describe("KanbanStore", () => {
       { message_id: "m1", column: "todo", position: 0, created_at: 1000, updated_at: 1000 },
       { message_id: "m2", column: "done", position: 1, created_at: 1000, updated_at: 1000 },
     ];
-    mockedInvoke.mockImplementation((command) => {
-      if (command === "list_kanban_cards") {
-        return Promise.resolve(mockCards);
-      }
-      if (command === "list_kanban_context_notes") {
-        return Promise.resolve({});
-      }
-      return Promise.resolve(undefined);
-    });
+    mocks.listKanbanCards.mockResolvedValue(mockCards);
+    mocks.listKanbanContextNotes.mockResolvedValue({});
 
     await useKanbanStore.getState().fetchCards();
 
-    expect(mockedInvoke).toHaveBeenCalledWith("list_kanban_cards", { column: undefined });
-    expect(mockedInvoke).toHaveBeenCalledWith("list_kanban_context_notes");
+    expect(mocks.listKanbanCards).toHaveBeenCalledWith();
+    expect(mocks.listKanbanContextNotes).toHaveBeenCalledWith();
     expect(useKanbanStore.getState().cards).toHaveLength(2);
     expect(useKanbanStore.getState().loading).toBe(false);
   });
@@ -48,12 +50,12 @@ describe("KanbanStore", () => {
         { message_id: "m1", column: "todo", position: 0, created_at: 1000, updated_at: 1000 },
       ],
     });
-    mockedInvoke.mockResolvedValueOnce(undefined);
+    mocks.moveToKanban.mockResolvedValueOnce(undefined);
 
     await useKanbanStore.getState().moveCard("m1", "done", 0);
 
     expect(useKanbanStore.getState().cards[0].column).toBe("done");
-    expect(mockedInvoke).toHaveBeenCalledWith("move_to_kanban", { messageId: "m1", column: "done", position: 0 });
+    expect(mocks.moveToKanban).toHaveBeenCalledWith("m1", "done", 0);
   });
 
   it("moveCard rolls back on error", async () => {
@@ -62,7 +64,7 @@ describe("KanbanStore", () => {
         { message_id: "m1", column: "todo", position: 0, created_at: 1000, updated_at: 1000 },
       ],
     });
-    mockedInvoke.mockRejectedValueOnce(new Error("fail"));
+    mocks.moveToKanban.mockRejectedValueOnce(new Error("fail"));
 
     await useKanbanStore.getState().moveCard("m1", "done", 0);
 
@@ -75,7 +77,7 @@ describe("KanbanStore", () => {
         { message_id: "m1", column: "todo", position: 0, created_at: 1000, updated_at: 1000 },
       ],
     });
-    mockedInvoke.mockResolvedValueOnce(undefined);
+    mocks.removeFromKanban.mockResolvedValueOnce(undefined);
 
     await useKanbanStore.getState().removeCard("m1");
 
@@ -88,7 +90,7 @@ describe("KanbanStore", () => {
         { message_id: "m1", column: "todo", position: 0, created_at: 1000, updated_at: 1000 },
       ],
     });
-    mockedInvoke.mockRejectedValueOnce(new Error("fail"));
+    mocks.removeFromKanban.mockRejectedValueOnce(new Error("fail"));
 
     await useKanbanStore.getState().removeCard("m1");
 
@@ -96,15 +98,12 @@ describe("KanbanStore", () => {
   });
 
   it("stores context notes through backend storage only", async () => {
-    mockedInvoke.mockResolvedValueOnce({ m1: "follow up on the selected paragraph" });
+    mocks.setKanbanContextNote.mockResolvedValueOnce({ m1: "follow up on the selected paragraph" });
 
     await useKanbanStore.getState().setContextNote("m1", "follow up on the selected paragraph");
 
     expect(useKanbanStore.getState().contextNotes.m1).toBe("follow up on the selected paragraph");
-    expect(mockedInvoke).toHaveBeenCalledWith("set_kanban_context_note", {
-      messageId: "m1",
-      note: "follow up on the selected paragraph",
-    });
+    expect(mocks.setKanbanContextNote).toHaveBeenCalledWith("m1", "follow up on the selected paragraph");
     expect(localStorage.getItem("pebble-kanban-context-notes")).toBeNull();
   });
 });

@@ -21,8 +21,8 @@ vi.mock("../../src/stores/mail.store", () => ({
     selector({ activeAccountId: mocks.activeAccountId }),
 }));
 
-vi.mock("../../src/stores/ui.store", () => ({
-  useUIStore: (selector: (s: {
+vi.mock("../../src/stores/sync.store", () => ({
+  useSyncStore: (selector: (s: {
     networkStatus: "online" | "offline";
     pollInterval: number;
     realtimeMode: "realtime" | "balanced" | "battery" | "manual";

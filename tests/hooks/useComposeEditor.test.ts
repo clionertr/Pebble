@@ -5,7 +5,7 @@ import {
   buildReplyQuoteHtml,
   shouldApplyInitialEditorContent,
 } from "../../src/hooks/useComposeEditor";
-import type { Message } from "../../src/lib/ipc-types";
+import type { Message } from "../../src/lib/api-types";
 import type { TFunction } from "i18next";
 
 const t = ((key: string, options?: Record<string, string>) => {

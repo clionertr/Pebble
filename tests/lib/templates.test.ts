@@ -1,45 +1,48 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "../../src/tauri-mock";
-import { deleteTemplate, listTemplates, saveTemplate } from "../../src/lib/templates";
 
-vi.mock("../../src/tauri-mock", () => ({
-  invoke: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  listEmailTemplates: vi.fn(),
+  saveEmailTemplate: vi.fn(),
+  deleteEmailTemplate: vi.fn(),
 }));
 
+vi.mock("../../src/lib/api-client", () => ({
+  listEmailTemplates: mocks.listEmailTemplates,
+  saveEmailTemplate: mocks.saveEmailTemplate,
+  deleteEmailTemplate: mocks.deleteEmailTemplate,
+}));
 
-
-
-const invokeMock = vi.mocked(invoke);
+import { deleteTemplate, listTemplates, saveTemplate } from "../../src/lib/templates";
 
 describe("templates secure storage", () => {
   beforeEach(() => {
     localStorage.clear();
-    invokeMock.mockReset();
+    mocks.listEmailTemplates.mockReset();
+    mocks.saveEmailTemplate.mockReset();
+    mocks.deleteEmailTemplate.mockReset();
   });
 
   it("loads templates from backend storage and clears legacy localStorage", async () => {
     localStorage.setItem("pebble-templates", JSON.stringify([{ id: "legacy" }]));
-    invokeMock.mockResolvedValue([{ id: "template-1", name: "Intro", subject: "Hello", body: "Body", createdAt: 1 }]);
+    mocks.listEmailTemplates.mockResolvedValue([{ id: "template-1", name: "Intro", subject: "Hello", body: "Body", createdAt: 1 }]);
 
     const templates = await listTemplates();
 
-    expect(invokeMock).toHaveBeenCalledWith("list_email_templates");
+    expect(mocks.listEmailTemplates).toHaveBeenCalledWith();
     expect(templates).toHaveLength(1);
     expect(localStorage.getItem("pebble-templates")).toBeNull();
   });
 
   it("saves and deletes templates through backend storage without writing localStorage", async () => {
-    invokeMock
-      .mockResolvedValueOnce({ id: "template-1", name: "Intro", subject: "Hello", body: "Body", createdAt: 1 })
-      .mockResolvedValueOnce(undefined);
+    mocks.saveEmailTemplate
+      .mockResolvedValueOnce({ id: "template-1", name: "Intro", subject: "Hello", body: "Body", createdAt: 1 });
+    mocks.deleteEmailTemplate.mockResolvedValueOnce(undefined);
 
     await saveTemplate({ name: "Intro", subject: "Hello", body: "Body" });
     await deleteTemplate("template-1");
 
-    expect(invokeMock).toHaveBeenNthCalledWith(1, "save_email_template", {
-      template: { name: "Intro", subject: "Hello", body: "Body" },
-    });
-    expect(invokeMock).toHaveBeenNthCalledWith(2, "delete_email_template", { id: "template-1" });
+    expect(mocks.saveEmailTemplate).toHaveBeenCalledWith({ name: "Intro", subject: "Hello", body: "Body" });
+    expect(mocks.deleteEmailTemplate).toHaveBeenCalledWith("template-1");
     expect(localStorage.getItem("pebble-templates")).toBeNull();
   });
 });

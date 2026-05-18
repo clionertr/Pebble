@@ -122,9 +122,6 @@ export default function GeneralTab() {
       </label>
 
       <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "16px", marginTop: "32px" }}>
-        {t("settings.closeBehavior", "Close Behavior")}
-      </h3>
-      <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "16px", marginTop: "32px" }}>
         {t("settings.folderCounts", "Folder Counts")}
       </h3>
       <label

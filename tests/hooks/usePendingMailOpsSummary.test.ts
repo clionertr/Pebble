@@ -1,23 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-
-
-import { invoke } from "../../src/tauri-mock";
-const mockInvoke = vi.mocked(invoke);
-
-import {
-  pendingMailOpsSummaryQueryKey,
-} from "../../src/hooks/queries/usePendingMailOpsSummary";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { pendingMailOpsSummaryQueryKey } from "../../src/hooks/queries/usePendingMailOpsSummary";
 import { getPendingMailOpsSummary } from "../../src/lib/api";
 
-vi.mock("../../src/tauri-mock", () => ({
-  invoke: vi.fn(),
-}));
-
+function jsonResponse(value: unknown) {
+  return new Response(JSON.stringify(value), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 describe("usePendingMailOpsSummary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("should generate correct query key with accountId", () => {
@@ -25,7 +24,7 @@ describe("usePendingMailOpsSummary", () => {
     expect(pendingMailOpsSummaryQueryKey(null)).toEqual(["pendingMailOps", null]);
   });
 
-  it("getPendingMailOpsSummary should call the correct Tauri command", async () => {
+  it("getPendingMailOpsSummary reads the REST summary endpoint", async () => {
     const mockSummary = {
       pending_count: 1,
       in_progress_count: 0,
@@ -34,11 +33,14 @@ describe("usePendingMailOpsSummary", () => {
       last_error: "network unavailable",
       updated_at: 123,
     };
-    mockInvoke.mockResolvedValueOnce(mockSummary);
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(mockSummary));
 
     const result = await getPendingMailOpsSummary("a1");
 
     expect(result).toEqual(mockSummary);
-    expect(mockInvoke).toHaveBeenCalledWith("get_pending_mail_ops_summary", { accountId: "a1" });
+    const [url] = vi.mocked(fetch).mock.calls[0];
+    const requestUrl = new URL(String(url));
+    expect(requestUrl.pathname).toBe("/api/pending-ops/summary");
+    expect(requestUrl.searchParams.get("accountId")).toBe("a1");
   });
 });

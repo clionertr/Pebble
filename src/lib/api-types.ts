@@ -1,13 +1,10 @@
 /**
- * IPC type contracts — the single source of TypeScript mirrors for Rust structs
- * that cross the Tauri invoke boundary.
+ * Web API 类型契约：这里集中维护 Rust 结构体在 TypeScript 侧的镜像。
  *
- * Each type has a `@rust` JSDoc tag pointing to the canonical Rust definition.
- * When updating a type here, check the Rust source first; when updating the
- * Rust struct, update the mirror here.
+ * 每个类型通过 `@rust` 标记指向对应 Rust 定义；修改一侧时，另一侧也要同步。
  */
 
-// ─── Core domain types ─────────────────────────────────────────────────────────
+// ─── 核心领域类型 ─────────────────────────────────────────────────────────
 
 /** @rust pebble-core/src/types.rs → Account */
 export interface Account {

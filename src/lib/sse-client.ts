@@ -1,5 +1,5 @@
 // SSE client for real-time backend events via EventSource.
-// RPC invoke() bridge removed — all API calls now use api-client.ts REST functions.
+// SSE 事件客户端：用于接收后端推送的实时状态和邮件变更。
 
 export interface Event<T> {
   event: string;
@@ -21,11 +21,14 @@ class SseClient {
 
   connect() {
     if (this.source) return;
+    if (typeof EventSource === 'undefined') return;
     this.reconnectAttempt = 0;
     this.doConnect();
   }
 
   private doConnect() {
+    if (typeof EventSource === 'undefined') return;
+
     if (this.source) {
       this.source.close();
       this.source = null;
@@ -55,10 +58,11 @@ class SseClient {
 
   listen<T>(event: string, handler: (e: Event<T>) => void): () => void {
     if (!this.source) this.connect();
+    if (!this.source) return () => {};
 
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
-      this.source!.addEventListener(event, (e: MessageEvent) => {
+      this.source.addEventListener(event, (e: MessageEvent) => {
         try {
           const payload = JSON.parse(e.data);
           const callbacks = this.listeners.get(event);

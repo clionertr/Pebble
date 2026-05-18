@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useComposeStore } from "../../src/stores/compose.store";
 import { useMailStore } from "../../src/stores/mail.store";
+import { useThemeStore } from "../../src/stores/theme.store";
 import {
-  readKeepRunningInBackgroundPreference,
   readNotificationsEnabledPreference,
   realtimePreferenceToPollInterval,
+  useSyncStore,
+} from "../../src/stores/sync.store";
+import {
   useUIStore,
 } from "../../src/stores/ui.store";
 
@@ -13,21 +16,24 @@ describe("UIStore", () => {
     useUIStore.setState({
       sidebarCollapsed: false,
       activeView: "inbox",
-      theme: "light",
-      language: "en",
-      syncStatus: "idle",
-      networkStatus: "online",
-      lastMailError: null,
-      realtimeStatusByAccount: {},
       previousView: "inbox",
-      pollInterval: 15,
-      realtimeMode: "realtime",
       searchQuery: "",
       settingsTab: "accounts",
       pendingRuleDraftText: null,
       showFolderUnreadCount: false,
+    });
+    useThemeStore.setState({
+      theme: "light",
+      language: "en",
+    });
+    useSyncStore.setState({
+      syncStatus: "idle",
+      networkStatus: "online",
+      lastMailError: null,
+      realtimeStatusByAccount: {},
+      pollInterval: 15,
+      realtimeMode: "realtime",
       notificationsEnabled: true,
-      keepRunningInBackground: true,
     });
     useComposeStore.setState({
       composeMode: null,
@@ -55,10 +61,9 @@ describe("UIStore", () => {
     const state = useUIStore.getState();
     expect(state.sidebarCollapsed).toBe(false);
     expect(state.activeView).toBe("inbox");
-    expect(state.theme).toBe("light");
-    expect(state.syncStatus).toBe("idle");
-    expect(state.realtimeMode).toBe("realtime");
-    expect(state.keepRunningInBackground).toBe(true);
+    expect(useThemeStore.getState().theme).toBe("light");
+    expect(useSyncStore.getState().syncStatus).toBe("idle");
+    expect(useSyncStore.getState().realtimeMode).toBe("realtime");
   });
 
   it("should toggle sidebar", () => {
@@ -219,15 +224,15 @@ describe("UIStore", () => {
   });
 
   it("should set theme", () => {
-    useUIStore.getState().setTheme("dark");
-    expect(useUIStore.getState().theme).toBe("dark");
+    useThemeStore.getState().setTheme("dark");
+    expect(useThemeStore.getState().theme).toBe("dark");
   });
 
   it("should set sync status", () => {
-    useUIStore.getState().setSyncStatus("syncing");
-    expect(useUIStore.getState().syncStatus).toBe("syncing");
-    useUIStore.getState().setSyncStatus("error");
-    expect(useUIStore.getState().syncStatus).toBe("error");
+    useSyncStore.getState().setSyncStatus("syncing");
+    expect(useSyncStore.getState().syncStatus).toBe("syncing");
+    useSyncStore.getState().setSyncStatus("error");
+    expect(useSyncStore.getState().syncStatus).toBe("error");
   });
 
   it("maps realtime preferences to backend poll intervals", () => {
@@ -237,46 +242,20 @@ describe("UIStore", () => {
     expect(realtimePreferenceToPollInterval("manual")).toBe(0);
   });
 
-  it("defaults desktop notifications to enabled when the user has no stored preference", () => {
+  it("defaults notifications to enabled when the user has no stored preference", () => {
     localStorage.removeItem("pebble-notifications-enabled");
 
     expect(readNotificationsEnabledPreference()).toBe(true);
-    expect(useUIStore.getState().notificationsEnabled).toBe(true);
+    expect(useSyncStore.getState().notificationsEnabled).toBe(true);
   });
 
-  it("defaults close-to-background to enabled when the user has no stored preference", () => {
-    localStorage.removeItem("pebble-keep-running-background");
+  it("persists notification preference through the sync store", () => {
+    useSyncStore.getState().setNotificationsEnabled(false);
 
-    expect(readKeepRunningInBackgroundPreference()).toBe(true);
-  });
+    expect(useSyncStore.getState().notificationsEnabled).toBe(false);
 
-  it("honors an explicit close-to-background opt-out", () => {
-    localStorage.setItem("pebble-keep-running-background", "false");
+    useSyncStore.getState().setNotificationsEnabled(true);
 
-    expect(readKeepRunningInBackgroundPreference()).toBe(false);
-  });
-
-  it("persists desktop notification preference through the UI store", () => {
-    useUIStore.getState().setNotificationsEnabled(false);
-
-    expect(useUIStore.getState().notificationsEnabled).toBe(false);
-    expect(localStorage.getItem("pebble-notifications-enabled")).toBe("false");
-
-    useUIStore.getState().setNotificationsEnabled(true);
-
-    expect(useUIStore.getState().notificationsEnabled).toBe(true);
-    expect(localStorage.getItem("pebble-notifications-enabled")).toBe("true");
-  });
-
-  it("persists close-to-background preference through the UI store", () => {
-    useUIStore.getState().setKeepRunningInBackground(true);
-
-    expect(useUIStore.getState().keepRunningInBackground).toBe(true);
-    expect(localStorage.getItem("pebble-keep-running-background")).toBe("true");
-
-    useUIStore.getState().setKeepRunningInBackground(false);
-
-    expect(useUIStore.getState().keepRunningInBackground).toBe(false);
-    expect(localStorage.getItem("pebble-keep-running-background")).toBe("false");
+    expect(useSyncStore.getState().notificationsEnabled).toBe(true);
   });
 });

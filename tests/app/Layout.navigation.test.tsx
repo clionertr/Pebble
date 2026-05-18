@@ -13,8 +13,20 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../src/tauri-mock", () => ({
+vi.mock("../../src/lib/sse-client", () => ({
   listen: vi.fn().mockResolvedValue(vi.fn()),
+}));
+
+vi.mock("../../src/features/auth/AuthContext", () => ({
+  useAuth: () => ({
+    authState: "authenticated",
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
+vi.mock("../../src/features/auth/LoginView", () => ({
+  default: () => <div>Login</div>,
 }));
 
 vi.mock("react-i18next", () => ({
@@ -126,22 +138,6 @@ vi.mock("../../src/app/useRealtimePreferenceSync", () => ({
 
 vi.mock("../../src/app/useRealtimeSyncTriggers", () => ({
   useRealtimeSyncTriggers: vi.fn(),
-}));
-
-vi.mock("../../src/app/useNotificationOpenNavigation", () => ({
-  useNotificationOpenNavigation: vi.fn(),
-}));
-
-vi.mock("../../src/app/useCloseToBackground", () => ({
-  useCloseToBackground: vi.fn(),
-}));
-
-vi.mock("../../src/app/useTrayI18n", () => ({
-  useTrayI18n: vi.fn(),
-}));
-
-vi.mock("../../src/app/useMailtoOpen", () => ({
-  useMailtoOpen: vi.fn(),
 }));
 
 vi.mock("../../src/hooks/useKeyboard", () => ({
