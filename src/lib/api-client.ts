@@ -505,3 +505,75 @@ export function setRealtimePreference(mode: string) {
 export function setNotificationsEnabled(enabled: boolean) {
   return apiPut<void>(`${BASE}/preferences/notifications`, { enabled });
 }
+
+// ── Accounts management ────────────────────────────────────────────────
+
+export function addAccount(request: unknown) {
+  return apiPost<unknown>(`${BASE}/accounts`, request);
+}
+
+export function updateAccount(accountId: string, body: Record<string, unknown>) {
+  return apiPatch<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}`, body);
+}
+
+export function deleteAccount(accountId: string) {
+  return apiDelete<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}`);
+}
+
+export function testAccountConnection(accountId: string) {
+  return apiPost<string>(`${BASE}/accounts/${encodeURIComponent(accountId)}/test-connection`);
+}
+
+export function testImapConnection(request: unknown) {
+  return apiPost<string>(`${BASE}/imap/test-connection`, request);
+}
+
+// ── Account proxy ──────────────────────────────────────────────────────
+
+export function getAccountProxy(accountId: string) {
+  return apiGet<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy`);
+}
+
+export function updateAccountProxy(accountId: string, proxyHost?: string, proxyPort?: number) {
+  return apiPut<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy`, { proxyHost, proxyPort });
+}
+
+export function getAccountProxySetting(accountId: string) {
+  return apiGet<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy-setting`);
+}
+
+export function updateAccountProxySetting(accountId: string, mode: string, proxyHost?: string, proxyPort?: number) {
+  return apiPut<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy-setting`, { mode, proxyHost, proxyPort });
+}
+
+// ── Sync commands ──────────────────────────────────────────────────────
+
+export function startSync(accountId: string, pollIntervalSecs?: number) {
+  return apiPost<string>(`${BASE}/accounts/${encodeURIComponent(accountId)}/sync/start`, { pollIntervalSecs });
+}
+
+export function triggerSync(accountId: string, reason: string) {
+  return apiPost<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/sync/trigger`, { reason });
+}
+
+export function stopSync(accountId: string) {
+  return apiPost<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/sync/stop`);
+}
+
+// ── Gmail realtime ─────────────────────────────────────────────────────
+
+export function getGmailRealtimeConfig(accountId: string) {
+  return apiGet<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime`);
+}
+
+export function enableGmailRealtime(accountId: string, fallbackIntervalMinutes?: number) {
+  return apiPost<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime/enable`, { fallbackIntervalMinutes });
+}
+
+export function disableGmailRealtime(accountId: string) {
+  return apiPost<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime/disable`);
+}
+
+export function updateGmailRealtimeConfig(accountId: string, fallbackIntervalMinutes: number) {
+  return apiPut<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime`, { fallbackIntervalMinutes });
+}

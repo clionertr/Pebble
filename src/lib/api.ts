@@ -99,11 +99,11 @@ export async function getGlobalProxy(): Promise<HttpProxyConfig | null> {
 }
 
 export async function getAccountProxy(accountId: string): Promise<HttpProxyConfig | null> {
-  return invoke<HttpProxyConfig | null>("get_account_proxy", { accountId });
+  return client.getAccountProxy(accountId) as Promise<HttpProxyConfig | null>;
 }
 
 export async function getAccountProxySetting(accountId: string): Promise<AccountProxySetting> {
-  return invoke<AccountProxySetting>("get_account_proxy_setting", { accountId });
+  return client.getAccountProxySetting(accountId) as Promise<AccountProxySetting>;
 }
 
 export async function updateAccountProxy(
@@ -111,7 +111,7 @@ export async function updateAccountProxy(
   proxyHost?: string,
   proxyPort?: number,
 ): Promise<void> {
-  return invoke<void>("update_account_proxy", { accountId, proxyHost, proxyPort });
+  return client.updateAccountProxy(accountId, proxyHost, proxyPort);
 }
 
 export async function updateAccountProxySetting(
@@ -120,7 +120,7 @@ export async function updateAccountProxySetting(
   proxyHost?: string,
   proxyPort?: number,
 ): Promise<void> {
-  return invoke<void>("update_account_proxy_setting", { accountId, mode, proxyHost, proxyPort });
+  return client.updateAccountProxySetting(accountId, mode, proxyHost, proxyPort);
 }
 
 export async function updateGlobalProxy(
@@ -132,13 +132,14 @@ export async function updateGlobalProxy(
 
 /** @deprecated OAuth sign-in must start through `startOAuthLogin` and `/auth/login`. */
 export async function completeOAuthFlow(
-  provider: string,
-  email: string,
-  displayName: string,
-  proxyHost?: string,
-  proxyPort?: number,
+  _provider: string,
+  _email: string,
+  _displayName: string,
+  _proxyHost?: string,
+  _proxyPort?: number,
 ): Promise<Account> {
-  return invoke<Account>("complete_oauth_flow", { provider, email, displayName, proxyHost, proxyPort });
+  // OAuth flow now handled entirely by /auth/login redirect + /auth/callback.
+  throw new Error("completeOAuthFlow is deprecated; use startOAuthLogin + /auth/login redirect");
 }
 
 export function startOAuthLogin(
@@ -158,11 +159,11 @@ export function startOAuthLogin(
 }
 
 export async function getOAuthAccountProxy(accountId: string): Promise<HttpProxyConfig | null> {
-  return invoke<HttpProxyConfig | null>("get_oauth_account_proxy", { accountId });
+  return client.getAccountProxy(accountId) as Promise<HttpProxyConfig | null>;
 }
 
 export async function getOAuthAccountProxySetting(accountId: string): Promise<AccountProxySetting> {
-  return invoke<AccountProxySetting>("get_oauth_account_proxy_setting", { accountId });
+  return client.getAccountProxySetting(accountId) as Promise<AccountProxySetting>;
 }
 
 export async function updateOAuthAccountProxy(
@@ -170,7 +171,7 @@ export async function updateOAuthAccountProxy(
   proxyHost?: string,
   proxyPort?: number,
 ): Promise<void> {
-  return invoke<void>("update_oauth_account_proxy", { accountId, proxyHost, proxyPort });
+  return client.updateAccountProxy(accountId, proxyHost, proxyPort);
 }
 
 export async function updateOAuthAccountProxySetting(
@@ -179,15 +180,15 @@ export async function updateOAuthAccountProxySetting(
   proxyHost?: string,
   proxyPort?: number,
 ): Promise<void> {
-  return invoke<void>("update_oauth_account_proxy_setting", { accountId, mode, proxyHost, proxyPort });
+  return client.updateAccountProxySetting(accountId, mode, proxyHost, proxyPort);
 }
 
 export async function addAccount(request: AddAccountRequest): Promise<Account> {
-  return invoke<Account>("add_account", { request });
+  return client.addAccount(request) as Promise<Account>;
 }
 
 export async function testAccountConnection(accountId: string): Promise<string> {
-  return invoke<string>("test_account_connection", { accountId });
+  return client.testAccountConnection(accountId) as Promise<string>;
 }
 
 export async function testImapConnection(
@@ -199,9 +200,10 @@ export async function testImapConnection(
   username?: string,
   password?: string,
 ): Promise<string> {
-  return invoke<string>("test_imap_connection", {
-    request: { imap_host: imapHost, imap_port: imapPort, imap_security: imapSecurity, proxy_host: proxyHost, proxy_port: proxyPort, username, password },
-  });
+  return client.testImapConnection({
+    imap_host: imapHost, imap_port: imapPort, imap_security: imapSecurity,
+    proxy_host: proxyHost, proxy_port: proxyPort, username, password,
+  }) as Promise<string>;
 }
 
 export async function listAccounts(): Promise<Account[]> {
@@ -223,43 +225,38 @@ export async function updateAccount(
   proxyPort?: number,
   accountColor?: string,
 ): Promise<void> {
-  return invoke<void>("update_account", {
-    accountId, email, displayName, password,
-    imapHost, imapPort, smtpHost, smtpPort, imapSecurity, smtpSecurity,
+  return client.updateAccount(accountId, {
+    email, displayName, password,
+    imapHost, imapPort, smtpHost, smtpPort,
+    imapSecurity, smtpSecurity,
     proxyHost, proxyPort, accountColor,
   });
 }
 
 export async function deleteAccount(accountId: string): Promise<void> {
-  return invoke<void>("delete_account", { accountId });
+  return client.deleteAccount(accountId);
 }
 
 export async function getGmailRealtimeConfig(accountId: string): Promise<GmailRealtimeConfig> {
-  return invoke<GmailRealtimeConfig>("get_gmail_realtime_config", { accountId });
+  return client.getGmailRealtimeConfig(accountId) as Promise<GmailRealtimeConfig>;
 }
 
 export async function enableGmailRealtime(
   accountId: string,
   fallbackIntervalMinutes?: number,
 ): Promise<GmailRealtimeConfig> {
-  return invoke<GmailRealtimeConfig>("enable_gmail_realtime", {
-    accountId,
-    fallbackIntervalMinutes: fallbackIntervalMinutes ?? null,
-  });
+  return client.enableGmailRealtime(accountId, fallbackIntervalMinutes) as Promise<GmailRealtimeConfig>;
 }
 
 export async function disableGmailRealtime(accountId: string): Promise<GmailRealtimeConfig> {
-  return invoke<GmailRealtimeConfig>("disable_gmail_realtime", { accountId });
+  return client.disableGmailRealtime(accountId) as Promise<GmailRealtimeConfig>;
 }
 
 export async function updateGmailRealtimeConfig(
   accountId: string,
   fallbackIntervalMinutes: number,
 ): Promise<GmailRealtimeConfig> {
-  return invoke<GmailRealtimeConfig>("update_gmail_realtime_config", {
-    accountId,
-    fallbackIntervalMinutes,
-  });
+  return client.updateGmailRealtimeConfig(accountId, fallbackIntervalMinutes) as Promise<GmailRealtimeConfig>;
 }
 
 // ─── Folder API ──────────────────────────────────────────────────────────────
@@ -413,11 +410,11 @@ export async function advancedSearch(
 // ─── Sync API ────────────────────────────────────────────────────────────────
 
 export async function startSync(accountId: string, pollIntervalSecs?: number): Promise<string> {
-  return invoke<string>("start_sync", { accountId, pollIntervalSecs: pollIntervalSecs ?? null });
+  return client.startSync(accountId, pollIntervalSecs) as Promise<string>;
 }
 
 export async function triggerSync(accountId: string, reason: string): Promise<void> {
-  return invoke<void>("trigger_sync", { accountId, reason });
+  return client.triggerSync(accountId, reason);
 }
 
 export type RealtimePreference = "realtime" | "balanced" | "battery" | "manual";
@@ -431,7 +428,7 @@ export async function setNotificationsEnabled(enabled: boolean): Promise<void> {
 }
 
 export async function stopSync(accountId: string): Promise<void> {
-  return invoke<void>("stop_sync", { accountId });
+  return client.stopSync(accountId);
 }
 
 // ─── Attachment API ──────────────────────────────────────────────────────────
