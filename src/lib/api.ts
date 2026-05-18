@@ -1,4 +1,5 @@
 import { invoke } from "../lib/sse-client";
+import * as client from "./api-client";
 
 // Re-export all IPC types so existing `import { Foo } from "@/lib/api"` keeps working.
 export type {
@@ -69,7 +70,7 @@ import type {
 // ─── Account API ─────────────────────────────────────────────────────────────
 
 export async function healthCheck(): Promise<string> {
-  return invoke<string>("health_check");
+  return client.healthCheck();
 }
 
 export async function readAppLog(maxBytes: number): Promise<AppLogSnapshot> {
@@ -204,7 +205,7 @@ export async function testImapConnection(
 }
 
 export async function listAccounts(): Promise<Account[]> {
-  return invoke<Account[]>("list_accounts");
+  return client.listAccounts() as Promise<Account[]>;
 }
 
 export async function updateAccount(
@@ -264,7 +265,7 @@ export async function updateGmailRealtimeConfig(
 // ─── Folder API ──────────────────────────────────────────────────────────────
 
 export async function listFolders(accountId: string): Promise<Folder[]> {
-  return invoke<Folder[]>("list_folders", { accountId });
+  return client.listFolders(accountId) as Promise<Folder[]>;
 }
 
 // ─── Message API ─────────────────────────────────────────────────────────────
@@ -275,6 +276,7 @@ export async function listMessages(
   offset: number,
   folderIds?: string[],
 ): Promise<MessageSummary[]> {
+  // Note: accountId is not passed here; the backend derives it from folderId.
   return invoke<MessageSummary[]>("list_messages", { folderId, folderIds, limit, offset });
 }
 
@@ -283,23 +285,23 @@ export async function listStarredMessages(
   limit: number,
   offset: number,
 ): Promise<MessageSummary[]> {
-  return invoke<MessageSummary[]>("list_starred_messages", { accountId, limit, offset });
+  return client.getStarred(accountId, limit, offset) as Promise<MessageSummary[]>;
 }
 
 export async function getMessage(messageId: string): Promise<Message | null> {
-  return invoke<Message | null>("get_message", { messageId });
+  return client.getMessage(messageId) as Promise<Message | null>;
 }
 
 /** Batch-fetch multiple messages in a single IPC call. */
 export async function getMessagesBatch(messageIds: string[]): Promise<Message[]> {
-  return invoke<Message[]>("get_messages_batch", { messageIds });
+  return client.getMessagesBatch(messageIds) as Promise<Message[]>;
 }
 
 export async function getRenderedHtml(
   messageId: string,
   privacyMode: PrivacyMode,
 ): Promise<RenderedHtml> {
-  return invoke<RenderedHtml>("get_rendered_html", { messageId, privacyMode });
+  return client.getRenderedHtml(messageId, privacyMode as string) as Promise<RenderedHtml>;
 }
 
 /** Single IPC call that returns both Message and RenderedHtml. */
@@ -307,7 +309,7 @@ export async function getMessageWithHtml(
   messageId: string,
   privacyMode: PrivacyMode,
 ): Promise<[Message, RenderedHtml] | null> {
-  return invoke<[Message, RenderedHtml] | null>("get_message_with_html", { messageId, privacyMode });
+  return client.getMessageWithHtml(messageId, privacyMode as string) as Promise<[Message, RenderedHtml] | null>;
 }
 
 export async function updateMessageFlags(
@@ -315,7 +317,7 @@ export async function updateMessageFlags(
   isRead?: boolean,
   isStarred?: boolean,
 ): Promise<void> {
-  return invoke<void>("update_message_flags", { messageId, isRead, isStarred });
+  return client.updateMessageFlags(messageId, isRead, isStarred);
 }
 
 // Rapid-toggle guard: archive_message is toggle-based (archive ⇄ unarchive),
@@ -330,65 +332,66 @@ export async function archiveMessage(messageId: string): Promise<string> {
   }
   archivingIds.add(messageId);
   try {
-    return await invoke<string>("archive_message", { messageId });
+    const res = await client.archiveMessage(messageId) as { targetFolder?: string };
+    return res.targetFolder ?? "archived";
   } finally {
     archivingIds.delete(messageId);
   }
 }
 
 export async function deleteMessage(messageId: string): Promise<void> {
-  return invoke<void>("delete_message", { messageId });
+  return client.deleteMessage(messageId);
 }
 
 export async function restoreMessage(messageId: string): Promise<void> {
-  return invoke<void>("restore_message", { messageId });
+  return client.restoreMessage(messageId);
 }
 
 export async function moveToFolder(messageId: string, targetFolderId: string): Promise<void> {
-  return invoke<void>("move_to_folder", { messageId, targetFolderId });
+  return client.moveToFolder(messageId, targetFolderId);
 }
 
 export async function emptyTrash(accountId: string): Promise<number> {
-  return invoke<number>("empty_trash", { accountId });
+  return client.emptyTrash(accountId) as Promise<number>;
 }
 
 export async function getPendingMailOpsSummary(
   accountId: string | null,
 ): Promise<PendingMailOpsSummary> {
-  return invoke<PendingMailOpsSummary>("get_pending_mail_ops_summary", { accountId });
+  return client.getPendingMailOpsSummary(accountId) as Promise<PendingMailOpsSummary>;
 }
 
 export async function listPendingMailOps(
   accountId: string | null,
   limit = 100,
 ): Promise<PendingMailOp[]> {
-  return invoke<PendingMailOp[]>("list_pending_mail_ops", { accountId, limit });
+  return client.listPendingMailOps(accountId, limit) as Promise<PendingMailOp[]>;
 }
 
 export async function cancelPendingMailOp(id: string): Promise<void> {
-  return invoke<void>("cancel_pending_mail_op", { id });
+  return client.cancelPendingMailOp(id);
 }
 
 export async function deletePendingMailOp(id: string): Promise<void> {
-  return invoke<void>("delete_pending_mail_op", { id });
+  return client.deletePendingMailOp(id);
 }
 
 // ─── Trusted Senders API ────────────────────────────────────────────────────
 
 export async function listTrustedSenders(accountId: string): Promise<TrustedSender[]> {
-  return invoke<TrustedSender[]>("list_trusted_senders", { accountId });
+  return client.listTrustedSenders(accountId) as Promise<TrustedSender[]>;
 }
 
 export async function removeTrustedSender(accountId: string, email: string): Promise<void> {
-  return invoke<void>("remove_trusted_sender", { accountId, email });
+  return client.removeTrustedSender(accountId, email);
 }
 
 export async function trustSender(accountId: string, email: string, trustType: "images" | "all"): Promise<void> {
-  return invoke<void>("trust_sender", { accountId, email, trustType });
+  return client.trustSender(accountId, email, trustType);
 }
 
 export async function isTrustedSender(accountId: string, email: string): Promise<boolean> {
-  return invoke<boolean>("is_trusted_sender", { accountId, email });
+  return client.isTrustedSender(accountId, email);
 }
 
 // ─── Search API ──────────────────────────────────────────────────────────────
@@ -397,14 +400,14 @@ export async function searchMessages(
   query: string,
   limit?: number,
 ): Promise<SearchHit[]> {
-  return invoke<SearchHit[]>("search_messages", { query, limit });
+  return client.searchMessages(query, limit) as Promise<SearchHit[]>;
 }
 
 export async function advancedSearch(
   query: AdvancedSearchQuery,
   limit?: number,
 ): Promise<SearchHit[]> {
-  return invoke<SearchHit[]>("advanced_search", { query, limit });
+  return client.advancedSearch(query, limit) as Promise<SearchHit[]>;
 }
 
 // ─── Sync API ────────────────────────────────────────────────────────────────
@@ -448,46 +451,46 @@ export async function downloadAttachment(attachmentId: string, saveTo: string): 
 // ─── Kanban API ──────────────────────────────────────────────────────────────
 
 export async function moveToKanban(messageId: string, column: KanbanColumnType, position?: number): Promise<void> {
-  return invoke<void>("move_to_kanban", { messageId, column, position });
+  return client.moveToKanban(messageId, column, position);
 }
 
 export async function listKanbanCards(column?: KanbanColumnType): Promise<KanbanCard[]> {
-  return invoke<KanbanCard[]>("list_kanban_cards", { column });
+  return client.getKanban(column) as Promise<KanbanCard[]>;
 }
 
 export async function removeFromKanban(messageId: string): Promise<void> {
-  return invoke<void>("remove_from_kanban", { messageId });
+  return client.removeFromKanban(messageId);
 }
 
 export async function listKanbanContextNotes(): Promise<Record<string, string>> {
-  return invoke<Record<string, string>>("list_kanban_context_notes");
+  return client.listKanbanContextNotes();
 }
 
 export async function setKanbanContextNote(
   messageId: string,
   note: string,
 ): Promise<Record<string, string>> {
-  return invoke<Record<string, string>>("set_kanban_context_note", { messageId, note });
+  return client.setKanbanContextNote(messageId, note);
 }
 
 export async function mergeKanbanContextNotes(
   notes: Record<string, string>,
 ): Promise<Record<string, string>> {
-  return invoke<Record<string, string>>("merge_kanban_context_notes", { notes });
+  return client.mergeKanbanContextNotes(notes);
 }
 
 // ─── Snooze API ──────────────────────────────────────────────────────────────
 
 export async function snoozeMessage(messageId: string, until: number, returnTo: string): Promise<void> {
-  return invoke<void>("snooze_message", { messageId, until, returnTo });
+  return client.snoozeMessage(messageId, until, returnTo);
 }
 
 export async function unsnoozeMessage(messageId: string): Promise<void> {
-  return invoke<void>("unsnooze_message", { messageId });
+  return client.unsnoozeMessage(messageId);
 }
 
 export async function listSnoozed(): Promise<SnoozedMessage[]> {
-  return invoke<SnoozedMessage[]>("list_snoozed");
+  return client.getSnoozed() as Promise<SnoozedMessage[]>;
 }
 
 // ─── Rules API ───────────────────────────────────────────────────────────────
@@ -533,19 +536,19 @@ export async function stageComposeAttachment(filename: string, bytes: number[]):
 // ─── Batch Operations ───────────────────────────────────────────────────────
 
 export async function batchArchive(messageIds: string[]): Promise<number> {
-  return invoke<number>("batch_archive", { messageIds });
+  return client.batchArchive(messageIds) as Promise<number>;
 }
 
 export async function batchDelete(messageIds: string[]): Promise<number> {
-  return invoke<number>("batch_delete", { messageIds });
+  return client.batchDelete(messageIds) as Promise<number>;
 }
 
 export async function batchMarkRead(messageIds: string[], isRead: boolean): Promise<number> {
-  return invoke<number>("batch_mark_read", { messageIds, isRead });
+  return client.batchMarkRead(messageIds, isRead) as Promise<number>;
 }
 
 export async function batchStar(messageIds: string[], starred: boolean): Promise<number> {
-  return invoke<number>("batch_star", { messageIds, starred });
+  return client.batchStar(messageIds, starred) as Promise<number>;
 }
 
 // ─── Translate API ───────────────────────────────────────────────────────────
@@ -578,29 +581,29 @@ export async function listThreads(
 }
 
 export async function listThreadMessages(threadId: string): Promise<Message[]> {
-  return invoke<Message[]>("list_thread_messages", { threadId });
+  return client.listThreadMessages(threadId) as Promise<Message[]>;
 }
 
 // ─── Labels API ──────────────────────────────────────────────────────────────
 
 export async function getMessageLabels(messageId: string): Promise<Label[]> {
-  return invoke<Label[]>("get_message_labels", { messageId });
+  return client.getMessageLabels(messageId) as Promise<Label[]>;
 }
 
 export async function getMessageLabelsBatch(messageIds: string[]): Promise<Record<string, Label[]>> {
-  return invoke<Record<string, Label[]>>("get_message_labels_batch", { messageIds });
+  return client.getMessageLabelsBatch(messageIds) as Promise<Record<string, Label[]>>;
 }
 
 export async function addMessageLabel(messageId: string, labelName: string): Promise<void> {
-  return invoke<void>("add_message_label", { messageId, labelName });
+  return client.addMessageLabel(messageId, labelName);
 }
 
 export async function removeMessageLabel(messageId: string, labelName: string): Promise<void> {
-  return invoke<void>("remove_message_label", { messageId, labelName });
+  return client.removeMessageLabel(messageId, labelName);
 }
 
 export async function listLabels(): Promise<Label[]> {
-  return invoke<Label[]>("list_labels");
+  return client.listLabels() as Promise<Label[]>;
 }
 
 // ─── Cloud Sync API ─────────────────────────────────────────────────────────
