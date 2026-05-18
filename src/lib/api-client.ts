@@ -323,3 +323,100 @@ export function isTrustedSender(accountId: string, email: string) {
 export function apiPut<T>(path: string, body?: unknown): Promise<T> {
   return request<T>('PUT', path, body);
 }
+
+// ── Compose / Send ────────────────────────────────────────────────────
+
+export function sendEmail(params: {
+  accountId: string;
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  bodyText: string;
+  bodyHtml?: string;
+  inReplyTo?: string;
+  attachmentPaths?: string[];
+  draftId?: string;
+}) {
+  return apiPost<void>(`${BASE}/messages/send`, params);
+}
+
+// ── Drafts ─────────────────────────────────────────────────────────────
+
+export function saveDraft(params: {
+  accountId: string;
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  bodyText: string;
+  bodyHtml?: string;
+  inReplyTo?: string;
+  existingDraftId?: string;
+  attachmentPaths?: string[];
+}) {
+  return apiPost<{ draftId: string }>(`${BASE}/drafts`, params);
+}
+
+export function deleteDraft(accountId: string, draftId: string) {
+  return apiDelete<void>(`${BASE}/drafts/${encodeURIComponent(draftId)}?accountId=${encodeURIComponent(accountId)}`);
+}
+
+// ── Attachments ────────────────────────────────────────────────────────
+
+export function listAttachments(messageId: string) {
+  return apiGet<unknown[]>(`${BASE}/messages/${encodeURIComponent(messageId)}/attachments`);
+}
+
+export function getAttachmentDownloadUrl(attachmentId: string) {
+  return `${BASE}/attachments/${encodeURIComponent(attachmentId)}`;
+}
+
+export async function stageAttachment(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const url = new URL(`${BASE}/attachments/stage`, window.location.origin);
+  const res = await fetch(url.toString(), {
+    method: 'POST',
+    credentials: 'same-origin',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new ApiError(res.status, err);
+  }
+  const data = await res.json();
+  return (data as { path: string }).path;
+}
+
+// ── Contacts ───────────────────────────────────────────────────────────
+
+export function searchContacts(accountId: string, query: string, limit?: number) {
+  const qs = new URLSearchParams({ accountId, q: query });
+  if (limit) qs.set('limit', String(limit));
+  return apiGet<unknown[]>(`${BASE}/contacts?${qs}`);
+}
+
+// ── Templates ──────────────────────────────────────────────────────────
+
+export function listEmailTemplates() {
+  return apiGet<unknown[]>(`${BASE}/templates`);
+}
+
+export function saveEmailTemplate(template: unknown) {
+  return apiPost<unknown>(`${BASE}/templates`, template);
+}
+
+export function deleteEmailTemplate(id: string) {
+  return apiDelete<void>(`${BASE}/templates/${encodeURIComponent(id)}`);
+}
+
+// ── Signatures ─────────────────────────────────────────────────────────
+
+export function getEmailSignature(accountId: string) {
+  return apiGet<{ signature: string }>(`${BASE}/accounts/${encodeURIComponent(accountId)}/signature`);
+}
+
+export function setEmailSignature(accountId: string, signature: string) {
+  return apiPut<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/signature`, { signature });
+}

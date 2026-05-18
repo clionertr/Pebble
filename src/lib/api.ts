@@ -437,15 +437,16 @@ export async function stopSync(accountId: string): Promise<void> {
 // ─── Attachment API ──────────────────────────────────────────────────────────
 
 export async function listAttachments(messageId: string): Promise<Attachment[]> {
-  return invoke<Attachment[]>("list_attachments", { messageId });
+  return client.listAttachments(messageId) as Promise<Attachment[]>;
 }
 
 export async function getAttachmentPath(attachmentId: string): Promise<string | null> {
-  return invoke<string | null>("get_attachment_path", { attachmentId });
+  return client.getAttachmentDownloadUrl(attachmentId);
 }
 
-export async function downloadAttachment(attachmentId: string, saveTo: string): Promise<string> {
-  return invoke<string>("download_attachment", { attachmentId, saveTo });
+export async function downloadAttachment(_attachmentId: string, _saveTo: string): Promise<string> {
+  // Browser handles download natively via anchor click on the download URL.
+  return "downloaded";
 }
 
 // ─── Kanban API ──────────────────────────────────────────────────────────────
@@ -524,13 +525,16 @@ export async function sendEmail(
   inReplyTo?: string,
   attachmentPaths?: string[],
 ): Promise<void> {
-  return invoke<void>("send_email", {
+  return client.sendEmail({
     accountId, to, cc, bcc, subject, bodyText, bodyHtml, inReplyTo, attachmentPaths,
   });
 }
 
 export async function stageComposeAttachment(filename: string, bytes: number[]): Promise<string> {
-  return invoke<string>("stage_compose_attachment", { filename, bytes });
+  // Convert bytes to File for FormData upload
+  const blob = new Blob([new Uint8Array(bytes)]);
+  const file = new File([blob], filename);
+  return client.stageAttachment(file);
 }
 
 // ─── Batch Operations ───────────────────────────────────────────────────────
@@ -631,7 +635,7 @@ export async function searchContacts(
   query: string,
   limit?: number,
 ): Promise<KnownContact[]> {
-  return invoke<KnownContact[]>("search_contacts", { accountId, query, limit });
+  return client.searchContacts(accountId, query, limit) as Promise<KnownContact[]>;
 }
 
 // ─── Drafts API ──────────────────────────────────────────────────────────────
@@ -648,22 +652,12 @@ export async function saveDraft(args: {
   existingDraftId?: string;
   attachmentPaths?: string[];
 }): Promise<string> {
-  return invoke("save_draft", {
-    accountId: args.accountId,
-    to: args.to,
-    cc: args.cc,
-    bcc: args.bcc,
-    subject: args.subject,
-    bodyText: args.bodyText,
-    bodyHtml: args.bodyHtml ?? null,
-    inReplyTo: args.inReplyTo ?? null,
-    existingDraftId: args.existingDraftId ?? null,
-    attachmentPaths: args.attachmentPaths ?? null,
-  });
+  const result = await client.saveDraft(args);
+  return result.draftId;
 }
 
 export async function deleteDraft(accountId: string, draftId: string): Promise<void> {
-  return invoke("delete_draft", { accountId, draftId });
+  return client.deleteDraft(accountId, draftId);
 }
 
 // ─── Folder Counts API ───────────────────────────────────────────────────────

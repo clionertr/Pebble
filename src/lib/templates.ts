@@ -1,4 +1,4 @@
-import { invoke } from "../lib/sse-client";
+import * as client from "./api-client";
 
 const LEGACY_STORAGE_KEY = "pebble-templates";
 
@@ -17,18 +17,18 @@ function clearLegacyTemplates() {
 }
 
 export async function listTemplates(): Promise<EmailTemplate[]> {
-  const templates = await invoke<EmailTemplate[]>("list_email_templates");
+  const templates = await client.listEmailTemplates() as EmailTemplate[];
   clearLegacyTemplates();
   return templates;
 }
 
 export async function saveTemplate(template: Omit<EmailTemplate, "id" | "createdAt">): Promise<EmailTemplate> {
-  const saved = await invoke<EmailTemplate>("save_email_template", { template });
+  const saved = await client.saveEmailTemplate(template) as EmailTemplate;
   clearLegacyTemplates();
   return saved;
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
-  await invoke<void>("delete_email_template", { id });
+  await client.deleteEmailTemplate(id);
   clearLegacyTemplates();
 }

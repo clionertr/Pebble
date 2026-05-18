@@ -1,4 +1,4 @@
-import { invoke } from "../lib/sse-client";
+import * as client from "./api-client";
 
 const LEGACY_STORAGE_KEY = "pebble-signatures";
 
@@ -9,12 +9,12 @@ function clearLegacySignatures() {
 }
 
 export async function getSignature(accountId: string): Promise<string> {
-  const signature = await invoke<string>("get_email_signature", { accountId });
+  const result = await client.getEmailSignature(accountId);
   clearLegacySignatures();
-  return signature;
+  return result.signature;
 }
 
 export async function setSignature(accountId: string, signature: string): Promise<void> {
-  await invoke<void>("set_email_signature", { accountId, signature });
+  await client.setEmailSignature(accountId, signature);
   clearLegacySignatures();
 }
