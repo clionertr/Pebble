@@ -1,0 +1,28 @@
+services:
+  backend:
+    image: pebble-backend:latest
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - pebble-net
+
+  frontend:
+    image: pebble-frontend:latest
+    ports:
+      - "127.0.0.1:1420:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - pebble-net
+
+networks:
+  pebble-net:
+    driver: bridge
