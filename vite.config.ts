@@ -24,10 +24,6 @@ export default defineConfig({
         target: "http://127.0.0.1:3000",
         changeOrigin: true,
       },
-      "/rpc": {
-        target: "http://127.0.0.1:3000",
-        changeOrigin: true,
-      },
       "/events": {
         target: "http://127.0.0.1:3000",
         changeOrigin: true,
