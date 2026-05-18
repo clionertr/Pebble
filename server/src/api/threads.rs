@@ -24,7 +24,15 @@ pub struct ThreadListQuery {
     pub limit: Option<usize>,
     pub offset: Option<usize>,
     #[serde(rename = "folderIds")]
-    pub folder_ids: Option<Vec<String>>,
+    pub folder_ids_raw: Option<String>,
+}
+
+impl ThreadListQuery {
+    pub fn folder_ids(&self) -> Option<Vec<String>> {
+        self.folder_ids_raw.as_ref().map(|s| {
+            s.split(',').map(|id| id.trim().to_string()).filter(|id| !id.is_empty()).collect()
+        })
+    }
 }
 
 #[derive(Deserialize)]
@@ -56,8 +64,8 @@ async fn list_threads(
 ) -> Result<Json<Vec<pebble_core::ThreadSummary>>, crate::api::error::ApiError> {
     let threads = crate::rpc::threads::list_threads(
         axum::extract::State(state),
-        query.folder_id,
-        query.folder_ids,
+        query.folder_id.clone(),
+        query.folder_ids(),
         query.limit.unwrap_or(50) as u32,
         query.offset.unwrap_or(0) as u32,
     )
