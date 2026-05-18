@@ -1,4 +1,3 @@
-import { invoke } from "../lib/sse-client";
 import * as client from "./api-client";
 
 // Re-export all IPC types so existing `import { Foo } from "@/lib/api"` keeps working.
@@ -273,8 +272,7 @@ export async function listMessages(
   offset: number,
   folderIds?: string[],
 ): Promise<MessageSummary[]> {
-  // Note: accountId is not passed here; the backend derives it from folderId.
-  return invoke<MessageSummary[]>("list_messages", { folderId, folderIds, limit, offset });
+  return client.getInbox({ folderId, limit, offset, folderIds }) as Promise<MessageSummary[]>;
 }
 
 export async function listStarredMessages(
@@ -578,7 +576,7 @@ export async function listThreads(
   offset: number,
   folderIds?: string[],
 ): Promise<ThreadSummary[]> {
-  return invoke<ThreadSummary[]>("list_threads", { folderId, folderIds, limit, offset });
+  return client.listThreads(folderId, limit, offset, folderIds) as Promise<ThreadSummary[]>;
 }
 
 export async function listThreadMessages(threadId: string): Promise<Message[]> {
@@ -660,5 +658,6 @@ export async function deleteDraft(accountId: string, draftId: string): Promise<v
 // ─── Folder Counts API ───────────────────────────────────────────────────────
 
 export async function getFolderUnreadCounts(accountId: string): Promise<Record<string, number>> {
-  return invoke("get_folder_unread_counts", { accountId });
+  const shell = await client.getShell();
+  return (shell.unreadCounts as Record<string, Record<string, number>>)[accountId] || {};
 }

@@ -89,7 +89,7 @@ export function getShell(): Promise<ShellData> {
 // ── Messages (reads) ──────────────────────────────────────────────────
 
 export interface InboxParams {
-  accountId: string;
+  accountId?: string;
   folderId: string;
   limit?: number;
   offset?: number;
@@ -97,7 +97,9 @@ export interface InboxParams {
 }
 
 export function getInbox(params: InboxParams) {
-  const qs = new URLSearchParams({ accountId: params.accountId, folderId: params.folderId });
+  const qs = new URLSearchParams();
+  if (params.accountId) qs.set('accountId', params.accountId);
+  qs.set('folderId', params.folderId);
   if (params.limit) qs.set('limit', String(params.limit));
   if (params.offset) qs.set('offset', String(params.offset));
   if (params.folderIds?.length) qs.set('folderIds', params.folderIds.join(','));
@@ -124,6 +126,14 @@ export function getMessagesBatch(messageIds: string[]) {
 }
 
 // ── Threads ───────────────────────────────────────────────────────────
+
+export function listThreads(folderId: string, limit?: number, offset?: number, folderIds?: string[]) {
+  const qs = new URLSearchParams({ folderId });
+  if (limit) qs.set('limit', String(limit));
+  if (offset) qs.set('offset', String(offset));
+  if (folderIds?.length) qs.set('folderIds', folderIds.join(','));
+  return apiGet<unknown[]>(`${BASE}/threads?${qs}`);
+}
 
 export function listThreadMessages(threadId: string) {
   return apiGet<unknown[]>(`${BASE}/threads/${encodeURIComponent(threadId)}/messages`);

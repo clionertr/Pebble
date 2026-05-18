@@ -120,8 +120,6 @@ async fn main() {
     gmail_realtime::spawn_gmail_watch_renewal_task(state.clone());
 
     let app = Router::new()
-        .route("/rpc", post(rpc::dispatch::handle_rpc))
-        .route("/rpc/batch", post(rpc::dispatch::handle_rpc_batch))
         .route("/events", get(sse_handler))
         .route(
             "/webhook/gmail",

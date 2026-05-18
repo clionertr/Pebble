@@ -1,97 +1,10 @@
-// SSE client + RPC bridge for the web application.
-// Formerly tauri-mock.ts — desktop stubs (getCurrentWindow, getVersion,
-// downloadDir) removed in Phase 6.
+// SSE client for real-time backend events via EventSource.
+// RPC invoke() bridge removed — all API calls now use api-client.ts REST functions.
 
 export interface Event<T> {
   event: string;
   payload: T;
 }
-
-interface QueuedRequest {
-  method: string;
-  params: any;
-  resolve: (value: any) => void;
-  reject: (reason?: any) => void;
-}
-
-let requestQueue: QueuedRequest[] = [];
-let batchTimeout: ReturnType<typeof setTimeout> | null = null;
-let batchDelayMs: number | null = null;
-
-const URGENT_RPC_METHODS = new Set([
-  "list_accounts",
-  "list_folders",
-  "list_messages",
-  "list_threads",
-]);
-const DEFAULT_BATCH_DELAY_MS = 50;
-const URGENT_BATCH_DELAY_MS = 0;
-
-const processBatch = async (requests: QueuedRequest[], retries = 3): Promise<void> => {
-  const payload = requests.map(req => ({ method: req.method, params: req.params }));
-
-  try {
-    const res = await fetch('/rpc/batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
-    }
-
-    const results = await res.json();
-    if (!Array.isArray(results) || results.length !== requests.length) {
-      throw new Error("Invalid batch response format");
-    }
-
-    for (let i = 0; i < requests.length; i++) {
-      const data = results[i];
-      if (data && typeof data === 'object' && 'error' in data) {
-        requests[i].reject(new Error(data.error as string));
-      } else {
-        requests[i].resolve(data);
-      }
-    }
-  } catch (error) {
-    if (retries > 0) {
-      console.warn(`Batch request failed, retrying... (${retries} retries left)`, error);
-      await new Promise(r => setTimeout(r, 1000));
-      return processBatch(requests, retries - 1);
-    }
-    requests.forEach(req => req.reject(error));
-  }
-};
-
-function flushQueuedBatch() {
-  const queueToProcess = requestQueue;
-  requestQueue = [];
-  batchTimeout = null;
-  batchDelayMs = null;
-  if (queueToProcess.length === 0) return;
-  void processBatch(queueToProcess);
-}
-
-function scheduleBatch(delayMs: number) {
-  if (batchTimeout && batchDelayMs !== null && batchDelayMs <= delayMs) {
-    return;
-  }
-
-  if (batchTimeout) {
-    clearTimeout(batchTimeout);
-  }
-
-  batchDelayMs = delayMs;
-  batchTimeout = setTimeout(flushQueuedBatch, delayMs);
-}
-
-export const invoke = async <T>(method: string, args: any = {}): Promise<T> => {
-  return new Promise((resolve, reject) => {
-    requestQueue.push({ method, params: args, resolve, reject });
-    scheduleBatch(URGENT_RPC_METHODS.has(method) ? URGENT_BATCH_DELAY_MS : DEFAULT_BATCH_DELAY_MS);
-  });
-};
 
 class SseClient {
   private source: EventSource | null = null;

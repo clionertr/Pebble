@@ -102,6 +102,14 @@ fn build_spec() -> Value {
     }));
 
     // Threads
+    paths.insert("/api/threads".into(), json!({
+        "get": { "summary": "List threads", "parameters": [
+            { "name": "folderId", "in": "query", "required": true, "schema": { "type": "string" } },
+            { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+            { "name": "offset", "in": "query", "schema": { "type": "integer" } },
+            { "name": "folderIds", "in": "query", "schema": { "type": "array", "items": { "type": "string" } } }
+        ] }
+    }));
     paths.insert("/api/threads/{id}/messages".into(), json!({
         "get": { "summary": "List thread messages" }
     }));
@@ -225,6 +233,12 @@ fn build_spec() -> Value {
     }));
     paths.insert("/api/diagnostics/mail-timing".into(), json!({
         "post": { "summary": "Record mail timing" }
+    }));
+
+    // Proxy
+    paths.insert("/api/proxy".into(), json!({
+        "get": { "summary": "Get global proxy config" },
+        "put": { "summary": "Set global proxy config" }
     }));
 
     // Cloud Sync

@@ -14,7 +14,7 @@ use crate::state::AppState;
 #[derive(Deserialize)]
 pub struct InboxQuery {
     #[serde(rename = "accountId")]
-    pub account_id: String,
+    pub account_id: Option<String>,
     #[serde(rename = "folderId")]
     pub folder_id: String,
     pub limit: Option<usize>,

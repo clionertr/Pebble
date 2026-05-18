@@ -18,6 +18,16 @@ pub struct SearchQuery {
 }
 
 #[derive(Deserialize)]
+pub struct ThreadListQuery {
+    #[serde(rename = "folderId")]
+    pub folder_id: String,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+    #[serde(rename = "folderIds")]
+    pub folder_ids: Option<Vec<String>>,
+}
+
+#[derive(Deserialize)]
 pub struct KanbanQuery {
     pub column: Option<String>,
 }
@@ -26,6 +36,7 @@ pub struct KanbanQuery {
 
 pub fn thread_routes() -> Router<Arc<AppState>> {
     Router::new()
+        .route("/api/threads", get(list_threads))
         .route("/api/threads/{id}/messages", get(list_thread_messages))
         .route("/api/search", get(search_messages))
         .route("/api/kanban", get(list_kanban))
@@ -33,6 +44,21 @@ pub fn thread_routes() -> Router<Arc<AppState>> {
 }
 
 // ── Handlers ─────────────────────────────────────────────────────────
+
+async fn list_threads(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<ThreadListQuery>,
+) -> Result<Json<Vec<pebble_core::ThreadSummary>>, crate::api::error::ApiError> {
+    let threads = crate::rpc::threads::list_threads(
+        axum::extract::State(state),
+        query.folder_id,
+        query.folder_ids,
+        query.limit.unwrap_or(50) as u32,
+        query.offset.unwrap_or(0) as u32,
+    )
+    .await?;
+    Ok(Json(threads))
+}
 
 async fn list_thread_messages(
     State(state): State<Arc<AppState>>,
