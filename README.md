@@ -5,7 +5,9 @@
 <h1 align="center">Pebble</h1>
 
 <p align="center">
-  A local-first email client for people who want a calmer, more private inbox. Now runs as a self-hosted web service.
+  A self-hosted webmail client for people who want a calmer, more private inbox.
+  <br>
+  一个自托管的网页邮件客户端，让收件箱更安静、更私密。
 </p>
 
 <p align="center">
@@ -19,171 +21,166 @@
 <p align="center">
   <a href="https://github.com/QingJ01/Pebble/releases"><img src="https://img.shields.io/github/v/release/QingJ01/Pebble?style=flat-square&color=d4714e" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License"></a>
-  <a href="https://github.com/QingJ01/Pebble/actions"><img src="https://img.shields.io/github/actions/workflow/status/QingJ01/Pebble/ci.yml?style=flat-square&label=build" alt="Build"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20VPS%20%7C%20Self--hosted-lightgrey?style=flat-square" alt="Platform">
 </p>
 
-## Overview
+---
 
-Pebble is a self-hosted email client built with Rust and React. It has been re-architected from a Tauri desktop application into a **web service**: the Rust backend runs as a standalone HTTP server, and the React frontend is served as a standard web application that connects to it over HTTP.
+## What is Pebble?
 
-All mail data, the search index, attachments, rules, and application settings remain on your server.
+Pebble turns your server into a private webmail portal. You log in through a browser, connect your email accounts (Gmail, IMAP, Outlook), and read/send/manage all your mail from one place. All data — messages, attachments, search index, settings — stays on **your** server.
 
-The app is designed around a few practical ideas:
+Think of it as a self-hosted Gmail. No third party sees your inbox. No ads. No tracking.
 
-- Your mailbox should stay readable, fast, and quiet.
-- Email workflows should be local-first instead of cloud-dashboard-first.
-- Privacy controls should be explicit, visible, and easy to override per message.
-- Search, snooze, rules, and a Kanban board should work together instead of living in separate tools.
+**Pebble 是什么？** 它把你的服务器变成一个私人网页邮箱。在浏览器里登录，连接你的邮箱账户（支持 Gmail、IMAP、Outlook），在一个地方收发管理所有邮件。所有数据——邮件、附件、搜索索引、设置——都存在你自己的服务器上。
 
-Pebble currently supports Gmail, IMAP, and experimental Outlook accounts.
+## Quick Start
 
-## Architecture
+Pick the method that fits you.
 
-This fork replaces the original Tauri desktop shell with a client–server architecture:
+### Docker Compose (recommended)
 
+This is the fastest way to get Pebble running. You need Docker and Docker Compose installed.
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/QingJ01/Pebble.git
+cd Pebble
+
+# 2. Generate a password hash (this is your login password)
+# Install bcrypt-cli: cargo install bcrypt-cli
+bcrypt-cli hash 'your-secret-password'
+# Copy the output — it looks like $2b$12$...
+
+# 3. Create your .env file
+cp .env.example .env
+# Edit .env and set PEBBLE_PASSWORD_HASH to the hash you just generated
+
+# 4. Build and start
+sudo docker compose -f deploy/docker-compose.yml up -d --build
 ```
-Browser (React SPA)
-        │  HTTP fetch  /rpc/batch
-        │  SSE stream  /events
-        │  OAuth flow  /auth/login  /auth/callback
-        ▼
-Rust HTTP Server  (Axum, port 3000)
-        │
-        ├── pebble-store    SQLite database
-        ├── pebble-search   Tantivy full-text index
-        ├── pebble-mail     IMAP / Gmail / Outlook sync
-        ├── pebble-crypto   Credential encryption
-        ├── pebble-oauth    OAuth 2.0 + PKCE
-        ├── pebble-rules    Rules engine
-        ├── pebble-translate Translation providers
-        └── pebble-privacy  HTML sanitizing & tracker controls
-```
 
-### Key changes from upstream
+Open `http://localhost:1420` in your browser. Log in with your password.
 
-| Upstream (Tauri desktop) | This fork (web service) |
-| --- | --- |
-| Tauri IPC (`invoke`) | HTTP JSON-RPC via `POST /rpc/batch` |
-| Tauri event system | Server-Sent Events (SSE) via `GET /events` |
-| Desktop OAuth redirect | HTTP OAuth flow at `/auth/login` and `/auth/callback` |
-| App data in OS user dir | Local `./data/` directory (VPS-friendly) |
-| Platform-native keyring | File-based key at `./data/pebble.key` |
+**About the `.env` file**: It stores your password hash and OAuth credentials. Docker Compose reads it via `env_file`. If you change it, run `docker compose down && docker compose up -d` to apply.
 
-## Highlights
+> **Note for bcrypt hash**: The `$` signs in bcrypt hashes need escaping as `$$` in `.env` when using Docker Compose. Example:
+> ```
+> PEBBLE_PASSWORD_HASH=$$2b$$12$$LJ3m4ys3rxImvlLzyGRbPOcAIORMzJDGJnRi4ZVXNIs6pS8bJGxKW
+> ```
 
-### Local-first privacy
+### Compile from Source
 
-- Local SQLite database for messages, folders, labels, rules, and settings.
-- Local Tantivy full-text index for fast search.
-- Attachments are stored on disk under the `./data/attachments/` directory.
-- OAuth tokens and credentials are encrypted with a per-server key file.
-- No telemetry.
-- Network requests are limited to features you configure: mail sync, translation, and optional WebDAV settings backup.
-
-### Mail workflow
-
-- Unified inbox across multiple accounts.
-- Gmail, IMAP, and experimental Outlook support.
-- Threaded and message-list views.
-- Archive, delete, star, mark read, batch actions, and restore flows.
-- Snooze messages and bring them back later.
-- Full-text search and advanced filters.
-- Rules engine for automatic organization.
-
-### Productivity tools
-
-- Kanban board with Todo, Waiting, and Done columns.
-- Command palette and keyboard-first navigation.
-- Built-in translation providers with bilingual reading.
-- Dark and light themes.
-- English and Chinese UI.
-- Optional WebDAV backup for settings, rules, Kanban cards, and Kanban notes.
-
-## Screenshots
-
-<table>
-  <tr>
-    <td><img src="site/screenshots/inbox.png" alt="Inbox"><br><b>Inbox</b></td>
-    <td><img src="site/screenshots/kanban.png" alt="Kanban board"><br><b>Kanban</b></td>
-  </tr>
-  <tr>
-    <td><img src="site/screenshots/dark.png" alt="Dark mode"><br><b>Dark Mode</b></td>
-    <td><img src="site/screenshots/settings.png" alt="Settings"><br><b>Settings</b></td>
-  </tr>
-</table>
-
-## Tech Stack
-
-| Layer | Technology |
-| --- | --- |
-| Backend server | Rust + Axum |
-| Transport | JSON-RPC over HTTP, SSE for push events |
-| Frontend | React 19, TypeScript |
-| State | Zustand, TanStack Query |
-| Database | SQLite via rusqlite |
-| Search | Tantivy |
-| Styling | Tailwind CSS |
-| Localization | i18next |
-
-## Getting Started
-
-### Prerequisites
-
-- Rust stable
-- Node.js 18 or newer
-- pnpm 8 or newer
-
-### Development Setup
+You need: **Rust** (stable), **Node.js 18+**, **pnpm 8+**.
 
 ```bash
 git clone https://github.com/QingJ01/Pebble.git
 cd Pebble
 
+# Install frontend dependencies
 pnpm install
+
+# Copy and edit environment config
 cp .env.example .env
-# Fill in your OAuth credentials in .env
-```
+# Set PEBBLE_PASSWORD_HASH in .env
 
-Start the backend server (terminal 1):
-
-```bash
+# Terminal 1: Start the backend
 cargo run -p pebble
-```
 
-Start the frontend dev server (terminal 2):
-
-```bash
+# Terminal 2: Start the frontend dev server
 pnpm dev:frontend
 ```
 
-Open `http://localhost:1420` in your browser. The Vite dev server automatically proxies `/rpc`, `/events`, `/auth`, and `/webhook` to the backend at port 3000.
+Open `http://localhost:1420`. The dev server proxies API calls to the backend at port 3000.
 
-### Production Deployment
-
-Build the frontend:
+### Production (bare metal)
 
 ```bash
-pnpm build:frontend
-```
-
-The static files are written to `dist/`. Serve them with any web server (nginx, caddy, etc.) and proxy the `/rpc`, `/events`, `/auth`, and `/webhook` paths to the Rust backend.
-
-Build and run the backend:
-
-```bash
+# Build the release binary
 cargo build --release -p pebble
-./target/release/pebble
+
+# Build the frontend
+pnpm build:frontend
+
+# Run the backend
+PEBBLE_PASSWORD_HASH='your-hash' ./target/release/pebble
 ```
 
-Data is stored in `./data/` relative to the working directory. Point the backend at a persistent directory and keep `./data/pebble.key` safe — losing it means losing access to stored credentials.
+Serve `dist/` with nginx (example config below). The backend listens on port 3000 by default.
 
-Example nginx snippet (assuming backend on port 3000, frontend served from `dist/`):
+## Configuration Guide
+
+All configuration goes into **environment variables**. You can set them in a `.env` file, pass them directly when running the binary, or use Docker Compose's `env_file`.
+
+### Required: Password
+
+| Variable | What it is | How to get it |
+|---|---|---|
+| `PEBBLE_PASSWORD_HASH` | Your login password, bcrypt-hashed | `cargo install bcrypt-cli && bcrypt-cli hash 'your-password'` |
+
+This is the only required variable. Without it, Pebble uses a hardcoded default password (`admin`) — not safe for production.
+
+### Optional: OAuth Providers
+
+If you want Gmail or Outlook support, you need OAuth credentials.
+
+#### Gmail
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Create a project, then create an **OAuth 2.0 Client ID** of type **Web application**
+3. Add `https://your-domain.com/auth/callback` as an authorized redirect URI (use `http://localhost:3000/auth/callback` for local dev)
+4. Copy the Client ID and Client Secret to your `.env`:
+
+```
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-your-secret
+```
+
+#### Outlook / Microsoft
+
+1. Go to [Azure App Registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/), register a new app
+2. Set redirect URI to `https://your-domain.com/auth/callback`
+3. The client type should be **public/native** (no client secret needed). If you registered as a web app, provide the secret.
+
+```
+MICROSOFT_CLIENT_ID=your-microsoft-client-id
+# MICROSOFT_CLIENT_SECRET=  (leave empty for public/native apps)
+```
+
+### Optional: Server Settings
+
+| Variable | Default | What it does |
+|---|---|---|
+| `PEBBLE_HOST` | `127.0.0.1` | IP address the server listens on. Set to `0.0.0.0` to accept external connections. |
+| `PEBBLE_PORT` | `3000` | TCP port. |
+| `OAUTH_REDIRECT_URL` | `http://localhost:3000` | Full URL where `/auth/callback` is reachable. Set to `https://your-domain.com` in production. |
+| `ALLOWED_ORIGIN` | (empty) | CORS allowed origin. Leave empty for same-origin. Set to your frontend URL if hosting frontend and backend on different origins. |
+
+### Optional: Gmail Real-time Push
+
+Gmail can push new-email notifications to Pebble via Google Cloud Pub/Sub, instead of polling.
+
+| Variable | What it is |
+|---|---|
+| `GMAIL_PUBSUB_TOPIC` | Full Pub/Sub topic: `projects/<project-id>/topics/gmail-webmail-topic` |
+| `GMAIL_WEBHOOK_SECRET` | A random secret string for the webhook URL |
+
+Setup steps:
+1. Enable Gmail API and Cloud Pub/Sub API in Google Cloud
+2. Create a Pub/Sub topic, grant `roles/pubsub.publisher` to `gmail-api-push@system.gserviceaccount.com`
+3. Create a push subscription pointing at `https://your-domain.com/webhook/gmail?secret=<your-secret>`
+4. In Pebble, go to **Settings → Accounts → Enable realtime Gmail** per account
+
+## Production Deployment
+
+### Nginx Reverse Proxy
+
+The recommended setup: nginx serves the frontend static files and proxies API calls to the backend.
 
 ```nginx
 server {
     listen 443 ssl;
-    server_name mail.example.com;
+    server_name mail.your-domain.com;
 
     root /path/to/Pebble/dist;
     index index.html;
@@ -199,13 +196,13 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Backend API, SSE, OAuth, and Gmail Pub/Sub webhook
-    location ~ ^/(api|rpc|events|auth|webhook) {
+    # Backend API, SSE (real-time events), OAuth, and Gmail webhook
+    location ~ ^/(api|events|auth|webhook) {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
 
-        # Required for SSE connections
+        # Required for Server-Sent Events (real-time updates)
         proxy_buffering off;
         proxy_cache off;
         proxy_read_timeout 3600s;
@@ -213,124 +210,143 @@ server {
 }
 ```
 
-## OAuth Configuration
+### Docker Compose (Production)
 
-Pebble can connect to Gmail and Outlook through OAuth. IMAP accounts use the IMAP/SMTP credentials configured in the app.
+```yaml
+services:
+  backend:
+    image: pebble-backend:latest
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - pebble-net
 
-Copy `.env.example` to `.env`, then fill the provider values you need. The environment variables must be set **at compile time** so they are embedded into the release binary.
+  frontend:
+    image: pebble-frontend:latest
+    ports:
+      - "127.0.0.1:1420:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - pebble-net
 
-| Variable | Description |
-| --- | --- |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID. Use a Web application client and add `http://localhost:3000/auth/callback` as an authorized redirect URI. |
-| `GOOGLE_CLIENT_SECRET` | Required for web application clients. |
-| `MICROSOFT_CLIENT_ID` | Microsoft public/native app client ID. |
-| `MICROSOFT_CLIENT_SECRET` | Optional. Leave empty for public/native Microsoft apps. |
-
-> **Note**: Because the OAuth callback is now handled by the HTTP server at `/auth/callback`, you must configure `http://<your-host>/auth/callback` (or `http://localhost:3000/auth/callback` for local dev) as the authorized redirect URI in your Google/Microsoft app settings.
-
-## Gmail Realtime Push
-
-Gmail accounts can optionally use Gmail API `watch` notifications delivered through Google Cloud Pub/Sub. This is enabled per account from **Settings -> Accounts -> Enable realtime Gmail**; normal Gmail OAuth login and IMAP accounts do not depend on this configuration.
-
-Runtime environment variables:
-
-| Variable | Description |
-| --- | --- |
-| `GMAIL_PUBSUB_TOPIC` | Fully qualified Pub/Sub topic, for example `projects/<project-id>/topics/gmail-webmail-topic`. |
-| `GMAIL_WEBHOOK_SECRET` | Shared secret required on the Pub/Sub push URL query string. Do not commit this value. |
-
-Google Cloud setup:
-
-1. Enable Gmail API and Cloud Pub/Sub API.
-2. Create a Pub/Sub topic.
-3. Grant `roles/pubsub.publisher` on that topic to `gmail-api-push@system.gserviceaccount.com`.
-4. Create a push subscription pointing at `https://<your-host>/webhook/gmail?secret=<your-secret>`.
-5. Expose `/webhook/gmail` through your reverse proxy to the Pebble backend.
-
-Pebble renews enabled Gmail watches on startup and every 12 hours, renewing any watch that is missing an expiration or expires within 24 hours. Pub/Sub OIDC JWT validation is not part of this MVP; use the URL secret now and add authenticated push verification before treating the endpoint as production-hardened.
-
-## API Reference
-
-The backend exposes three endpoint groups:
-
-### `POST /rpc`
-
-Single JSON-RPC call. Request body: `{ "method": "<command>", "params": { ... } }`. Returns the result directly or `{ "error": "<message>" }` on failure.
-
-### `POST /rpc/batch`
-
-Array of JSON-RPC calls processed in order. Request body: `[{ "method": "...", "params": {...} }, ...]`. Returns a matching array of results.
-
-### `GET /events`
-
-Server-Sent Events stream. The frontend connects here to receive push notifications for new mail, sync status, snooze wakeups, and other real-time updates. Each event has a named type and a JSON payload.
-
-### `GET /auth/login?provider=<google|microsoft>`
-
-Initiates the OAuth PKCE flow. Redirects the browser to the provider's authorization page.
-
-### `GET /auth/callback`
-
-OAuth redirect target. Exchanges the authorization code for tokens and creates the account. Redirects to `/` on success.
-
-### `POST /webhook/gmail?secret=<secret>`
-
-Cloud Pub/Sub push endpoint for Gmail notifications. Valid requests are acknowledged immediately; Pebble maps the Gmail `emailAddress` to push-enabled Gmail accounts and triggers the existing Gmail sync pipeline asynchronously.
-
-## Useful Scripts
-
-| Command | Purpose |
-| --- | --- |
-| `cargo run -p pebble` | Run the backend HTTP server. |
-| `pnpm dev:frontend` | Run the Vite frontend dev server (proxies to backend). |
-| `pnpm test` | Run frontend tests with Vitest. |
-| `pnpm build:frontend` | Type-check and build the frontend to `dist/`. |
-| `cargo build --release -p pebble` | Build the release backend binary. |
-| `cargo test -p pebble-mail` | Run the mail crate tests. |
-| `cargo check` | Check the Rust workspace. |
-
-## Project Structure
-
-```text
-Pebble/
-|-- src/                    React frontend (SPA)
-|   |-- components/         Shared UI components
-|   |-- features/           Inbox, compose, search, Kanban, settings
-|   |-- hooks/              React hooks and query helpers
-|   |-- lib/                HTTP API client, SSE client, i18n, utilities
-|   |-- stores/             Zustand stores
-|   `-- sse-client.ts       SSE event listener (EventSource)
-|-- server/                 Rust HTTP backend (Axum)
-|   `-- src/
-|       |-- main.rs         Server entry point, route registration
-|       |-- auth.rs         OAuth login & callback handlers
-|       |-- state.rs        Shared application state
-|       |-- session.rs      Cookie-based session + rate limiter
-|       |-- middleware/      Auth middleware (cookie validation)
-|       |-- api/            REST API handlers (80+ endpoints)
-|       |-- realtime/       Background sync workers
-|       |-- snooze_watcher.rs  Snooze timer background task
-|       `-- rpc/            Legacy JSON-RPC handlers (deprecated)
-|-- crates/                 Rust workspace crates
-|   |-- pebble-core/        Shared types and errors
-|   |-- pebble-store/       SQLite persistence
-|   |-- pebble-mail/        Mail providers and sync
-|   |-- pebble-search/      Tantivy search index
-|   |-- pebble-crypto/      Credential encryption
-|   |-- pebble-oauth/       OAuth 2.0 and PKCE
-|   |-- pebble-rules/       Rules engine
-|   |-- pebble-translate/   Translation providers
-|   `-- pebble-privacy/     HTML sanitizing and tracker controls
-|-- tests/                  Frontend tests
-`-- site/                   Static project site and screenshots
+networks:
+  pebble-net:
+    driver: bridge
 ```
+
+With this setup, point your public reverse proxy (nginx, Caddy, 1Panel OpenResty, etc.) to `http://127.0.0.1:1420`.
+
+### Data Persistence
+
+All data lives in the `./data/` directory relative to where the backend runs:
+
+| File / Directory | Contains |
+|---|---|
+| `data/pebble.db` | SQLite database with all messages, accounts, rules, settings |
+| `data/pebble.key` | Encryption key for stored credentials (OAuth tokens, passwords) |
+| `data/index/` | Tantivy full-text search index |
+| `data/attachments/` | Downloaded email attachments |
+| `data/logs/` | Application logs |
+
+**Keep `data/pebble.key` safe.** If you lose it, you lose access to all connected accounts and need to re-authenticate.
+
+## How It Works
+
+### Architecture
+
+```
+Browser (React SPA)
+        │  HTTP REST  /api/*
+        │  SSE stream /events
+        │  OAuth flow /auth/login  /auth/callback
+        ▼
+Nginx (serves frontend, proxies API)
+        │
+        ▼
+Rust HTTP Server (Axum, port 3000)
+        │
+        ├── pebble-store    SQLite database
+        ├── pebble-search   Tantivy full-text index
+        ├── pebble-mail     IMAP / Gmail / Outlook sync
+        ├── pebble-crypto   Credential encryption
+        ├── pebble-oauth    OAuth 2.0 + PKCE
+        ├── pebble-rules    Rules engine
+        ├── pebble-translate Translation
+        └── pebble-privacy  HTML sanitizing & tracker protection
+```
+
+### Authentication
+
+Pebble uses **cookie-based session auth**:
+- You log in with your password → server creates a session (7-day TTL)
+- Session cookie (`pebble_session`) is `HttpOnly; SameSite=Strict`
+- All `/api/*` endpoints require a valid session
+- Failed logins are rate-limited (5 attempts → 15-minute lock per IP)
+- No registration, no multi-user — it's single-user by design
+
+### Real-time Updates
+
+The frontend connects to `GET /events` via **Server-Sent Events** (SSE). The server pushes notifications for new mail, sync progress, and snooze wakeups. The SSE connection uses the same session cookie for auth.
+
+### Email Sync
+
+Pebble syncs with your providers in the background:
+- **Gmail**: OAuth + Gmail API (history-based sync) + optional Pub/Sub push
+- **IMAP**: Standard IMAP polling with configurable intervals
+- **Outlook**: OAuth + Microsoft Graph API (experimental)
+
+## Features
+
+### Mail
+- Unified inbox across multiple accounts
+- Gmail, IMAP, and experimental Outlook
+- Thread view and message list view
+- Archive, delete, star, mark read, batch actions, restore
+- Snooze messages (bring them back later)
+- Full-text search with advanced filters
+- Rules engine for automatic mail organization
+- Command palette and keyboard shortcuts
+
+### Productivity
+- **Kanban board**: Todo → Waiting → Done columns for email tasks
+- **Translation**: Built-in translation providers, bilingual reading mode
+- **Templates**: Reusable email templates
+- **Trusted Senders**: Per-sender privacy controls (show images, etc.)
+- **WebDAV backup**: Sync settings, rules, and Kanban data to a WebDAV server
+
+### Privacy & Security
+- All data stored locally on your server
+- No telemetry, no tracking
+- HTML email sanitization (removes trackers)
+- OAuth tokens encrypted at rest
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | Rust + Axum |
+| Frontend | React 19 + TypeScript |
+| State | Zustand + TanStack Query |
+| Database | SQLite (rusqlite) |
+| Search | Tantivy |
+| Styling | Tailwind CSS |
+| i18n | i18next (English, Chinese) |
 
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
-| --- | --- |
+|---|---|
 | `J` / `K` | Move through messages |
-| `Enter` | Open the selected message |
+| `Enter` | Open selected message |
 | `E` | Archive |
 | `S` | Toggle star |
 | `R` | Reply |
@@ -338,34 +354,81 @@ Pebble/
 | `F` | Forward |
 | `C` | Compose |
 | `/` | Focus search |
-| `Esc` | Close, cancel, or go back |
+| `Esc` | Close, cancel, go back |
 
-Shortcuts can be reviewed and customized in Settings.
+Shortcuts can be customized in Settings.
 
-## Status
+## Useful Commands
 
-Pebble is under active development. It is usable for day-to-day testing, but mail clients handle sensitive data and provider behavior varies. Keep backups of important mail, and verify account actions against your provider when testing new builds.
+| Command | Purpose |
+|---|---|
+| `cargo run -p pebble` | Run backend dev server |
+| `pnpm dev:frontend` | Run frontend dev server (proxies to backend) |
+| `pnpm build:frontend` | Type-check and build frontend to `dist/` |
+| `cargo build --release -p pebble` | Build release backend binary |
+| `pnpm test` | Run frontend tests (Vitest) |
+| `cargo test -p pebble-mail` | Run mail crate tests |
+| `cargo check` | Check Rust workspace for errors |
 
-## Contributing
+## Troubleshooting
 
-Issues and pull requests are welcome.
+### "Authentication required" on every request
+Your session expired (7-day TTL) or the backend restarted. Log in again.
 
-For code changes, please keep patches focused and include tests for behavior changes when practical. Before submitting, run the relevant checks:
+### Can't log in after deployment
+Check that `PEBBLE_PASSWORD_HASH` in `.env` has `$$` escaping (not `$`) when used with Docker Compose. Test with: `docker exec pebble-backend env | grep PASSWORD`.
 
-```bash
-pnpm test
-pnpm build:frontend
-cargo check
+### Routes returning 404
+Make sure the nginx config proxies `/api/*` to the backend. The proxy rule should be: `location ~ ^/(api|events|auth|webhook)`.
+
+### Database "disk image is malformed"  
+The SQLite database may have been corrupted by an unclean shutdown. Try: `sqlite3 data/pebble.db "PRAGMA integrity_check;"`. If corrupted, restore from backup.
+
+### Email sync not working
+Check the backend logs: `docker logs pebble-backend` or `tail -f data/logs/`. Common issues: OAuth token expired (re-authenticate in Settings → Accounts), network proxy not configured, IMAP credentials wrong.
+
+## Project Structure
+
+```text
+Pebble/
+├── src/                    React frontend (SPA)
+│   ├── components/         Shared UI components
+│   ├── features/           Inbox, compose, search, Kanban, settings, auth
+│   ├── hooks/              React hooks and query helpers
+│   ├── lib/                API client, SSE client, i18n, utilities
+│   └── stores/             Zustand stores
+├── server/                 Rust HTTP backend (Axum)
+│   └── src/
+│       ├── main.rs         Server entry point, route registration
+│       ├── api/            REST API handlers (80+ endpoints)
+│       ├── middleware/      Auth middleware (cookie validation)
+│       ├── session.rs      Cookie sessions + rate limiter
+│       └── rpc/            Internal service layer
+├── crates/                 Rust workspace crates
+│   ├── pebble-core/        Shared types and errors
+│   ├── pebble-store/       SQLite persistence
+│   ├── pebble-mail/        Mail providers and sync
+│   ├── pebble-search/      Tantivy search index
+│   ├── pebble-crypto/      Credential encryption
+│   ├── pebble-oauth/       OAuth 2.0 and PKCE
+│   ├── pebble-rules/       Rules engine
+│   ├── pebble-translate/   Translation providers
+│   └── pebble-privacy/     HTML sanitizing and tracker controls
+├── deploy/                 Docker and nginx configs
+├── tests/                  Frontend tests
+└── site/                   Screenshots
 ```
 
 ## License
 
-Pebble is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+Pebble is licensed under [GNU Affero General Public License v3.0](LICENSE).
 
 ---
 
 <p align="center">
-  Built by <a href="https://github.com/QingJ01">QingJ</a>.
+  Originally built by <a href="https://github.com/QingJ01">QingJ</a>.
+  <br>
+  Web service re-architecture and documentation by <strong>Claude Opus 4.7</strong>.
   <br>
   Friend link: <a href="https://linux.do">LINUX DO</a>
 </p>

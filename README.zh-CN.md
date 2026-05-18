@@ -5,7 +5,9 @@
 <h1 align="center">Pebble</h1>
 
 <p align="center">
-  一个本地优先的邮件客户端，让收件箱更安静、更私密。现已支持作为自托管 Web 服务运行。
+  一个自托管的网页邮件客户端，让收件箱更安静、更私密。
+  <br>
+  A self-hosted webmail client for people who want a calmer, more private inbox.
 </p>
 
 <p align="center">
@@ -19,171 +21,166 @@
 <p align="center">
   <a href="https://github.com/QingJ01/Pebble/releases"><img src="https://img.shields.io/github/v/release/QingJ01/Pebble?style=flat-square&color=d4714e" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License"></a>
-  <a href="https://github.com/QingJ01/Pebble/actions"><img src="https://img.shields.io/github/actions/workflow/status/QingJ01/Pebble/ci.yml?style=flat-square&label=build" alt="Build"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20VPS%20%7C%20Self--hosted-lightgrey?style=flat-square" alt="Platform">
 </p>
 
-## 项目简介
+---
 
-Pebble 是一个使用 Rust 和 React 构建的自托管邮件客户端。它已经从 Tauri 桌面应用重构为**Web 服务**：Rust 后端作为独立的 HTTP 服务器运行，React 前端作为标准 Web 应用提供服务，并通过 HTTP 连接到后端。
+## Pebble 是什么？
 
-所有的邮件数据、搜索索引、附件、规则和应用设置都保留在你的服务器端。
+简单说：**把 Gmail 搬到你自己的服务器上**。
 
-Pebble 的设计目标很直接：
+Pebble 是一个网页邮件客户端，安装在你自己的 VPS 或 NAS 上。在浏览器里登录之后，连接你的邮箱账户（Gmail、IMAP、Outlook 都支持），就能在一个统一的界面上收发管理所有邮件。
 
-- 邮箱应该清晰、快速、安静。
-- 邮件工作流应该本地优先，而不是被云端仪表盘绑住。
-- 隐私控制应该明确可见，并且可以按单封邮件临时放宽。
-- 搜索、稍后提醒、规则和看板应该协同工作，而不是散落在不同工具里。
+最重要的：**所有数据都在你自己的服务器上**。邮件内容、附件、搜索索引、账户配置、规则——一律不经过第三方。
 
-Pebble 目前支持 Gmail、IMAP，以及实验性的 Outlook 账户。
+打个比方：它是你私有的 Gmail，没有广告，没有追踪，没人偷看你的收件箱。
 
-## 架构说明
+## 快速开始
 
-当前分支将原有的 Tauri 桌面外壳替换为客户端-服务器（C/S）架构：
+选一种适合你的方式。
 
+### Docker Compose（推荐）
+
+这是最快的方式。前提：你已安装 Docker 和 Docker Compose。
+
+```bash
+# 1. 下载项目
+git clone https://github.com/QingJ01/Pebble.git
+cd Pebble
+
+# 2. 生成登录密码的哈希值
+# 先安装 bcrypt-cli 工具：cargo install bcrypt-cli
+bcrypt-cli hash '你的密码'
+# 复制输出的那一长串（类似 $2b$12$...），这就是 PEBBLE_PASSWORD_HASH
+
+# 3. 创建 .env 文件
+cp .env.example .env
+# 编辑 .env，把 PEBBLE_PASSWORD_HASH 设成刚才生成的哈希
+
+# 4. 构建并启动
+sudo docker compose -f deploy/docker-compose.yml up -d --build
 ```
-浏览器 (React SPA)
-        │  HTTP fetch  /rpc/batch
-        │  SSE stream  /events
-        │  OAuth 流程   /auth/login  /auth/callback
-        ▼
-Rust HTTP 服务器  (Axum, 端口 3000)
-        │
-        ├── pebble-store    SQLite 数据库
-        ├── pebble-search   Tantivy 全文搜索索引
-        ├── pebble-mail     IMAP / Gmail / Outlook 同步
-        ├── pebble-crypto   凭据加密
-        ├── pebble-oauth    OAuth 2.0 + PKCE
-        ├── pebble-rules    规则引擎
-        ├── pebble-translate 翻译提供商
-        └── pebble-privacy  HTML 清理与追踪保护
-```
 
-### 与上游（Upstream）的主要区别
+打开 `http://localhost:1420`，用你设置的密码登录。
 
-| 上游 (Tauri 桌面端) | 当前分支 (Web 服务) |
-| --- | --- |
-| Tauri IPC (`invoke`) | 基于 HTTP 的 JSON-RPC，路径为 `POST /rpc/batch` |
-| Tauri 事件系统 | Server-Sent Events (SSE)，路径为 `GET /events` |
-| 桌面端 OAuth 重定向 | HTTP OAuth 流程，路径为 `/auth/login` 和 `/auth/callback` |
-| 应用数据在操作系统用户目录 | 本地 `./data/` 目录（适合 VPS 部署） |
-| 平台原生的系统密钥链 | 基于文件的密钥 `./data/pebble.key` |
+> **关于 bcrypt 哈希**：哈希值里的 `$` 符号在 Docker Compose 的 `.env` 文件中需要写成 `$$`。例如：
+> ```
+> PEBBLE_PASSWORD_HASH=$$2b$$12$$LJ3m4ys3rxImvlLzyGRbPOcAIORMzJDGJnRi4ZVXNIs6pS8bJGxKW
+> ```
 
-## 主要特性
+### 源码编译
 
-### 本地优先与隐私
-
-- 使用本地 SQLite 数据库存储邮件、文件夹、标签、规则和设置。
-- 使用本地 Tantivy 全文索引提供快速搜索。
-- 附件保存在磁盘的 `./data/attachments/` 目录下。
-- OAuth token 和账号凭据使用服务器本地密钥文件加密。
-- 不包含遥测。
-- 网络请求只发生在你启用的功能中：邮件同步、翻译、可选的 WebDAV 设置备份。
-
-### 邮件处理
-
-- 多账户聚合收件箱。
-- 支持 Gmail、IMAP 和实验性的 Outlook。
-- 支持线程视图和普通邮件列表视图。
-- 支持归档、删除、星标、标记已读、批量操作和恢复。
-- 支持邮件稍后提醒（Snooze）。
-- 支持全文搜索和高级过滤。
-- 支持规则引擎，自动整理邮件。
-
-### 效率工具
-
-- 看板视图，包含 Todo、Waiting、Done 三列。
-- 命令面板和键盘优先导航。
-- 内置翻译能力，支持双语阅读。
-- 深色和浅色主题。
-- 内置英文和中文界面。
-- 可选的 WebDAV 备份，用于同步设置、规则、看板卡片和看板备注。
-
-## 截图
-
-<table>
-  <tr>
-    <td><img src="site/screenshots/inbox.png" alt="收件箱"><br><b>收件箱</b></td>
-    <td><img src="site/screenshots/kanban.png" alt="看板"><br><b>看板</b></td>
-  </tr>
-  <tr>
-    <td><img src="site/screenshots/dark.png" alt="深色模式"><br><b>深色模式</b></td>
-    <td><img src="site/screenshots/settings.png" alt="设置"><br><b>设置</b></td>
-  </tr>
-</table>
-
-## 技术栈
-
-| 层级 | 技术 |
-| --- | --- |
-| 后端服务器 | Rust + Axum |
-| 传输协议 | JSON-RPC over HTTP, SSE 用于推送事件 |
-| 前端 | React 19、TypeScript |
-| 状态管理 | Zustand、TanStack Query |
-| 数据库 | SQLite / rusqlite |
-| 搜索 | Tantivy |
-| 样式 | Tailwind CSS |
-| 国际化 | i18next |
-
-## 开始使用
-
-### 环境要求
-
-- Rust stable
-- Node.js 18 或更新版本
-- pnpm 8 或更新版本
-
-### 开发环境
+前提：安装 **Rust**（stable 版本）、**Node.js 18+**、**pnpm 8+**。
 
 ```bash
 git clone https://github.com/QingJ01/Pebble.git
 cd Pebble
 
+# 安装前端依赖
 pnpm install
+
+# 创建 .env 配置文件
 cp .env.example .env
-# 在 .env 中填写你的 OAuth 凭据
-```
+# 编辑 .env，设置 PEBBLE_PASSWORD_HASH
 
-启动后端服务器（终端 1）：
-
-```bash
+# 终端 1：启动后端
 cargo run -p pebble
-```
 
-启动前端开发服务器（终端 2）：
-
-```bash
+# 终端 2：启动前端开发服务器
 pnpm dev:frontend
 ```
 
-在浏览器中打开 `http://localhost:1420`。Vite 开发服务器会自动将 `/rpc`、`/events`、`/auth` 和 `/webhook` 的请求代理到 3000 端口的后端。
+打开 `http://localhost:1420`。Vite 开发服务器会自动把 API 请求转发到后端的 3000 端口。
 
-### 生产环境部署
-
-构建前端：
+### 生产环境部署（裸机）
 
 ```bash
-pnpm build:frontend
-```
-
-静态文件会输出到 `dist/` 目录。你可以使用任何 Web 服务器（nginx、caddy 等）来托管这些文件，并将 `/rpc`、`/events`、`/auth` 和 `/webhook` 路径代理到 Rust 后端。
-
-构建并运行后端：
-
-```bash
+# 构建后端
 cargo build --release -p pebble
-./target/release/pebble
+
+# 构建前端
+pnpm build:frontend
+
+# 启动后端
+PEBBLE_PASSWORD_HASH='你的哈希' ./target/release/pebble
 ```
 
-数据存放在工作目录下的 `./data/` 目录中。请让后端在一个持久化的目录下运行，并妥善保管 `./data/pebble.key` —— 如果丢失该文件，你将失去对已存凭据的访问权限。
+用 nginx 托管 `dist/` 目录（配置示例见下文）。后端默认监听 3000 端口。
 
-Nginx 配置示例（假设后端在 3000 端口，前端从 `dist/` 托管）：
+## 配置指南
+
+所有配置都通过**环境变量**设置。可以写在 `.env` 文件里，也可以直接传给二进制文件。
+
+### 必须配置：登录密码
+
+| 变量 | 说明 | 如何获取 |
+|---|---|---|
+| `PEBBLE_PASSWORD_HASH` | 登录密码的 bcrypt 哈希 | 安装 `cargo install bcrypt-cli`，然后运行 `bcrypt-cli hash '你的密码'` |
+
+这是唯一的必填项。不填的话，Pebble 会用一个硬编码的默认密码（`admin`）——**生产环境千万不要用**。
+
+### 可选：OAuth 提供商
+
+要使用 Gmail 或 Outlook，需要配置 OAuth 凭据。
+
+#### Gmail
+
+1. 打开 [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. 创建一个项目，然后创建 **OAuth 2.0 客户端 ID**，类型选 **Web application**
+3. 添加 `https://你的域名/auth/callback` 为已授权的重定向 URI（本地开发用 `http://localhost:3000/auth/callback`）
+4. 把 Client ID 和 Client Secret 填到 `.env`：
+
+```
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-你的密钥
+```
+
+#### Outlook / Microsoft
+
+1. 打开 [Azure 应用注册](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/)，注册新应用
+2. 重定向 URI 设为 `https://你的域名/auth/callback`
+3. 应用类型选 **public/native**（不需要 client secret）。如果选了 Web 应用类型，需要提供 secret。
+
+```
+MICROSOFT_CLIENT_ID=你的-microsoft-client-id
+# MICROSOFT_CLIENT_SECRET=  (public/native 应用留空即可)
+```
+
+### 可选：服务器设置
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `PEBBLE_HOST` | `127.0.0.1` | 监听地址。想对外提供服务设成 `0.0.0.0` |
+| `PEBBLE_PORT` | `3000` | 监听端口 |
+| `OAUTH_REDIRECT_URL` | `http://localhost:3000` | OAuth 回调的完整 URL。生产环境改成 `https://你的域名` |
+| `ALLOWED_ORIGIN` | 空 | CORS 允许的源。前后端同源部署时空着就行。前后端分离时设为前端的 URL |
+
+### 可选：Gmail 实时推送
+
+Gmail 可以通过 Google Cloud Pub/Sub 向 Pebble 推送新邮件通知，无需轮询。
+
+| 变量 | 说明 |
+|---|---|
+| `GMAIL_PUBSUB_TOPIC` | 完整的 Pub/Sub Topic：`projects/<项目ID>/topics/gmail-webmail-topic` |
+| `GMAIL_WEBHOOK_SECRET` | 一个随机的密钥字符串，用于 webhook URL 验证 |
+
+配置步骤：
+1. 在 Google Cloud 启用 Gmail API 和 Cloud Pub/Sub API
+2. 创建 Pub/Sub Topic，将 `roles/pubsub.publisher` 授予 `gmail-api-push@system.gserviceaccount.com`
+3. 创建推送订阅，指向 `https://你的域名/webhook/gmail?secret=<你的密钥>`
+4. 在 Pebble 中，进入 **Settings → Accounts → Enable realtime Gmail** 按账户启用
+
+## 生产环境部署
+
+### Nginx 反向代理
+
+推荐方案：nginx 托管前端静态文件，反向代理 API 请求到后端。
 
 ```nginx
 server {
     listen 443 ssl;
-    server_name mail.example.com;
+    server_name mail.你的域名.com;
 
     root /path/to/Pebble/dist;
     index index.html;
@@ -199,13 +196,13 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # 后端 API、SSE、OAuth 和 Gmail Pub/Sub webhook
-    location ~ ^/(api|rpc|events|auth|webhook) {
+    # 后端 API、SSE（实时推送）、OAuth、Gmail webhook
+    location ~ ^/(api|events|auth|webhook) {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
 
-        # SSE 连接所需的配置
+        # SSE 连接所需
         proxy_buffering off;
         proxy_cache off;
         proxy_read_timeout 3600s;
@@ -213,124 +210,143 @@ server {
 }
 ```
 
-## OAuth 配置
+### Docker Compose（生产）
 
-Pebble 可以通过 OAuth 连接 Gmail 和 Outlook。IMAP 账户使用应用内配置的 IMAP/SMTP 凭据。
+```yaml
+services:
+  backend:
+    image: pebble-backend:latest
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - pebble-net
 
-复制 `.env.example` 为 `.env`，然后填写你需要的提供商配置。这些环境变量必须**在编译时**设置，以便它们能够嵌入到发布的二进制文件中。
+  frontend:
+    image: pebble-frontend:latest
+    ports:
+      - "127.0.0.1:1420:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - pebble-net
 
-| 变量 | 说明 |
-| --- | --- |
-| `GOOGLE_CLIENT_ID` | Google OAuth 客户端 ID。请使用 Web 应用客户端（Web application），并添加 `http://localhost:3000/auth/callback` 为已授权的重定向 URI。 |
-| `GOOGLE_CLIENT_SECRET` | 必填（Web 应用客户端需要）。 |
-| `MICROSOFT_CLIENT_ID` | Microsoft public/native app 客户端 ID。 |
-| `MICROSOFT_CLIENT_SECRET` | 可选。public/native Microsoft 应用通常应留空。 |
-
-> **注意**：由于 OAuth 回调现在由 HTTP 服务器在 `/auth/callback` 处理，你必须在你的 Google/Microsoft 应用设置中配置 `http://<your-host>/auth/callback`（本地开发为 `http://localhost:3000/auth/callback`）作为已授权的重定向 URI。
-
-## Gmail 实时推送
-
-Gmail 账户可以选择使用 Gmail API `watch`，通过 Google Cloud Pub/Sub 接收变更通知。该功能在 **Settings -> Accounts -> Enable realtime Gmail** 中按账号启用；普通 Gmail OAuth 登录和 IMAP 账号不依赖这项配置。
-
-运行时环境变量：
-
-| 变量 | 说明 |
-| --- | --- |
-| `GMAIL_PUBSUB_TOPIC` | 完整 Pub/Sub Topic 名称，例如 `projects/<project-id>/topics/gmail-webmail-topic`。 |
-| `GMAIL_WEBHOOK_SECRET` | Pub/Sub 推送 URL query string 中需要携带的共享密钥。不要提交到代码仓库。 |
-
-Google Cloud 设置：
-
-1. 启用 Gmail API 和 Cloud Pub/Sub API。
-2. 创建一个 Pub/Sub Topic。
-3. 将该 Topic 的 `roles/pubsub.publisher` 权限授予 `gmail-api-push@system.gserviceaccount.com`。
-4. 创建 Push Subscription，推送地址设为 `https://<your-host>/webhook/gmail?secret=<your-secret>`。
-5. 在反向代理中将 `/webhook/gmail` 转发到 Pebble 后端。
-
-Pebble 会在启动时以及之后每 12 小时检查已启用的 Gmail watch，并续期缺少过期时间或 24 小时内过期的 watch。当前 MVP 不包含 Pub/Sub OIDC JWT 校验；现在使用 URL secret，若要生产强化，应后续添加 authenticated push 校验。
-
-## API 参考
-
-后端暴露了三组服务端点：
-
-### `POST /rpc`
-
-单个 JSON-RPC 调用。请求体：`{ "method": "<command>", "params": { ... } }`。直接返回结果，或在失败时返回 `{ "error": "<message>" }`。
-
-### `POST /rpc/batch`
-
-按顺序处理的 JSON-RPC 调用数组。请求体：`[{ "method": "...", "params": {...} }, ...]`。返回对应结果的数组。
-
-### `GET /events`
-
-Server-Sent Events 流。前端连接到此端点接收有关新邮件、同步状态、稍后提醒唤醒和其他实时更新的推送通知。每个事件都有一个命名的 type 和一个 JSON payload。
-
-### `GET /auth/login?provider=<google|microsoft>`
-
-发起 OAuth PKCE 流程。将浏览器重定向到提供商的授权页面。
-
-### `GET /auth/callback`
-
-OAuth 重定向目标。用授权码交换 token 并创建账户。成功后重定向到 `/`。
-
-### `POST /webhook/gmail?secret=<secret>`
-
-Cloud Pub/Sub 的 Gmail 通知推送端点。合法请求会被立即确认；Pebble 会将 Gmail `emailAddress` 映射到已启用推送的 Gmail 账号，并异步触发现有 Gmail 同步流水线。
-
-## 常用命令
-
-| 命令 | 用途 |
-| --- | --- |
-| `cargo run -p pebble` | 运行后端 HTTP 服务器。 |
-| `pnpm dev:frontend` | 运行 Vite 前端开发服务器（并代理到后端）。 |
-| `pnpm test` | 使用 Vitest 运行前端测试。 |
-| `pnpm build:frontend` | 类型检查并构建前端到 `dist/`。 |
-| `cargo build --release -p pebble` | 构建用于发布的后端二进制文件。 |
-| `cargo test -p pebble-mail` | 运行邮件模块测试。 |
-| `cargo check` | 检查 Rust 工作区。 |
-
-## 项目结构
-
-```text
-Pebble/
-|-- src/                    React 前端 (SPA)
-|   |-- components/         通用 UI 组件
-|   |-- features/           收件箱、写信、搜索、看板、设置等功能
-|   |-- hooks/              React hooks 和查询工具
-|   |-- lib/                HTTP API 客户端、SSE 客户端、i18n、通用工具
-|   |-- stores/             Zustand 状态管理
-|   `-- sse-client.ts       SSE 事件监听 (EventSource)
-|-- server/                 Rust HTTP 后端 (Axum)
-|   `-- src/
-|       |-- main.rs         服务器入口，路由注册
-|       |-- auth.rs         OAuth 登录和回调处理
-|       |-- state.rs        共享应用状态
-|       |-- session.rs      Cookie 会话 + 限流器
-|       |-- middleware/      Auth 中间件（Cookie 验证）
-|       |-- api/            REST API 处理器（80+ 端点）
-|       |-- realtime/       后台同步工作线程
-|       |-- snooze_watcher.rs 稍后提醒定时后台任务
-|       `-- rpc/            旧版 JSON-RPC 处理器（已弃用）
-|-- crates/                 Rust 工作区
-|   |-- pebble-core/        共享类型和错误定义
-|   |-- pebble-store/       SQLite 持久化
-|   |-- pebble-mail/        邮件提供商和同步逻辑
-|   |-- pebble-search/      Tantivy 搜索索引
-|   |-- pebble-crypto/      凭据加密
-|   |-- pebble-oauth/       OAuth 2.0 和 PKCE
-|   |-- pebble-rules/       规则引擎
-|   |-- pebble-translate/   翻译提供商
-|   `-- pebble-privacy/     HTML 清理和追踪保护
-|-- tests/                  前端测试
-`-- site/                   静态项目站点和截图
+networks:
+  pebble-net:
+    driver: bridge
 ```
+
+这种部署方式下，把你的公网反向代理（nginx、Caddy、1Panel OpenResty 等）指向 `http://127.0.0.1:1420` 即可。
+
+### 数据持久化
+
+所有数据存储在后端工作目录下的 `./data/` 目录：
+
+| 文件 / 目录 | 内容 |
+|---|---|
+| `data/pebble.db` | SQLite 数据库，存储邮件、账户、规则、设置 |
+| `data/pebble.key` | 凭据加密密钥（OAuth token、密码） |
+| `data/index/` | Tantivy 全文搜索索引 |
+| `data/attachments/` | 下载的邮件附件 |
+| `data/logs/` | 应用日志 |
+
+**请妥善保管 `data/pebble.key`。** 如果丢失，所有已连接的账户将无法解密，需要重新认证。
+
+## 工作原理
+
+### 架构
+
+```
+浏览器 (React SPA)
+        │  HTTP REST  /api/*
+        │  SSE 流     /events
+        │  OAuth 流程  /auth/login  /auth/callback
+        ▼
+Nginx (托管前端、反向代理 API)
+        │
+        ▼
+Rust HTTP 服务器 (Axum, 端口 3000)
+        │
+        ├── pebble-store    SQLite 数据库
+        ├── pebble-search   Tantivy 全文索引
+        ├── pebble-mail     IMAP / Gmail / Outlook 同步
+        ├── pebble-crypto   凭据加密
+        ├── pebble-oauth    OAuth 2.0 + PKCE
+        ├── pebble-rules    规则引擎
+        ├── pebble-translate 翻译
+        └── pebble-privacy  HTML 清理与追踪保护
+```
+
+### 认证机制
+
+Pebble 使用 **Cookie 会话认证**：
+- 你用密码登录 → 服务器创建会话（7 天有效期）
+- 会话 cookie（`pebble_session`）标记为 `HttpOnly; SameSite=Strict`
+- 所有 `/api/*` 端点都需要有效会话
+- 登录失败有频率限制（5 次失败 → 锁定 15 分钟，按 IP 计算）
+- 单用户设计——无需注册，无需多用户管理
+
+### 实时推送
+
+前端通过 **Server-Sent Events**（SSE）连接 `GET /events`。服务器会实时推送新邮件通知、同步进度、稍后提醒等事件。SSE 连接使用同一个会话 cookie 认证。
+
+### 邮件同步
+
+Pebble 在后台同步你的邮件：
+- **Gmail**：OAuth + Gmail API（基于历史的增量同步）+ 可选的 Pub/Sub 实时推送
+- **IMAP**：标准 IMAP 轮询，可配置轮询间隔
+- **Outlook**：OAuth + Microsoft Graph API（实验性）
+
+## 功能一览
+
+### 邮件
+- 多账户统一收件箱
+- Gmail、IMAP、Outlook（实验性）
+- 线程视图 + 邮件列表视图
+- 归档、删除、星标、已读标记、批量操作、恢复
+- 稍后提醒（Snooze）
+- 全文搜索 + 高级过滤
+- 规则引擎，自动整理邮件
+- 命令面板 + 键盘快捷键
+
+### 效率工具
+- **看板**：Todo → Waiting → Done 三列，管理邮件任务
+- **翻译**：内置翻译能力，双语阅读模式
+- **模板**：可复用的邮件模板
+- **信任发件人**：按发件人控制隐私（显示图片等）
+- **WebDAV 备份**：同步设置、规则和看板数据到 WebDAV 服务器
+
+### 隐私与安全
+- 所有数据存储在本地服务器
+- 无遥测，无追踪
+- HTML 邮件净化（移除追踪器）
+- OAuth token 加密存储
+
+## 技术栈
+
+| 层级 | 技术 |
+|---|---|
+| 后端 | Rust + Axum |
+| 前端 | React 19 + TypeScript |
+| 状态管理 | Zustand + TanStack Query |
+| 数据库 | SQLite（rusqlite） |
+| 搜索 | Tantivy |
+| 样式 | Tailwind CSS |
+| 国际化 | i18next（英文、中文） |
 
 ## 快捷键
 
 | 快捷键 | 操作 |
-| --- | --- |
+|---|---|
 | `J` / `K` | 在邮件列表中上下移动 |
-| `Enter` | 打开选中的邮件 |
+| `Enter` | 打开选中邮件 |
 | `E` | 归档 |
 | `S` | 切换星标 |
 | `R` | 回复 |
@@ -338,24 +354,69 @@ Pebble/
 | `F` | 转发 |
 | `C` | 写新邮件 |
 | `/` | 聚焦搜索 |
-| `Esc` | 关闭、取消或返回 |
+| `Esc` | 关闭、取消、返回 |
 
 快捷键可以在设置中查看和自定义。
 
-## 当前状态
+## 常用命令
 
-Pebble 正在持续开发中。它可以用于日常测试，但邮件客户端会处理敏感数据，不同邮件服务商的行为也存在差异。测试新版本时，请为重要邮件保留备份，并在服务商网页端核对关键操作。
+| 命令 | 用途 |
+|---|---|
+| `cargo run -p pebble` | 运行后端开发服务器 |
+| `pnpm dev:frontend` | 运行前端开发服务器（代理到后端） |
+| `pnpm build:frontend` | 类型检查 + 构建前端到 `dist/` |
+| `cargo build --release -p pebble` | 构建发布版后端 |
+| `pnpm test` | 运行前端测试 |
+| `cargo test -p pebble-mail` | 运行邮件模块测试 |
+| `cargo check` | 检查 Rust 代码 |
 
-## 参与贡献
+## 常见问题
 
-欢迎提交 issue 和 pull request。
+### 每次请求都提示 "Authentication required"
+会话过期（7 天）或后端重启了。重新登录即可。
 
-代码改动请尽量保持聚焦；涉及行为变化时，请补充相应测试。提交前建议运行相关检查：
+### 部署后无法登录
+检查 `.env` 中的 `PEBBLE_PASSWORD_HASH`，`$` 符号是否用 `$$` 转义了（Docker Compose 要求）。可以用 `docker exec pebble-backend env | grep PASSWORD` 查看容器内的实际值。
 
-```bash
-pnpm test
-pnpm build:frontend
-cargo check
+### 某些 API 返回 404
+确认 nginx 配置中代理了 `/api/*` 路径。反向代理规则应包含：`location ~ ^/(api|events|auth|webhook)`。
+
+### 数据库提示 "disk image is malformed"
+SQLite 数据库可能因异常关闭而损坏。尝试修复：`sqlite3 data/pebble.db "PRAGMA integrity_check;"`。如果损坏，从备份恢复。
+
+### 邮件同步不工作
+查看后端日志：`docker logs pebble-backend` 或 `tail -f data/logs/`。常见原因：OAuth token 过期（在设置 → 账户中重新认证）、网络代理未配置、IMAP 凭据错误。
+
+## 项目结构
+
+```text
+Pebble/
+├── src/                    React 前端 (SPA)
+│   ├── components/         通用 UI 组件
+│   ├── features/           收件箱、写信、搜索、看板、设置、认证
+│   ├── hooks/              React hooks 和查询工具
+│   ├── lib/                API 客户端、SSE 客户端、i18n、通用工具
+│   └── stores/             Zustand 状态管理
+├── server/                 Rust HTTP 后端 (Axum)
+│   └── src/
+│       ├── main.rs         服务器入口，路由注册
+│       ├── api/            REST API 处理器（80+ 端点）
+│       ├── middleware/      Auth 中间件（Cookie 验证）
+│       ├── session.rs      Cookie 会话 + 限流器
+│       └── rpc/            内部服务层
+├── crates/                 Rust 工作区
+│   ├── pebble-core/        共享类型和错误
+│   ├── pebble-store/       SQLite 持久化
+│   ├── pebble-mail/        邮件提供商和同步
+│   ├── pebble-search/      Tantivy 搜索索引
+│   ├── pebble-crypto/      凭据加密
+│   ├── pebble-oauth/       OAuth 2.0 和 PKCE
+│   ├── pebble-rules/       规则引擎
+│   ├── pebble-translate/   翻译提供商
+│   └── pebble-privacy/     HTML 清理和追踪控制
+├── deploy/                 Docker 和 nginx 配置
+├── tests/                  前端测试
+└── site/                   截图
 ```
 
 ## 许可证
@@ -365,7 +426,9 @@ Pebble 使用 [GNU Affero General Public License v3.0](LICENSE) 许可证。
 ---
 
 <p align="center">
-  由 <a href="https://github.com/QingJ01">QingJ</a> 构建。
+  由 <a href="https://github.com/QingJ01">QingJ</a> 原创构建。
+  <br>
+  Web 服务重架构与文档：<strong>Claude Opus 4.7</strong>。
   <br>
   友情链接：<a href="https://linux.do">LINUX DO</a>
 </p>
