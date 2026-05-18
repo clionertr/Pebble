@@ -16,6 +16,8 @@ import {
 } from "@/hooks/queries";
 import { useDelayedIdleReady } from "@/hooks/useDelayedIdleReady";
 
+const SEARCH_INDEX_REFRESH_DELAY_MS = 2500;
+
 interface MailErrorPayload {
   error_type: string;
   message: string;
@@ -67,6 +69,7 @@ export default function StatusBar() {
   const statusDataReady = useDelayedIdleReady(3000);
   const { data: pendingOpsSummary } = usePendingMailOpsSummary(activeAccountId, statusDataReady);
   const syncStatusRef = useRef(syncStatus);
+  const searchRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     syncStatusRef.current = syncStatus;
@@ -76,6 +79,24 @@ export default function StatusBar() {
     syncStatusRef.current = status;
     setSyncStatus(status);
   }
+
+  function scheduleSearchRefresh() {
+    if (searchRefreshTimerRef.current) {
+      clearTimeout(searchRefreshTimerRef.current);
+    }
+    searchRefreshTimerRef.current = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ["search"] });
+      searchRefreshTimerRef.current = null;
+    }, SEARCH_INDEX_REFRESH_DELAY_MS);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (searchRefreshTimerRef.current) {
+        clearTimeout(searchRefreshTimerRef.current);
+      }
+    };
+  }, []);
 
   // Listen for mail:error events from Rust backend
   useEffect(() => {
@@ -92,15 +113,13 @@ export default function StatusBar() {
   function refreshMailQueries(accountId?: string | null) {
     if (accountId) {
       queryClient.invalidateQueries({ queryKey: ["folders", accountId] });
-      queryClient.invalidateQueries({ queryKey: ["messages", accountId] });
-      queryClient.invalidateQueries({ queryKey: ["threads", accountId] });
       queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] });
     } else {
       queryClient.invalidateQueries({ queryKey: ["folders"] });
-      queryClient.invalidateQueries({ queryKey: ["messages"] });
-      queryClient.invalidateQueries({ queryKey: ["threads"] });
       queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
     }
+    queryClient.invalidateQueries({ queryKey: ["messages"] });
+    queryClient.invalidateQueries({ queryKey: ["threads"] });
   }
 
   function isActiveAccountEvent(accountId?: string | null) {
@@ -145,15 +164,8 @@ export default function StatusBar() {
     const unlisten = listen<MailNewPayload>("mail:new", (event) => {
       rememberMailNewLatencyEvent(event.payload);
       const aid = event.payload.account_id;
-      if (aid) {
-        queryClient.invalidateQueries({ queryKey: ["messages", aid] });
-        queryClient.invalidateQueries({ queryKey: ["threads", aid] });
-        queryClient.invalidateQueries({ queryKey: ["folders", aid] });
-        queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", aid] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["messages"] });
-        queryClient.invalidateQueries({ queryKey: ["threads"] });
-      }
+      refreshMailQueries(aid);
+      scheduleSearchRefresh();
     });
     return () => { unlisten.then((fn) => fn()); };
   }, [queryClient]);

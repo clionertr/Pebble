@@ -57,3 +57,55 @@ await apiPut("/api/accounts/account-1/proxy", {
   proxy_port: proxyPort,
 });
 ```
+
+## Scenario: SSE 新邮件事件驱动前端缓存刷新
+
+### 1. Scope / Trigger
+- Trigger: 后端通过 `mail:new` 推送新邮件，前端使用 React Query 缓存消息列表、线程、文件夹、未读数和搜索结果。
+- 范围：`server/src/rpc/indexing.rs`、`src/components/StatusBar.tsx`、`src/hooks/queries/useMessagesQuery.ts`、`src/hooks/queries/useThreadsQuery.ts`、`src/features/search/SearchView.tsx`。
+
+### 2. Signatures
+- SSE 事件：`event: mail:new`。
+- Payload 字段：`account_id?: string`、`message_id?: string`、`folder_ids?: string[]`、`thread_id?: string | null`、`subject?: string`、`from?: string`、`received_at?: number`、`latency?: object | null`。
+- 消息列表缓存键：`["messages", folderId, folderIds]`。
+- 线程缓存键：`["threads", folderId, folderIds, limit, offset]`。
+- 文件夹缓存键：`["folders", accountId]`。
+- 未读数缓存键：`["folder-unread-counts", accountId]`。
+- 搜索缓存键：`["search", query, filters]`。
+
+### 3. Contracts
+- `mail:new.account_id` 是“事件来源账号”，不是消息/线程查询的 React Query key。
+- 收到 `mail:new` 后，前端必须用 `["messages"]` 和 `["threads"]` 前缀失效列表缓存；不能用 `["messages", account_id]` 或 `["threads", account_id]`。
+- 文件夹和未读数仍按账号精准失效：`["folders", account_id]`、`["folder-unread-counts", account_id]`。
+- 搜索索引由后端批量提交；前端收到 `mail:new` 后应延迟一次 `["search"]` 失效，避免立即查询到旧索引。
+
+### 4. Validation & Error Matrix
+- 新邮件进入 SQLite 但当前收件箱不刷新 -> 检查是否只失效了 `["messages", account_id]`。
+- 切换账号/文件夹后邮件才出现 -> 说明换 key 触发了重新拉取，实时失效范围不足。
+- 正文搜索第一次无结果、稍后切换视图才命中 -> 检查搜索缓存是否在索引提交后再次失效。
+
+### 5. Good/Base/Bad Cases
+- Good: 多账号“全部邮箱”模式下，任一账号收到 `mail:new` 都会失效 `["messages"]` 和 `["threads"]`，当前聚合收件箱自动重拉。
+- Base: 单账号视图收到其他账号事件时，全局列表前缀失效可接受；它保证切换过去不会看到 60 秒内的旧缓存。
+- Bad: 用 `account_id` 拼消息列表缓存 key，会漏掉以 `folderId` 为第二段的真实缓存。
+
+### 6. Tests Required
+- 前端测试：模拟 `mail:new`，断言调用 `invalidateQueries({ queryKey: ["messages"] })` 和 `["threads"]`。
+- 前端测试：同一事件下断言文件夹/未读数按 `account_id` 精准失效。
+- 前端测试：搜索缓存在索引提交窗口后延迟失效。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```typescript
+queryClient.invalidateQueries({ queryKey: ["messages", accountId] });
+queryClient.invalidateQueries({ queryKey: ["threads", accountId] });
+```
+
+#### Correct
+```typescript
+queryClient.invalidateQueries({ queryKey: ["messages"] });
+queryClient.invalidateQueries({ queryKey: ["threads"] });
+queryClient.invalidateQueries({ queryKey: ["folders", accountId] });
+queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] });
+```

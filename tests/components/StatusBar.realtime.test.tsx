@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   listeners: new Map<string, (event: { payload: unknown }) => void>(),
@@ -99,11 +99,16 @@ describe("StatusBar realtime mail events", () => {
     mocks.mailState.activeAccountId = "account-1";
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("invalidates message, thread, and account folder queries for new mail", async () => {
     render(<StatusBar />);
 
     await waitFor(() => expect(mocks.listeners.has("mail:new")).toBe(true));
 
+    vi.useFakeTimers();
     mocks.listeners.get("mail:new")?.({
       payload: {
         account_id: "account-1",
@@ -116,11 +121,17 @@ describe("StatusBar realtime mail events", () => {
       },
     });
 
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["messages", "account-1"] });
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["threads", "account-1"] });
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["messages"] });
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["threads"] });
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["folders", "account-1"] });
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["folder-unread-counts", "account-1"] });
     expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["folders"] });
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["messages", "account-1"] });
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["search"] });
+
+    await vi.advanceTimersByTimeAsync(2500);
+
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["search"] });
   });
 
   it("shows manual mode when backend reports background sync is stopped", () => {
@@ -165,8 +176,8 @@ describe("StatusBar realtime mail events", () => {
 
     expect(mocks.uiState.setSyncStatus).toHaveBeenCalledWith("idle");
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["folders", "account-1"] });
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["messages", "account-1"] });
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["threads", "account-1"] });
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["messages"] });
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["threads"] });
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["folder-unread-counts", "account-1"] });
   });
 
@@ -185,8 +196,8 @@ describe("StatusBar realtime mail events", () => {
 
     expect(mocks.uiState.setSyncStatus).not.toHaveBeenCalledWith("idle");
     expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["folders", "account-2"] });
-    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["messages", "account-2"] });
-    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["threads", "account-2"] });
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["messages"] });
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["threads"] });
   });
 
   it("ignores sync-complete from another account", async () => {
@@ -202,8 +213,8 @@ describe("StatusBar realtime mail events", () => {
 
     expect(mocks.uiState.setSyncStatus).not.toHaveBeenCalledWith("idle");
     expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["folders", "account-2"] });
-    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["messages", "account-2"] });
-    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["threads", "account-2"] });
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["messages"] });
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["threads"] });
   });
 
   it("does not hide an error state when the failed worker exits", async () => {
@@ -220,8 +231,8 @@ describe("StatusBar realtime mail events", () => {
 
     expect(mocks.uiState.setSyncStatus).not.toHaveBeenCalledWith("idle");
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["folders", "account-1"] });
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["messages", "account-1"] });
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["threads", "account-1"] });
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["messages"] });
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["threads"] });
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["folder-unread-counts", "account-1"] });
   });
 
