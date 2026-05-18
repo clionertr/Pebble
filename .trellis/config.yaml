@@ -61,7 +61,7 @@ max_journal_lines: 2000
 # Auto-detected monorepo packages
 packages:
   pebble:
-    path: src-tauri
+    path: server
   pebble-core:
     path: crates/pebble-core
   pebble-store:

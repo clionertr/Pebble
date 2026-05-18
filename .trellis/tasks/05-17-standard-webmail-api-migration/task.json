@@ -3,7 +3,7 @@
   "name": "standard-webmail-api-migration",
   "title": "Standard Webmail API Migration",
   "description": "Test-first phased migration from desktop-shaped JSON-RPC to standard single-user self-hosted Webmail: REST /api layer (80+ endpoints across 18 resource groups + 7 composite endpoints), Cookie-based auth with bcrypt password hash, browser-native attachments (FormData upload + streaming download with preview), desktop shell removal, OpenAPI docs, server/ rename. 25 architecture decisions confirmed via grill-me deep-dive. ~15 days estimated.",
-  "status": "in_progress",
+  "status": "completed",
   "dev_type": "fullstack",
   "scope": "single-user-webmail-api-migration",
   "package": "pebble",
@@ -11,7 +11,7 @@
   "creator": "clionertr",
   "assignee": "clionertr",
   "createdAt": "2026-05-17",
-  "completedAt": null,
+  "completedAt": "2026-05-18",
   "branch": null,
   "base_branch": "001-improve-experience",
   "worktree_path": null,
@@ -47,7 +47,6 @@
     "server/src/api/diagnostics.rs",
     "server/src/api/preferences.rs",
     "server/src/api/proxy.rs",
-    "server/src/rpc/dispatch.rs",
     "server/src/state.rs",
     "server/src/auth.rs",
     "server/src/gmail_realtime.rs",
@@ -55,15 +54,10 @@
     "src/lib/api-client.ts",
     "src/lib/sse-client.ts",
     "src/lib/api.ts",
-    "src/tauri-mock.ts",
     "src/features/auth/LoginView.tsx",
     "src/app/Layout.tsx",
-    "src/app/useCloseToBackground.ts",
-    "src/app/useTrayI18n.ts",
-    "src/app/useMailtoOpen.ts",
     "src/components/TitleBar.tsx",
     "src/components/AttachmentList.tsx",
-    "src/lib/showMainWindow.ts",
     "src/hooks/queries/*.ts",
     "src/hooks/mutations/*.ts",
     "src/stores/sync.store.ts",
@@ -76,15 +70,15 @@
     "Cargo.toml",
     "vite.config.ts"
   ],
-  "notes": "7-phase test-first migration. All 25 architectural decisions confirmed via grill-me session. PRD contains complete RESTful route mapping (80+ endpoints), composite endpoint design (/api/shell + per-view data), backend module structure (middleware/auth + api/ resource handlers), frontend migration patterns (apiGet/apiPost/apiPatch/apiDelete), cookie auth with bcrypt hash + rate limiting, multipart upload + streaming download with Content-Disposition, SSE event cleanup, desktop shell removal checklist, OpenAPI documentation plan, and per-phase workload estimates (~15 days). Test methodology: Rust integration tests (axum into_make_service + SQLite :memory:) for backend; vitest + jsdom for frontend; all tests must stay green within each phase.\n\nPhases 0-7 backend complete (7 commits). Remaining work (grill-me 2026-05-18): see remaining-plan.md — 4 steps: (1) LoginView+AuthContext, (2a/b/c) hooks migration invoke→api-client, (3) /rpc deletion, (4) deploy config+CSP. 2 APIs coexist during migration.",
+  "notes": "Final Webmail migration completed. Pebble now uses React SPA + Rust REST API + SSE with cookie auth. Frontend production code uses api-client/api.ts and sse-client only; /rpc is not exposed by backend, Vite, or nginx. Tauri/desktop shell hooks, desktop notification-open path, desktop package CI, and Tauri build scripts were removed. README, deploy config, OpenAPI docs, and Trellis specs were synchronized. Final gate commands are recorded in remaining-plan.md.",
   "meta": {
     "decisions": {
-      "auth": "bcrypt hash in .env, cookie-based session, 7-day expiry, SameSite=Strict",
+      "auth": "bcrypt hash in .env, cookie-based session, 7-day expiry, HttpOnly+Secure+SameSite=Strict",
       "login": "frontend React component, simple rate limiting (5 failures → 15min lock)",
       "api": "composite endpoints, no /v1 prefix",
       "oauth": "OAUTH_REDIRECT_URL env var",
       "attachments": "FormData upload, streaming download with preview",
-      "sse": "cookie auth (EventSource), delete app:open-mailto, keep mail:* events",
+      "sse": "cookie auth (EventSource), delete app:open-mailto and mail:notification-open, keep mail sync/status events",
       "cors": "ALLOWED_ORIGIN env var",
       "csrf": "SameSite=Strict cookie (no explicit tokens)",
       "rename": "src-tauri → server in Phase 1",
@@ -120,8 +114,13 @@
         "greenGate": "本阶段所有测试必须 100% 通过才能进入下一阶段；不允许带着失败测试向前推进"
       },
       "qualityGates": {
-        "preCommit": ["cargo test --all", "npm run test", "cargo clippy -- -D warnings", "npm run type-check"],
-        "prePhaseReport": ["cargo test --all", "npm run test", "trellis-check"]
+        "preCommit": [
+          "cargo test --all",
+          "pnpm test",
+          "cargo clippy --all-targets -- -D warnings",
+          "pnpm run build:frontend"
+        ],
+        "prePhaseReport": ["cargo test --all", "pnpm test", "trellis-check"]
       }
     }
   }

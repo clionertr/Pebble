@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pebble — Privacy-First Email Client</title>
-  <meta name="description" content="A beautiful, privacy-first desktop email client. Your data stays on your device.">
+  <meta name="description" content="A privacy-first self-hosted webmail app. Your data stays on your server.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet">
@@ -30,7 +30,7 @@
           <button data-lang="zh">中文</button>
         </div>
       </li>
-      <li><a href="#download" class="nav-btn" data-i18n="navDownload">Download</a></li>
+      <li><a href="#download" class="nav-btn" data-i18n="navDownload">Deploy</a></li>
     </ul>
     <button class="mobile-menu-toggle" aria-label="Toggle Menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -61,7 +61,7 @@
         <button data-lang="en">EN</button>
         <button data-lang="zh">中文</button>
       </div>
-      <a href="#download" class="btn-primary" style="width: 100%; justify-content: center;" data-i18n="navDownload">Download</a>
+      <a href="#download" class="btn-primary" style="width: 100%; justify-content: center;" data-i18n="navDownload">Deploy</a>
     </div>
   </div>
 </div>
@@ -71,18 +71,18 @@
   <div class="container">
     <div class="hero-eyebrow reveal"><span class="hero-eyebrow-dot"></span><span data-i18n="heroEyebrow">Open Source &middot; AGPL-3.0</span></div>
     <h1 class="reveal d1" data-i18n="heroTitle" data-i18n-html>Email that stays <em>yours</em></h1>
-    <p class="hero-desc reveal d2" data-i18n="heroDesc" data-i18n-html>A beautifully crafted, privacy-first desktop email client.<br>Mail, search, and attachments stay on your device.</p>
+    <p class="hero-desc reveal d2" data-i18n="heroDesc" data-i18n-html>A privacy-first self-hosted webmail app.<br>Mail, search, and attachments stay on your server.</p>
     <div class="hero-actions reveal d3">
       <a href="#download" class="btn-primary">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <span data-i18n="heroBtnDownload">Download for Free</span>
+        <span data-i18n="heroBtnDownload">Deploy with Docker</span>
       </a>
       <a href="https://github.com/QingJ01/Pebble" target="_blank" class="btn-ghost">
         <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
         <span data-i18n="heroBtnSource">View Source</span>
       </a>
     </div>
-    <p class="hero-note reveal d3" data-i18n="heroNote">Available for Windows, macOS, and Linux</p>
+    <p class="hero-note reveal d3" data-i18n="heroNote">Self-host on your VPS or server</p>
 
     <div class="hero-window reveal d3">
       <div class="window-bar">
@@ -114,7 +114,7 @@
             </div>
             <div>
               <h4 data-i18n="privacyEncTitle">AES-256 Encrypted</h4>
-              <p data-i18n="privacyEncDesc">OAuth tokens and credentials encrypted at rest with a per-device key.</p>
+              <p data-i18n="privacyEncDesc">OAuth tokens and credentials encrypted at rest with a server-local key.</p>
             </div>
           </div>
           <div class="privacy-item reveal d3">
@@ -123,7 +123,7 @@
             </div>
             <div>
               <h4 data-i18n="privacyLocalTitle">100% Local Storage</h4>
-              <p data-i18n="privacyLocalDesc">SQLite database, search index, and attachments — all on your device.</p>
+              <p data-i18n="privacyLocalDesc">SQLite database, search index, and attachments — all on your server.</p>
             </div>
           </div>
           <div class="privacy-item reveal d3">
@@ -241,7 +241,7 @@
         <div class="preview-card-img">
           <img src="screenshots/settings.png" alt="Settings">
         </div>
-        <div class="preview-card-text" data-i18n="previewSettings" data-i18n-html><strong>Privacy</strong> — Your data stays on your device</div>
+        <div class="preview-card-text" data-i18n="previewSettings" data-i18n-html><strong>Privacy</strong> — Your data stays on your server</div>
       </div>
     </div>
   </div>
@@ -265,12 +265,12 @@
         </span>
         <div><h4>Rust</h4><span data-i18n="techRust">Backend core</span></div>
       </div>
-      <!-- Tauri -->
+      <!-- Axum -->
       <div class="tech-pill reveal d1">
         <span class="tech-pill-icon">
           <svg viewBox="0 0 128 128"><circle cx="64" cy="36" r="18" fill="#24C8D8"/><circle cx="64" cy="92" r="14" fill="#FFC131"/><path d="M64 54a38 38 0 0 1 32 17.5A38 38 0 0 1 64 89 38 38 0 0 1 32 71.5 38 38 0 0 1 64 54z" fill="none" stroke="#24C8D8" stroke-width="5"/><path d="M64 39a38 38 0 0 0-32 17.5A38 38 0 0 0 64 74a38 38 0 0 0 32-17.5A38 38 0 0 0 64 39z" fill="none" stroke="#FFC131" stroke-width="5"/></svg>
         </span>
-        <div><h4>Tauri v2</h4><span data-i18n="techTauri">Desktop framework</span></div>
+        <div><h4>Axum</h4><span data-i18n="techAxum">HTTP API and SSE</span></div>
       </div>
       <!-- React -->
       <div class="tech-pill reveal d2">
@@ -299,7 +299,7 @@
 
 <hr class="section-divider">
 
-<!-- Download -->
+<!-- Deploy -->
 <section class="cta" id="download">
   <div class="container">
     <div class="cta-card reveal">
@@ -308,21 +308,21 @@
       <div class="cta-buttons">
         <a href="https://github.com/QingJ01/Pebble/releases/latest" class="btn-primary" style="font-size:15px" target="_blank" rel="noopener noreferrer">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          <span data-i18n="ctaBtnDownload">Download Latest Release</span>
+          <span data-i18n="ctaBtnDownload">Open deployment guide</span>
         </a>
       </div>
       <div style="margin-top:20px; display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
-        <a class="btn-os" href="https://github.com/QingJ01/Pebble/releases/latest" target="_blank" rel="noopener noreferrer" aria-label="Download Pebble for Windows from GitHub Releases">
+        <a class="btn-os" href="https://github.com/QingJ01/Pebble/blob/master/README.md" target="_blank" rel="noopener noreferrer" aria-label="Read Docker deployment guide">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.45H0m10.949-9.6L24 0v11.4H10.949M0 12.6h9.75v9.45L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-          Windows
+          Docker
         </a>
-        <a class="btn-os" href="https://github.com/QingJ01/Pebble/releases/latest" target="_blank" rel="noopener noreferrer" aria-label="Download Pebble for macOS from GitHub Releases">
+        <a class="btn-os" href="https://github.com/QingJ01/Pebble/pkgs/container/pebble" target="_blank" rel="noopener noreferrer" aria-label="Open backend container package">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-          macOS
+          Backend
         </a>
-        <a class="btn-os" href="https://github.com/QingJ01/Pebble/releases/latest" target="_blank" rel="noopener noreferrer" aria-label="Download Pebble for Linux from GitHub Releases">
+        <a class="btn-os" href="https://github.com/QingJ01/Pebble/pkgs/container/pebble-frontend" target="_blank" rel="noopener noreferrer" aria-label="Open frontend container package">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.31.005-.46.015a9.075 9.075 0 0 0-4.075 1.5A9.12 9.12 0 0 0 4.6 5.143a9.109 9.109 0 0 0-.795 4.66 9.143 9.143 0 0 0 1.674 4.216 9.145 9.145 0 0 0 3.605 3.072 9.075 9.075 0 0 0 4.42.795 9.1 9.1 0 0 0 4.217-1.674 9.146 9.146 0 0 0 3.072-3.605 9.075 9.075 0 0 0 .795-4.42A9.074 9.074 0 0 0 19.914 3.97 9.12 9.12 0 0 0 16.286 1.5 9.075 9.075 0 0 0 12.504 0z"/><path d="M9 8.5l-2.5 4h3.25L8 18l7-7.5h-3.5L13 7z"/></svg>
-          Linux
+          Frontend
         </a>
       </div>
     </div>

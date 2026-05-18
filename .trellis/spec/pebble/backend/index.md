@@ -16,6 +16,7 @@ This directory contains guidelines for backend development. Fill in each file wi
 |-------|-------------|--------|
 | [Configuration](./configuration.md) | Environment variables and binding host | Done |
 | [Directory Structure](./directory-structure.md) | Module organization and file layout | Done |
+| [Webmail API Contracts](./webmail-api-contracts.md) | REST/SSE/auth/deploy cross-layer contracts | Done |
 | [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations | To fill |
 | [Error Handling](./error-handling.md) | Error types, handling strategies | To fill |
 | [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
@@ -36,4 +37,4 @@ The goal is to help AI assistants and new team members understand how YOUR proje
 
 ---
 
-**Language**: All documentation should be written in **English**.
+**Language**: 文档和注释使用中文；保留代码标识符、HTTP 方法和环境变量原文。

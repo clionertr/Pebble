@@ -103,7 +103,7 @@ Every architectural choice below has been confirmed by the project owner.
 | # | Decision | Rationale |
 |---|----------|-----------|
 | D19 | SSE authentication via **Cookie** (carried automatically by EventSource) | EventSource API does not support custom headers; Cookie is the standard solution |
-| D20 | Delete SSE event `app:open-mailto`; keep all `mail:*` events; `mail:notification-open` retains event name but future trigger changes to Service Worker `notificationclick` | Minimizes unnecessary change while planning for Web Push |
+| D20 | Delete SSE event `app:open-mailto`; keep mail sync/status events; remove `mail:notification-open` until browser Web Push is implemented | Avoids preserving a desktop notification click contract with no active web trigger |
 
 ### Deployment
 | # | Decision | Rationale |
@@ -319,7 +319,7 @@ Every architectural choice below has been confirmed by the project owner.
 | `mail:sync-progress` | Keep | Sync progress update |
 | `mail:error` | Keep | Sync/mail error |
 | `mail:realtime-status` | Keep | Connection mode changes |
-| `mail:notification-open` | Keep (trigger source changes) | Phase 5+: triggered by Service Worker `notificationclick`, not by desktop notification system |
+| `mail:notification-open` | Deleted | Desktop notification click path has no web trigger yet; future Web Push should define a fresh browser contract |
 | `app:open-mailto` | **Deleted in Phase 6** | Desktop mailto protocol — no web equivalent |
 | `mail:attachment-download-progress` | **Deleted in Phase 5** | Browser download handles progress natively |
 
@@ -679,19 +679,19 @@ Each phase must update **at minimum** these files if their content is affected:
 ## Acceptance Criteria
 
 * [x] All 25 architecture decisions confirmed with project owner
-* [ ] Strict tests written before implementation in every phase
-* [ ] Test failures guide implementation (not after-the-fact)
-* [ ] `/api` covers 100% of app behavior previously served by `/rpc`
-* [ ] Frontend production code contains zero `invoke(...)` calls
-* [ ] Attachments: upload via FormData, download via HTTP stream with Content-Disposition
-* [ ] Auth: all `/api/*` and `/events` require valid session cookie; exempt routes configured
-* [ ] `src-tauri/` → `server/`; `tauri-mock.ts` → `sse-client.ts`
-* [ ] Desktop shell code and Tauri naming removed
-* [ ] CSP header configured
-* [ ] All documentation updated
-* [ ] Each phase produces user-facing summary
-* [ ] `npm run build:frontend` passes; `cargo check` + `cargo test` pass
-* [ ] OpenAPI spec auto-served at `/api/docs`
+* [x] Strict tests written before implementation in every phase
+* [x] Test failures guide implementation (not after-the-fact)
+* [x] `/api` covers 100% of app behavior previously served by `/rpc`
+* [x] Frontend production code contains zero `invoke(...)` calls
+* [x] Attachments: upload via FormData, download via HTTP stream with Content-Disposition
+* [x] Auth: all `/api/*` and `/events` require valid session cookie; exempt routes configured
+* [x] `src-tauri/` → `server/`; `tauri-mock.ts` → `sse-client.ts`
+* [x] Desktop shell code and Tauri naming removed
+* [x] CSP header configured
+* [x] All documentation updated
+* [x] Each phase produces user-facing summary
+* [x] `pnpm run build:frontend` passes; `cargo check` + `cargo test` pass
+* [x] OpenAPI spec auto-served at `/api/docs`
 
 ## Out Of Scope
 
@@ -717,4 +717,4 @@ Each phase must update **at minimum** these files if their content is affected:
 
 ## Current Status
 
-Planning complete. All architectural decisions confirmed. Ready to begin Phase 0 implementation.
+Implementation complete. Final quality gates and documentation sync passed on 2026-05-18.

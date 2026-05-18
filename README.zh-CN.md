@@ -59,10 +59,10 @@ cp .env.example .env
 # 编辑 .env，把 PEBBLE_PASSWORD_HASH 设成刚才生成的哈希
 
 # 4. 构建并启动
-sudo docker compose -f deploy/docker-compose.yml up -d --build
+sudo docker compose up -d --build
 ```
 
-打开 `http://localhost:1420`，用你设置的密码登录。
+打开 `http://localhost:8080`，用你设置的密码登录。
 
 > **关于 bcrypt 哈希**：哈希值里的 `$` 符号在 Docker Compose 的 `.env` 文件中需要写成 `$$`。例如：
 > ```
@@ -118,7 +118,7 @@ PEBBLE_PASSWORD_HASH='你的哈希' ./target/release/pebble
 |---|---|---|
 | `PEBBLE_PASSWORD_HASH` | 登录密码的 bcrypt 哈希 | 安装 `cargo install bcrypt-cli`，然后运行 `bcrypt-cli hash '你的密码'` |
 
-这是唯一的必填项。不填的话，Pebble 会用一个硬编码的默认密码（`admin`）——**生产环境千万不要用**。
+这是唯一的必填项。不填的话，后端会拒绝启动。
 
 ### 可选：OAuth 提供商
 
@@ -216,8 +216,9 @@ server {
 services:
   backend:
     image: pebble-backend:latest
-    ports:
-      - "127.0.0.1:3000:3000"
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
     volumes:
       - ./data:/app/data
     env_file:
@@ -228,10 +229,11 @@ services:
 
   frontend:
     image: pebble-frontend:latest
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
     ports:
-      - "127.0.0.1:1420:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - "127.0.0.1:8080:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -243,7 +245,7 @@ networks:
     driver: bridge
 ```
 
-这种部署方式下，把你的公网反向代理（nginx、Caddy、1Panel OpenResty 等）指向 `http://127.0.0.1:1420` 即可。
+这种部署方式下，把你的公网反向代理（nginx、Caddy、1Panel OpenResty 等）指向 `http://127.0.0.1:8080` 即可。
 
 ### 数据持久化
 
@@ -288,7 +290,7 @@ Rust HTTP 服务器 (Axum, 端口 3000)
 
 Pebble 使用 **Cookie 会话认证**：
 - 你用密码登录 → 服务器创建会话（7 天有效期）
-- 会话 cookie（`pebble_session`）标记为 `HttpOnly; SameSite=Strict`
+- 会话 cookie（`pebble_session`）标记为 `HttpOnly; Secure; SameSite=Strict`
 - 所有 `/api/*` 端点都需要有效会话
 - 登录失败有频率限制（5 次失败 → 锁定 15 分钟，按 IP 计算）
 - 单用户设计——无需注册，无需多用户管理

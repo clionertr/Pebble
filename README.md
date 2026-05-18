@@ -57,10 +57,10 @@ cp .env.example .env
 # Edit .env and set PEBBLE_PASSWORD_HASH to the hash you just generated
 
 # 4. Build and start
-sudo docker compose -f deploy/docker-compose.yml up -d --build
+sudo docker compose up -d --build
 ```
 
-Open `http://localhost:1420` in your browser. Log in with your password.
+Open `http://localhost:8080` in your browser. Log in with your password.
 
 **About the `.env` file**: It stores your password hash and OAuth credentials. Docker Compose reads it via `env_file`. If you change it, run `docker compose down && docker compose up -d` to apply.
 
@@ -118,7 +118,7 @@ All configuration goes into **environment variables**. You can set them in a `.e
 |---|---|---|
 | `PEBBLE_PASSWORD_HASH` | Your login password, bcrypt-hashed | `cargo install bcrypt-cli && bcrypt-cli hash 'your-password'` |
 
-This is the only required variable. Without it, Pebble uses a hardcoded default password (`admin`) — not safe for production.
+This is the only required variable. Without it, the backend refuses to start.
 
 ### Optional: OAuth Providers
 
@@ -216,8 +216,9 @@ server {
 services:
   backend:
     image: pebble-backend:latest
-    ports:
-      - "127.0.0.1:3000:3000"
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
     volumes:
       - ./data:/app/data
     env_file:
@@ -228,10 +229,11 @@ services:
 
   frontend:
     image: pebble-frontend:latest
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
     ports:
-      - "127.0.0.1:1420:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - "127.0.0.1:8080:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -243,7 +245,7 @@ networks:
     driver: bridge
 ```
 
-With this setup, point your public reverse proxy (nginx, Caddy, 1Panel OpenResty, etc.) to `http://127.0.0.1:1420`.
+With this setup, point your public reverse proxy (nginx, Caddy, 1Panel OpenResty, etc.) to `http://127.0.0.1:8080`.
 
 ### Data Persistence
 
@@ -288,7 +290,7 @@ Rust HTTP Server (Axum, port 3000)
 
 Pebble uses **cookie-based session auth**:
 - You log in with your password → server creates a session (7-day TTL)
-- Session cookie (`pebble_session`) is `HttpOnly; SameSite=Strict`
+- Session cookie (`pebble_session`) is `HttpOnly; Secure; SameSite=Strict`
 - All `/api/*` endpoints require a valid session
 - Failed logins are rate-limited (5 attempts → 15-minute lock per IP)
 - No registration, no multi-user — it's single-user by design
