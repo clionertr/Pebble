@@ -32,6 +32,7 @@ pub fn resource_routes() -> Router<Arc<AppState>> {
         .route("/api/preferences/notifications", put(set_notifications))
         .route("/api/logs", get(read_logs))
         .route("/api/diagnostics/mail-timing", post(record_timing))
+        .route("/api/proxy", get(get_global_proxy_handler).put(update_global_proxy_handler))
 }
 
 // ── Rules ────────────────────────────────────────────────────────────
@@ -183,5 +184,33 @@ async fn record_timing(Json(timing): Json<serde_json::Value>) -> Result<Json<()>
         .map_err(|e| crate::api::error::ApiError::bad_request(e.to_string()))?;
     crate::rpc::diagnostics::record_mail_display_timing(timing)
         .map_err(|e| crate::api::error::ApiError::internal(e))?;
+    Ok(Json(()))
+}
+
+// ── Proxy ──────────────────────────────────────────────────────────────
+
+async fn get_global_proxy_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Option<pebble_core::HttpProxyConfig>>, crate::api::error::ApiError> {
+    let proxy = crate::rpc::network::get_global_proxy_raw(&state.crypto, &state.store)
+        .map_err(|e| crate::api::error::ApiError::internal(e.to_string()))?;
+    Ok(Json(proxy))
+}
+
+#[derive(Deserialize)]
+pub struct UpdateGlobalProxyBody {
+    pub proxy_host: Option<String>,
+    pub proxy_port: Option<u16>,
+}
+
+async fn update_global_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<UpdateGlobalProxyBody>,
+) -> Result<Json<()>, crate::api::error::ApiError> {
+    crate::rpc::network::update_global_proxy(
+        axum::extract::State(state),
+        body.proxy_host,
+        body.proxy_port,
+    ).await?;
     Ok(Json(()))
 }
