@@ -37,6 +37,8 @@ pub fn message_routes() -> Router<Arc<AppState>> {
         .route("/api/inbox", get(inbox_handler))
         .route("/api/starred", get(starred_handler))
         .route("/api/messages/{id}", get(get_message_handler))
+        .route("/api/messages/{id}/html", get(html_handler))
+        .route("/api/messages/{id}/full", get(full_handler))
         .route("/api/messages/batch", post(batch_messages_handler))
         // Mutations — single
         .route("/api/messages/{id}/flags", patch(update_flags_handler))
@@ -49,6 +51,10 @@ pub fn message_routes() -> Router<Arc<AppState>> {
         .route("/api/messages/batch/delete", post(batch_delete_handler))
         .route("/api/messages/batch/read", post(batch_read_handler))
         .route("/api/messages/batch/star", post(batch_star_handler))
+        .route("/api/pending-ops", get(list_pending_ops_handler))
+        .route("/api/pending-ops/summary", get(pending_ops_summary_handler))
+        .route("/api/pending-ops/{id}/cancel", post(cancel_pending_op_handler))
+        .route("/api/pending-ops/{id}", delete(delete_pending_op_handler))
 }
 
 async fn inbox_handler(
@@ -268,4 +274,108 @@ async fn batch_star_handler(
     )
     .await?;
     Ok(Json(count))
+}
+
+// ── HTML / Full message ──────────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct HtmlQuery {
+    #[serde(rename = "privacyMode")]
+    pub privacy_mode: Option<String>,
+}
+
+async fn html_handler(
+    State(state): State<Arc<AppState>>,
+    Path(message_id): Path<String>,
+    Query(query): Query<HtmlQuery>,
+) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
+    use pebble_core::PrivacyMode;
+    let privacy = match query.privacy_mode.as_deref() {
+        Some("strict") => PrivacyMode::Strict,
+        Some("off") => PrivacyMode::Off,
+        Some("load_once") => PrivacyMode::LoadOnce,
+        Some(s) if s.starts_with("trust:") => PrivacyMode::TrustSender(s[6..].to_string()),
+        _ => PrivacyMode::Strict,
+    };
+    let html = crate::rpc::messages::rendering::get_rendered_html(
+        axum::extract::State(state),
+        message_id,
+        privacy,
+    ).await?;
+    Ok(Json(serde_json::to_value(html).unwrap()))
+}
+
+async fn full_handler(
+    State(state): State<Arc<AppState>>,
+    Path(message_id): Path<String>,
+    Query(query): Query<HtmlQuery>,
+) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
+    use pebble_core::PrivacyMode;
+    let privacy = match query.privacy_mode.as_deref() {
+        Some("strict") => PrivacyMode::Strict,
+        Some("off") => PrivacyMode::Off,
+        Some("load_once") => PrivacyMode::LoadOnce,
+        Some(s) if s.starts_with("trust:") => PrivacyMode::TrustSender(s[6..].to_string()),
+        _ => PrivacyMode::Strict,
+    };
+    let result = crate::rpc::messages::rendering::get_message_with_html(
+        axum::extract::State(state),
+        message_id,
+        privacy,
+    ).await?;
+    Ok(Json(serde_json::to_value(result).unwrap()))
+}
+
+// ── Pending Ops ──────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct PendingOpsQuery {
+    #[serde(rename = "accountId")]
+    pub account_id: Option<String>,
+    pub limit: Option<usize>,
+}
+
+async fn pending_ops_summary_handler(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<PendingOpsQuery>,
+) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
+    let summary = crate::rpc::pending_mail_ops::get_pending_mail_ops_summary(
+        axum::extract::State(state),
+        query.account_id,
+    )?;
+    Ok(Json(serde_json::to_value(summary).unwrap()))
+}
+
+async fn list_pending_ops_handler(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<PendingOpsQuery>,
+) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
+    let ops = crate::rpc::pending_mail_ops::list_pending_mail_ops(
+        axum::extract::State(state),
+        query.account_id,
+        query.limit.map(|n| n as i64),
+    )?;
+    Ok(Json(serde_json::to_value(ops).unwrap()))
+}
+
+async fn cancel_pending_op_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<()>, crate::api::error::ApiError> {
+    crate::rpc::pending_mail_ops::cancel_pending_mail_op(
+        axum::extract::State(state),
+        id,
+    )?;
+    Ok(Json(()))
+}
+
+async fn delete_pending_op_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<()>, crate::api::error::ApiError> {
+    crate::rpc::pending_mail_ops::delete_pending_mail_op(
+        axum::extract::State(state),
+        id,
+    )?;
+    Ok(Json(()))
 }
