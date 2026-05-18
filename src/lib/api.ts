@@ -74,7 +74,7 @@ export async function healthCheck(): Promise<string> {
 }
 
 export async function readAppLog(maxBytes: number): Promise<AppLogSnapshot> {
-  return invoke<AppLogSnapshot>("read_app_log", { maxBytes });
+  return client.readAppLog(maxBytes) as Promise<AppLogSnapshot>;
 }
 
 export interface MailDisplayTiming {
@@ -91,11 +91,11 @@ export interface MailDisplayTiming {
 }
 
 export async function recordMailDisplayTiming(timing: MailDisplayTiming): Promise<void> {
-  return invoke<void>("record_mail_display_timing", { timing });
+  return client.recordMailDisplayTiming(timing);
 }
 
 export async function getGlobalProxy(): Promise<HttpProxyConfig | null> {
-  return invoke<HttpProxyConfig | null>("get_global_proxy");
+  return client.getGlobalProxy() as Promise<HttpProxyConfig | null>;
 }
 
 export async function getAccountProxy(accountId: string): Promise<HttpProxyConfig | null> {
@@ -127,7 +127,7 @@ export async function updateGlobalProxy(
   proxyHost?: string,
   proxyPort?: number,
 ): Promise<void> {
-  return invoke<void>("update_global_proxy", { proxyHost, proxyPort });
+  return client.updateGlobalProxy(proxyHost, proxyPort);
 }
 
 /** @deprecated OAuth sign-in must start through `startOAuthLogin` and `/auth/login`. */
@@ -423,11 +423,11 @@ export async function triggerSync(accountId: string, reason: string): Promise<vo
 export type RealtimePreference = "realtime" | "balanced" | "battery" | "manual";
 
 export async function setRealtimePreference(mode: RealtimePreference): Promise<void> {
-  return invoke<void>("set_realtime_preference", { mode });
+  return client.setRealtimePreference(mode);
 }
 
 export async function setNotificationsEnabled(enabled: boolean): Promise<void> {
-  return invoke<void>("set_notifications_enabled", { enabled });
+  return client.setNotificationsEnabled(enabled);
 }
 
 export async function stopSync(accountId: string): Promise<void> {
@@ -497,19 +497,19 @@ export async function listSnoozed(): Promise<SnoozedMessage[]> {
 // ─── Rules API ───────────────────────────────────────────────────────────────
 
 export async function createRule(name: string, priority: number, conditions: string, actions: string): Promise<Rule> {
-  return invoke<Rule>("create_rule", { name, priority, conditions, actions });
+  return client.createRule(name, priority, conditions, actions) as Promise<Rule>;
 }
 
 export async function listRules(): Promise<Rule[]> {
-  return invoke<Rule[]>("list_rules");
+  return client.listRules() as Promise<Rule[]>;
 }
 
 export async function updateRule(rule: Rule): Promise<void> {
-  return invoke<void>("update_rule", { rule });
+  return client.updateRule(rule);
 }
 
 export async function deleteRule(ruleId: string): Promise<void> {
-  return invoke<void>("delete_rule", { ruleId });
+  return client.deleteRule(ruleId);
 }
 
 // ─── Compose API ─────────────────────────────────────────────────────────────
@@ -558,19 +558,19 @@ export async function batchStar(messageIds: string[], starred: boolean): Promise
 // ─── Translate API ───────────────────────────────────────────────────────────
 
 export async function translateText(text: string, fromLang: string, toLang: string): Promise<TranslateResult> {
-  return invoke<TranslateResult>("translate_text", { text, fromLang, toLang });
+  return client.translateText(text, fromLang, toLang) as Promise<TranslateResult>;
 }
 
 export async function getTranslateConfig(): Promise<TranslateConfig | null> {
-  return invoke<TranslateConfig | null>("get_translate_config");
+  return client.getTranslateConfig() as Promise<TranslateConfig | null>;
 }
 
 export async function saveTranslateConfig(providerType: string, config: string, isEnabled: boolean): Promise<void> {
-  return invoke<void>("save_translate_config", { providerType, config, isEnabled });
+  return client.saveTranslateConfig(providerType, config, isEnabled);
 }
 
 export async function testTranslateConnection(config: string): Promise<string> {
-  return invoke<string>("test_translate_connection", { config });
+  return client.testTranslateConnection(config) as Promise<string>;
 }
 
 // ─── Thread API ──────────────────────────────────────────────────────────────
@@ -613,19 +613,19 @@ export async function listLabels(): Promise<Label[]> {
 // ─── Cloud Sync API ─────────────────────────────────────────────────────────
 
 export async function testWebdavConnection(url: string, username: string, password: string): Promise<string> {
-  return invoke<string>("test_webdav_connection", { url, username, password });
+  return client.testWebdavConnection(url, username, password) as Promise<string>;
 }
 
 export async function backupToWebdav(url: string, username: string, password: string): Promise<string> {
-  return invoke<string>("backup_to_webdav", { url, username, password });
+  return client.backupToWebdav(url, username, password) as Promise<string>;
 }
 
 export async function previewWebdavBackup(url: string, username: string, password: string): Promise<BackupPreview> {
-  return invoke<BackupPreview>("preview_webdav_backup", { url, username, password });
+  return client.previewWebdavBackup(url, username, password) as Promise<BackupPreview>;
 }
 
 export async function restoreFromWebdav(url: string, username: string, password: string): Promise<string> {
-  return invoke<string>("restore_from_webdav", { url, username, password });
+  return client.restoreFromWebdav(url, username, password) as Promise<string>;
 }
 
 // ─── Contacts API ────────────────────────────────────────────────────────────

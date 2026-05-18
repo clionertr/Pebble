@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode, Ref } from "react";
 import { useTranslation } from "react-i18next";
-import { invoke } from "../../lib/sse-client";
 import { Copy, RefreshCw, X } from "lucide-react";
 import iconUrl from "@/assets/app-icon.png";
 import { readAppLog, type AppLogSnapshot } from "@/lib/api";
@@ -52,20 +51,16 @@ export default function AboutTab() {
   async function handleCheckUpdate() {
     setUpdate({ status: "checking" });
     try {
-      const info = await invoke<{
-        latest_version: string;
-        release_url: string;
-        is_newer: boolean;
-      }>("check_for_update", { currentVersion: appVersion });
-      if (info.is_newer) {
-        setUpdate({
-          status: "available",
-          latestVersion: info.latest_version,
-          releaseUrl: info.release_url,
-        });
-      } else {
-        setUpdate({ status: "latest", latestVersion: info.latest_version });
-      }
+      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const release = await res.json() as { tag_name: string; html_url: string };
+      const latestVersion = release.tag_name.replace(/^v/, "");
+      const isNewer = latestVersion !== appVersion && latestVersion > appVersion;
+      setUpdate({
+        status: isNewer ? "available" : "latest",
+        latestVersion,
+        releaseUrl: release.html_url,
+      });
     } catch (err) {
       setUpdate({
         status: "error",

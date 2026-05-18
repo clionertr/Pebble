@@ -420,3 +420,88 @@ export function getEmailSignature(accountId: string) {
 export function setEmailSignature(accountId: string, signature: string) {
   return apiPut<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/signature`, { signature });
 }
+
+// ── Rules ──────────────────────────────────────────────────────────────
+
+export function listRules() {
+  return apiGet<unknown[]>(`${BASE}/rules`);
+}
+
+export function createRule(name: string, priority: number, conditions: string, actions: string) {
+  return apiPost<unknown>(`${BASE}/rules`, { name, priority, conditions, actions });
+}
+
+export function updateRule(rule: unknown) {
+  return apiPut<void>(`${BASE}/rules/${(rule as { id: string }).id}`, rule);
+}
+
+export function deleteRule(ruleId: string) {
+  return apiDelete<void>(`${BASE}/rules/${encodeURIComponent(ruleId)}`);
+}
+
+// ── Translate ──────────────────────────────────────────────────────────
+
+export function translateText(text: string, fromLang: string, toLang: string) {
+  return apiPost<unknown>(`${BASE}/translate`, { text, fromLang, toLang });
+}
+
+export function getTranslateConfig() {
+  return apiGet<unknown>(`${BASE}/translate/config`);
+}
+
+export function saveTranslateConfig(providerType: string, config: string, isEnabled: boolean) {
+  return apiPut<void>(`${BASE}/translate/config`, { providerType, config, isEnabled });
+}
+
+export function testTranslateConnection(config: string) {
+  return apiPost<string>(`${BASE}/translate/test`, { config });
+}
+
+// ── Cloud Sync (WebDAV) ────────────────────────────────────────────────
+
+export function testWebdavConnection(url: string, username: string, password: string) {
+  return apiPost<string>(`${BASE}/cloud-sync/webdav/test`, { url, username, password });
+}
+
+export function backupToWebdav(url: string, username: string, password: string) {
+  return apiPost<string>(`${BASE}/cloud-sync/webdav/backup`, { url, username, password });
+}
+
+export function previewWebdavBackup(url: string, username: string, password: string) {
+  return apiPost<unknown>(`${BASE}/cloud-sync/webdav/preview`, { url, username, password });
+}
+
+export function restoreFromWebdav(url: string, username: string, password: string) {
+  return apiPost<string>(`${BASE}/cloud-sync/webdav/restore`, { url, username, password });
+}
+
+// ── Diagnostics ────────────────────────────────────────────────────────
+
+export function readAppLog(maxBytes: number) {
+  const qs = new URLSearchParams({ maxBytes: String(maxBytes) });
+  return apiGet<unknown>(`${BASE}/logs?${qs}`);
+}
+
+export function recordMailDisplayTiming(timing: unknown) {
+  return apiPost<void>(`${BASE}/diagnostics/mail-timing`, timing);
+}
+
+// ── Proxy ──────────────────────────────────────────────────────────────
+
+export function getGlobalProxy() {
+  return apiGet<unknown>(`${BASE}/proxy`);
+}
+
+export function updateGlobalProxy(proxyHost?: string, proxyPort?: number) {
+  return apiPut<void>(`${BASE}/proxy`, { proxyHost, proxyPort });
+}
+
+// ── Preferences ────────────────────────────────────────────────────────
+
+export function setRealtimePreference(mode: string) {
+  return apiPut<void>(`${BASE}/preferences/realtime`, { mode });
+}
+
+export function setNotificationsEnabled(enabled: boolean) {
+  return apiPut<void>(`${BASE}/preferences/notifications`, { enabled });
+}
