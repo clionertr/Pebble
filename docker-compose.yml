@@ -5,11 +5,15 @@ services:
     build:
       context: .
       dockerfile: deploy/backend.Dockerfile
+      args:
+        CACHEBUST: ${CACHEBUST:-0}
     container_name: pebble-backend
     volumes:
       - ./data:/app/data
     env_file:
       - .env
+    environment:
+      PEBBLE_HOST: 0.0.0.0
     restart: unless-stopped
     networks:
       - pebble-net
@@ -18,6 +22,8 @@ services:
     build:
       context: .
       dockerfile: deploy/frontend.Dockerfile
+      args:
+        CACHEBUST: ${CACHEBUST:-0}
     container_name: pebble-frontend
     ports:
       # Only expose to local loopback. The public reverse proxy will route to this port.

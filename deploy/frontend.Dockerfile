@@ -11,9 +11,12 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     PNPM_HOME="/pnpm" pnpm install --frozen-lockfile
 
+# Cache-busting arg: change to force rebuild from this point
+ARG CACHEBUST=0
+
 # Copy source code and build frontend
 COPY . .
-RUN pnpm run build:frontend
+RUN echo "Build: ${CACHEBUST}" && pnpm run build:frontend
 
 # Runtime stage: Nginx
 FROM nginx:alpine

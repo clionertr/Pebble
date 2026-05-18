@@ -21,13 +21,16 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
     cargo chef cook --release --recipe-path recipe.json
 
+# Cache-busting arg: change to force rebuild from this point
+ARG CACHEBUST=0
+
 # Copy the rest of the source code
 COPY . .
 
 # Build the application
-# We use a cache mount for the target directory to speed up incremental builds
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
+    echo "Build: ${CACHEBUST}" && \
     cargo build --release -p pebble && \
     cp target/release/pebble /app/pebble-bin
 

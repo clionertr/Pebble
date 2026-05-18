@@ -43,17 +43,25 @@ export function useRealtimeSyncTriggers() {
       trigger();
     };
 
+    // 只同步当前活跃账户，避免对全部账户发出大量并发同步请求
     const onFocus = () => {
-      for (const accountId of accountIds) {
-        triggerAccount(accountId, "window_focus", true);
+      if (activeAccountId) {
+        triggerAccount(activeAccountId, "window_focus", true);
+      }
+    };
+    const onBlur = () => {
+      if (activeAccountId) {
+        triggerAccount(activeAccountId, "window_blur", false);
       }
     };
 
     window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
     return () => {
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
     };
-  }, [accountIds, pollInterval, realtimeMode]);
+  }, [accountIds, pollInterval, realtimeMode, activeAccountId]);
 
   useEffect(() => {
     const previous = previousNetworkStatus.current;
