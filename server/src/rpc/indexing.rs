@@ -7,13 +7,11 @@
 use crate::mail_latency::{self, MailLatencyPayload};
 use crate::rpc::pending_mail_ops::queue_pending_mail_op;
 
-use pebble_core::{FolderRole, PebbleError};
+use pebble_core::PebbleError;
 use pebble_rules::RuleEngine;
 use pebble_search::TantivySearch;
 use pebble_store::Store;
 use serde_json::json;
-use std::collections::HashSet;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use tokio::sync::mpsc;
@@ -94,9 +92,7 @@ async fn mail_latency_payload(
             .as_ref()
             .map(|hint| hint.source.to_string())
             .unwrap_or_else(|| "poll_or_manual".to_string()),
-        backend_received_at_ms: active_hint
-            .as_ref()
-            .map(|hint| hint.backend_received_at_ms),
+        backend_received_at_ms: active_hint.as_ref().map(|hint| hint.backend_received_at_ms),
         backend_sse_at_ms,
         message_received_at_ms,
         history_id: active_hint.and_then(|hint| hint.history_id),
@@ -114,14 +110,16 @@ async fn new_mail_event_payload(
         Some(&stored.message.account_id),
         Some(&stored.message.id),
         Some(&latency.source),
-        || format!(
+        || {
+            format!(
             "backend_sse_at_ms={} backend_received_at_ms={:?} message_received_at_ms={:?} message_to_sse_ms={:?} push_to_sse_ms={:?}",
             latency.backend_sse_at_ms,
             latency.backend_received_at_ms,
             latency.message_received_at_ms,
             mail_latency::elapsed_ms(latency.message_received_at_ms, latency.backend_sse_at_ms),
             mail_latency::elapsed_ms(latency.backend_received_at_ms, latency.backend_sse_at_ms),
-        ),
+        )
+        },
     );
 
     new_mail_event_payload_with_latency(stored, latency)
@@ -141,99 +139,6 @@ fn new_mail_event_payload_with_latency(
         "received_at": stored.message.date,
         "latency": latency,
     })
-}
-
-fn should_send_new_mail_notification(
-    store: &Store,
-    stored: &pebble_mail::StoredMessage,
-) -> pebble_core::Result<bool> {
-    if !stored.notify || stored.message.is_deleted || stored.message.is_draft {
-        return Ok(false);
-    }
-
-    let folder_ids: HashSet<&str> = stored.folder_ids.iter().map(String::as_str).collect();
-    if folder_ids.is_empty() {
-        return Ok(false);
-    }
-
-    let folders = store.list_folders(&stored.message.account_id)?;
-    Ok(folders.iter().any(|folder| {
-        folder.role == Some(FolderRole::Inbox) && folder_ids.contains(folder.id.as_str())
-    }))
-}
-
-fn new_mail_notification_body(stored: &pebble_mail::StoredMessage) -> String {
-    let sender = if stored.message.from_name.trim().is_empty() {
-        stored.message.from_address.trim()
-    } else {
-        stored.message.from_name.trim()
-    };
-    let subject = stored.message.subject.trim();
-
-    match (sender.is_empty(), subject.is_empty()) {
-        (true, true) => "New message".to_string(),
-        (true, false) => subject.to_string(),
-        (false, true) => sender.to_string(),
-        (false, false) => format!("{sender}: {subject}"),
-    }
-}
-
-#[cfg(any(windows, test))]
-fn notification_open_payload(account_id: &str, message_id: &str) -> serde_json::Value {
-    serde_json::json!({
-        "account_id": account_id,
-        "message_id": message_id,
-    })
-}
-
-#[cfg(windows)]
-fn open_message_from_notification(state: &crate::state::AppState, account_id: &str, message_id: &str) {
-    state.emit("mail:notification-open", serde_json::json!({ "account_id": account_id, "message_id": message_id }));
-}
-
-fn show_default_new_mail_notification(body: &str) -> Result<(), String> {
-    Ok(())
-}
-
-#[cfg(windows)]
-fn windows_notification_app_id() -> String {
-    use std::path::MAIN_SEPARATOR as SEP;
-
-    let is_dev_build_dir = tauri::utils::platform::current_exe()
-        .ok()
-        .and_then(|exe| exe.parent().map(|parent| parent.display().to_string()))
-        .is_some_and(|curr_dir| {
-            curr_dir.ends_with(format!("{SEP}target{SEP}debug").as_str())
-                || curr_dir.ends_with(format!("{SEP}target{SEP}release").as_str())
-        });
-
-    if is_dev_build_dir {
-        tauri_winrt_notification::Toast::POWERSHELL_APP_ID.to_string()
-    } else {
-        app.config().identifier.clone()
-    }
-}
-
-#[cfg(windows)]
-fn show_windows_new_mail_notification(
-    body: &str,
-    account_id: &str,
-    message_id: &str,
-) -> Result<(), String> {
-    Ok(())
-}
-
-fn show_new_mail_notification(
-    stored: &pebble_mail::StoredMessage,
-) -> Result<(), String> {
-    Ok(())
-}
-
-fn maybe_send_new_mail_notification(
-    _store: &Store,
-    _stored: &pebble_mail::StoredMessage,
-) {
-    // No-op for VPS backend
 }
 
 pub async fn index_new_messages(
@@ -287,7 +192,6 @@ pub async fn index_new_messages(
         };
 
         state.emit("mail:new", new_mail_event_payload(state, &stored).await);
-        maybe_send_new_mail_notification(store, &stored);
 
         if let Some(ref engine) = engine {
             let actions = engine.evaluate(&stored.message);
@@ -560,10 +464,7 @@ fn queue_remote_rule_action(
 
 #[cfg(test)]
 mod rule_writeback_tests {
-    use super::{
-        apply_rule_action, new_mail_event_payload_with_latency, notification_open_payload,
-        should_send_new_mail_notification,
-    };
+    use super::{apply_rule_action, new_mail_event_payload_with_latency};
     use crate::mail_latency::MailLatencyPayload;
     use pebble_core::*;
     use pebble_rules::types::RuleAction;
@@ -701,48 +602,6 @@ mod rule_writeback_tests {
             created_at: now,
             updated_at: now,
         }
-    }
-
-    #[test]
-    fn initial_sync_messages_do_not_trigger_new_mail_notifications() {
-        let store = Store::open_in_memory().unwrap();
-        let account = test_account();
-        store.insert_account(&account).unwrap();
-        let folder = test_folder(&account.id);
-        store.insert_folder(&folder).unwrap();
-        let message = test_message(&account.id);
-        let stored = pebble_mail::StoredMessage {
-            message,
-            folder_ids: vec![folder.id],
-            notify: false,
-        };
-
-        assert!(!should_send_new_mail_notification(&store, &stored).unwrap());
-    }
-
-    #[test]
-    fn realtime_inbox_messages_trigger_new_mail_notifications() {
-        let store = Store::open_in_memory().unwrap();
-        let account = test_account();
-        store.insert_account(&account).unwrap();
-        let folder = test_folder(&account.id);
-        store.insert_folder(&folder).unwrap();
-        let message = test_message(&account.id);
-        let stored = pebble_mail::StoredMessage {
-            message,
-            folder_ids: vec![folder.id],
-            notify: true,
-        };
-
-        assert!(should_send_new_mail_notification(&store, &stored).unwrap());
-    }
-
-    #[test]
-    fn notification_open_payload_identifies_clicked_message_account() {
-        let payload = notification_open_payload("account-2", "message-1");
-
-        assert_eq!(payload["account_id"], "account-2");
-        assert_eq!(payload["message_id"], "message-1");
     }
 
     #[test]

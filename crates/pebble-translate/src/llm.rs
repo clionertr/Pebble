@@ -3,16 +3,30 @@ use pebble_core::{PebbleError, Result};
 use crate::deeplx::build_segments;
 use crate::types::{LLMMode, TranslateResult};
 
+pub struct LlmTranslateRequest<'a> {
+    pub endpoint: &'a str,
+    pub api_key: &'a str,
+    pub model: &'a str,
+    pub mode: &'a LLMMode,
+    pub text: &'a str,
+    pub from: &'a str,
+    pub to: &'a str,
+}
+
 pub async fn translate(
     client: &reqwest::Client,
-    endpoint: &str,
-    api_key: &str,
-    model: &str,
-    mode: &LLMMode,
-    text: &str,
-    from: &str,
-    to: &str,
+    request: LlmTranslateRequest<'_>,
 ) -> Result<TranslateResult> {
+    let LlmTranslateRequest {
+        endpoint,
+        api_key,
+        model,
+        mode,
+        text,
+        from,
+        to,
+    } = request;
+
     let system_prompt = format!(
         "You are a professional translator. Translate the following text from {from} to {to}. \
          Output ONLY the translation, nothing else. Preserve formatting and line breaks."

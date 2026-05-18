@@ -13,8 +13,6 @@ use tantivy::{DateTime, Index, IndexWriter, ReloadPolicy, TantivyDocument, Term}
 
 use schema::{build_schema, SearchSchema};
 
-const SNIPPET_MAX_LEN: usize = 150;
-
 fn schema_text_field_matches(
     existing_schema: &Schema,
     field_name: &str,
@@ -840,7 +838,10 @@ mod tests {
         engine.commit().unwrap();
 
         let hits = engine.search("quarterly", 10).unwrap();
-        assert!(!hits.is_empty(), "search should still find documents by body text");
+        assert!(
+            !hits.is_empty(),
+            "search should still find documents by body text"
+        );
         // Snippet is empty because body_text is INDEXED-only (not stored).
         // Production code enriches snippets from SQLite via pebble_store.
         assert!(

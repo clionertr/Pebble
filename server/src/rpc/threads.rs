@@ -1,9 +1,5 @@
 use pebble_core::{Message, PebbleError, ThreadSummary};
 
-
-use crate::state::AppState;
-
-
 pub async fn list_thread_messages(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     thread_id: String,
@@ -13,7 +9,6 @@ pub async fn list_thread_messages(
         .await
         .map_err(|e| PebbleError::Internal(format!("Task join error: {e}")))?
 }
-
 
 pub async fn list_threads(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

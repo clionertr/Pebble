@@ -1,10 +1,8 @@
-use crate::state::AppState;
 use pebble_core::{HttpProxyConfig, PebbleError};
 use pebble_crypto::CryptoService;
 use pebble_mail::ProxyConfig;
 use pebble_store::Store;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-
 
 const GLOBAL_PROXY_KEY: &str = "global_network_proxy";
 
@@ -193,13 +191,11 @@ pub(crate) fn account_proxy_mode_from_auth_value(value: &serde_json::Value) -> A
         .unwrap_or_default()
 }
 
-
 pub async fn get_global_proxy(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
 ) -> Result<Option<HttpProxyConfig>, PebbleError> {
     get_global_proxy_raw(&state.crypto, &state.store)
 }
-
 
 pub async fn update_global_proxy(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

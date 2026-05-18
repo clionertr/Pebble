@@ -3,7 +3,6 @@ use pebble_core::{now_timestamp, KanbanCard, KanbanColumn, PebbleError};
 use serde::{de::DeserializeOwned, Serialize};
 use std::collections::HashMap;
 
-
 const KANBAN_CONTEXT_NOTES_KEY: &str = "kanban_context_notes";
 
 fn decrypt_json<T: DeserializeOwned>(
@@ -61,7 +60,6 @@ pub(crate) fn replace_kanban_context_notes_for_state(
     Ok(notes)
 }
 
-
 pub async fn move_to_kanban(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     message_id: String,
@@ -79,14 +77,12 @@ pub async fn move_to_kanban(
     state.store.upsert_kanban_card(&card)
 }
 
-
 pub async fn list_kanban_cards(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     column: Option<KanbanColumn>,
 ) -> std::result::Result<Vec<KanbanCard>, PebbleError> {
     state.store.list_kanban_cards(column.as_ref())
 }
-
 
 pub async fn remove_from_kanban(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -95,13 +91,11 @@ pub async fn remove_from_kanban(
     state.store.delete_kanban_card(&message_id)
 }
 
-
 pub async fn list_kanban_context_notes(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
 ) -> std::result::Result<HashMap<String, String>, PebbleError> {
     load_kanban_context_notes_for_state(&state)
 }
-
 
 pub async fn set_kanban_context_note(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -117,7 +111,6 @@ pub async fn set_kanban_context_note(
     }
     replace_kanban_context_notes_for_state(&state, notes)
 }
-
 
 pub async fn merge_kanban_context_notes(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

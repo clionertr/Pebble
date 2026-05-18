@@ -170,10 +170,12 @@ async fn start_sync_inner(
                 Some(&sync_progress.account_id),
                 None,
                 None,
-                || format!(
-                    "status={} phase={}",
-                    sync_progress.status, sync_progress.phase
-                ),
+                || {
+                    format!(
+                        "status={} phase={}",
+                        sync_progress.status, sync_progress.phase
+                    )
+                },
             );
             state_for_sync_progress.emit(events::MAIL_SYNC_PROGRESS, &sync_progress);
         }
@@ -400,7 +402,7 @@ fn build_sync_task(
     error_tx: mpsc::UnboundedSender<pebble_mail::SyncError>,
     progress_tx: mpsc::UnboundedSender<pebble_mail::SyncProgress>,
     message_tx: mpsc::UnboundedSender<pebble_mail::StoredMessage>,
-    account_id_for_progress: String,
+    _account_id_for_progress: String,
     account_id_clone: String,
     poll_interval_secs: Option<u64>,
     gmail_push_enabled: bool,
@@ -783,7 +785,6 @@ pub async fn set_realtime_preference(
 }
 
 /// Rebuild the search index from all messages currently in the store.
-
 pub async fn reindex_search(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
 ) -> std::result::Result<u32, PebbleError> {

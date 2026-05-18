@@ -1,8 +1,4 @@
-
-use crate::state::AppState;
 use pebble_core::{now_timestamp, PebbleError, SnoozedMessage};
-
-
 
 pub async fn snooze_message(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -19,9 +15,7 @@ pub async fn snooze_message(
     state.store.snooze_message(&snooze)
 }
 
-
 pub async fn unsnooze_message(
-    
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     message_id: String,
 ) -> std::result::Result<(), PebbleError> {
@@ -31,10 +25,12 @@ pub async fn unsnooze_message(
         .get_snoozed_message(&message_id)?
         .map(|s| s.return_to);
     state.store.unsnooze_message(&message_id)?;
-    state.emit("mail:unsnoozed", serde_json::json!({ "message_id": message_id, "return_to": return_to }));
+    state.emit(
+        "mail:unsnoozed",
+        serde_json::json!({ "message_id": message_id, "return_to": return_to }),
+    );
     Ok(())
 }
-
 
 pub async fn list_snoozed(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

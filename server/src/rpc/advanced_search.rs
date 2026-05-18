@@ -1,9 +1,7 @@
-use crate::state::AppState;
 use pebble_core::traits::SearchHit;
 use pebble_core::PebbleError;
 use pebble_search::AdvancedSearchParams;
 use serde::Deserialize;
-
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,7 +15,6 @@ pub struct AdvancedSearchQuery {
     pub has_attachment: Option<bool>,
     pub folder_id: Option<String>,
 }
-
 
 pub async fn advanced_search(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

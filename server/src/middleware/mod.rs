@@ -1,7 +1,3 @@
-// Auth middleware — validates pebble_session cookie for /api/* routes.
-// Exempt paths: /api/auth/login, /api/auth/logout, /api/auth/status
-// (auth routes handle their own authentication logic).
-
 use axum::{
     extract::{Request, State},
     http::StatusCode,
@@ -15,17 +11,21 @@ use crate::state::AppState;
 
 const SESSION_COOKIE: &str = "pebble_session";
 
-/// Paths exempt from authentication within /api.
 fn is_exempt(path: &str) -> bool {
-    !path.starts_with("/api/")
-        || path == "/api/auth/login"
+    if path == "/events" {
+        return false;
+    }
+
+    if !path.starts_with("/api/") {
+        return true;
+    }
+
+    path == "/api/auth/login"
         || path == "/api/auth/logout"
         || path == "/api/auth/status"
         || path.starts_with("/api/docs")
 }
 
-/// Auth middleware — validates session cookie.
-/// Applied to /api/* routes only. Exempt paths skip validation.
 pub async fn auth_middleware(
     State(state): State<Arc<AppState>>,
     request: Request,
@@ -44,9 +44,7 @@ pub async fn auth_middleware(
     let session_id = extract_cookie(cookie_header, SESSION_COOKIE);
 
     match session_id {
-        Some(id) if state.session_store.validate_session(&id).await => {
-            next.run(request).await
-        }
+        Some(id) if state.session_store.validate_session(&id).await => next.run(request).await,
         _ => (
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Authentication required"})),
@@ -55,7 +53,6 @@ pub async fn auth_middleware(
     }
 }
 
-/// Simple cookie value extractor from Cookie header string.
 fn extract_cookie(header: &str, name: &str) -> Option<String> {
     let prefix = format!("{name}=");
     header

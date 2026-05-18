@@ -21,6 +21,12 @@ pub struct ImapConnectionPool {
     ttl: Duration,
 }
 
+impl Default for ImapConnectionPool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ImapConnectionPool {
     pub fn new() -> Self {
         Self {

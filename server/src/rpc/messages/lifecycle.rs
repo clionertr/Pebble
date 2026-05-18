@@ -7,7 +7,7 @@ use tracing::{info, warn};
 
 use super::provider_dispatch::{parse_imap_uid, ConnectedProvider};
 use super::{
-    connect_gmail, connect_imap, connect_outlook, find_folder_by_role, find_message_folder,
+    connect_gmail, connect_outlook, find_folder_by_role, find_message_folder,
     modify_gmail_labels_with_auth_retry, queue_pending_remote_op,
     queue_pending_remote_op_for_local_commit, queued_remote_error, refresh_search_document,
     remote_mutation_allows_local_commit, remove_search_documents, RemoteMutationOutcome,

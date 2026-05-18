@@ -2,11 +2,10 @@
 
 use axum::{
     extract::{Path, Query, State},
-    Json,
-    routing::{get, patch, post, delete, put},
-    Router,
+    routing::{delete, get, post, put},
+    Json, Router,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 
 use crate::state::AppState;
@@ -30,7 +29,10 @@ pub struct ThreadListQuery {
 impl ThreadListQuery {
     pub fn folder_ids(&self) -> Option<Vec<String>> {
         self.folder_ids_raw.as_ref().map(|s| {
-            s.split(',').map(|id| id.trim().to_string()).filter(|id| !id.is_empty()).collect()
+            s.split(',')
+                .map(|id| id.trim().to_string())
+                .filter(|id| !id.is_empty())
+                .collect()
         })
     }
 }
@@ -50,9 +52,15 @@ pub fn thread_routes() -> Router<Arc<AppState>> {
         .route("/api/search/advanced", post(advanced_search_handler))
         .route("/api/kanban", get(list_kanban))
         .route("/api/kanban/cards", post(move_to_kanban_handler))
-        .route("/api/kanban/cards/:messageId", delete(remove_from_kanban_handler))
+        .route(
+            "/api/kanban/cards/:messageId",
+            delete(remove_from_kanban_handler),
+        )
         .route("/api/kanban/notes/:messageId", put(set_kanban_note_handler))
-        .route("/api/kanban/notes", get(list_kanban_notes_handler).patch(merge_kanban_notes_handler))
+        .route(
+            "/api/kanban/notes",
+            get(list_kanban_notes_handler).patch(merge_kanban_notes_handler),
+        )
         .route("/api/snoozed", get(list_snoozed))
 }
 
@@ -77,11 +85,8 @@ async fn list_thread_messages(
     State(state): State<Arc<AppState>>,
     Path(thread_id): Path<String>,
 ) -> Result<Json<Vec<pebble_core::Message>>, crate::api::error::ApiError> {
-    let messages = crate::rpc::threads::list_thread_messages(
-        axum::extract::State(state),
-        thread_id,
-    )
-    .await?;
+    let messages =
+        crate::rpc::threads::list_thread_messages(axum::extract::State(state), thread_id).await?;
     Ok(Json(messages))
 }
 
@@ -89,12 +94,9 @@ async fn search_messages(
     State(state): State<Arc<AppState>>,
     Query(query): Query<SearchQuery>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
-    let hits = crate::rpc::search::search_messages(
-        axum::extract::State(state),
-        query.q,
-        query.limit,
-    )
-    .await?;
+    let hits =
+        crate::rpc::search::search_messages(axum::extract::State(state), query.q, query.limit)
+            .await?;
 
     Ok(Json(serde_json::json!({
         "hits": hits,
@@ -106,15 +108,18 @@ async fn advanced_search_handler(
     State(state): State<Arc<AppState>>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
-    let query: crate::rpc::advanced_search::AdvancedSearchQuery = serde_json::from_value(body.get("query").cloned().unwrap_or(serde_json::Value::Null))
-        .map_err(|e| crate::api::error::ApiError::bad_request(e.to_string()))?;
-    let limit: Option<usize> = body.get("limit").and_then(|v| v.as_u64().map(|n| n as usize));
-    let hits = crate::rpc::advanced_search::advanced_search(
-        axum::extract::State(state),
-        query,
-        limit,
+    let query: crate::rpc::advanced_search::AdvancedSearchQuery = serde_json::from_value(
+        body.get("query")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
     )
-    .await?;
+    .map_err(|e| crate::api::error::ApiError::bad_request(e.to_string()))?;
+    let limit: Option<usize> = body
+        .get("limit")
+        .and_then(|v| v.as_u64().map(|n| n as usize));
+    let hits =
+        crate::rpc::advanced_search::advanced_search(axum::extract::State(state), query, limit)
+            .await?;
     Ok(Json(serde_json::json!({
         "hits": hits,
         "total": hits.len(),
@@ -134,16 +139,10 @@ async fn list_kanban(
         _ => None,
     };
 
-    let cards = crate::rpc::kanban::list_kanban_cards(
-        axum::extract::State(state.clone()),
-        column,
-    )
-    .await?;
+    let cards =
+        crate::rpc::kanban::list_kanban_cards(axum::extract::State(state.clone()), column).await?;
 
-    let notes = crate::rpc::kanban::list_kanban_context_notes(
-        axum::extract::State(state),
-    )
-    .await?;
+    let notes = crate::rpc::kanban::list_kanban_context_notes(axum::extract::State(state)).await?;
 
     Ok(Json(serde_json::json!({
         "cards": cards,
@@ -154,10 +153,7 @@ async fn list_kanban(
 async fn list_snoozed(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<pebble_core::SnoozedMessage>>, crate::api::error::ApiError> {
-    let messages = crate::rpc::snooze::list_snoozed(
-        axum::extract::State(state),
-    )
-    .await?;
+    let messages = crate::rpc::snooze::list_snoozed(axum::extract::State(state)).await?;
     Ok(Json(messages))
 }
 
@@ -180,14 +176,20 @@ async fn move_to_kanban_handler(
         "todo" => KanbanColumn::Todo,
         "waiting" => KanbanColumn::Waiting,
         "done" => KanbanColumn::Done,
-        _ => return Err(crate::api::error::ApiError::bad_request(format!("Invalid column: {}", body.column))),
+        _ => {
+            return Err(crate::api::error::ApiError::bad_request(format!(
+                "Invalid column: {}",
+                body.column
+            )))
+        }
     };
     crate::rpc::kanban::move_to_kanban(
         axum::extract::State(state),
         body.message_id,
         column,
         body.position,
-    ).await?;
+    )
+    .await?;
     Ok(Json(()))
 }
 
@@ -195,10 +197,7 @@ async fn remove_from_kanban_handler(
     State(state): State<Arc<AppState>>,
     Path(message_id): Path<String>,
 ) -> Result<Json<()>, crate::api::error::ApiError> {
-    crate::rpc::kanban::remove_from_kanban(
-        axum::extract::State(state),
-        message_id,
-    ).await?;
+    crate::rpc::kanban::remove_from_kanban(axum::extract::State(state), message_id).await?;
     Ok(Json(()))
 }
 
@@ -216,7 +215,8 @@ async fn set_kanban_note_handler(
         axum::extract::State(state),
         message_id,
         body.note,
-    ).await?;
+    )
+    .await?;
     Ok(Json(serde_json::to_value(notes).unwrap()))
 }
 
@@ -224,20 +224,17 @@ async fn merge_kanban_notes_handler(
     State(state): State<Arc<AppState>>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
-    let notes: std::collections::HashMap<String, String> = serde_json::from_value(body)
+    let notes_value = body.get("notes").cloned().unwrap_or(body);
+    let notes: std::collections::HashMap<String, String> = serde_json::from_value(notes_value)
         .map_err(|e| crate::api::error::ApiError::bad_request(e.to_string()))?;
-    let result = crate::rpc::kanban::merge_kanban_context_notes(
-        axum::extract::State(state),
-        notes,
-    ).await?;
+    let result =
+        crate::rpc::kanban::merge_kanban_context_notes(axum::extract::State(state), notes).await?;
     Ok(Json(serde_json::to_value(result).unwrap()))
 }
 
 async fn list_kanban_notes_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
-    let notes = crate::rpc::kanban::list_kanban_context_notes(
-        axum::extract::State(state),
-    ).await?;
+    let notes = crate::rpc::kanban::list_kanban_context_notes(axum::extract::State(state)).await?;
     Ok(Json(serde_json::to_value(notes).unwrap()))
 }

@@ -37,14 +37,21 @@ pub async fn login_handler(
     State(state): State<Arc<AppState>>,
     Query(query): Query<LoginQuery>,
 ) -> impl IntoResponse {
-    let LoginQuery { provider, proxy_host, proxy_port } = query;
-    let proxy = match crate::rpc::network::proxy_config_from_parts(proxy_host, proxy_port, "OAuth proxy") {
-        Ok(proxy) => proxy,
-        Err(e) => return Html(format!("<h1>Error</h1><p>{}</p>", e)).into_response(),
-    };
+    let LoginQuery {
+        provider,
+        proxy_host,
+        proxy_port,
+    } = query;
+    let proxy =
+        match crate::rpc::network::proxy_config_from_parts(proxy_host, proxy_port, "OAuth proxy") {
+            Ok(proxy) => proxy,
+            Err(e) => return Html(format!("<h1>Error</h1><p>{}</p>", e)).into_response(),
+        };
     let config = match crate::rpc::oauth::config_for_provider(&provider) {
         Ok(c) => c,
-        Err(e) => return Html(format!("<h1>Error</h1><p>Invalid provider: {}</p>", e)).into_response(),
+        Err(e) => {
+            return Html(format!("<h1>Error</h1><p>Invalid provider: {}</p>", e)).into_response()
+        }
     };
 
     let manager = OAuthManager::new(config);
@@ -54,7 +61,8 @@ pub async fn login_handler(
             return Html(format!(
                 "<h1>Error</h1><p>Failed to start OAuth flow: {}</p>",
                 e
-            )).into_response()
+            ))
+            .into_response()
         }
     };
 
@@ -98,7 +106,10 @@ pub async fn callback_handler(
 
     let session = match state.oauth_states.lock().await.remove(&state_str) {
         Some(sess) => sess,
-        None => return Html("<h1>Error</h1><p>Invalid or expired session</p>".to_string()).into_response(),
+        None => {
+            return Html("<h1>Error</h1><p>Invalid or expired session</p>".to_string())
+                .into_response()
+        }
     };
 
     let config = match crate::rpc::oauth::config_for_provider(&session.provider) {
@@ -106,17 +117,20 @@ pub async fn callback_handler(
         Err(e) => return Html(format!("<h1>Error</h1><p>{}</p>", e)).into_response(),
     };
 
-    let global_proxy = match crate::rpc::network::get_global_proxy_raw(&state.crypto, &state.store) {
-        Ok(p) => p,
-        Err(_) => None,
-    };
+    let global_proxy =
+        crate::rpc::network::get_global_proxy_raw(&state.crypto, &state.store).unwrap_or_default();
     let effective_proxy = session.proxy.clone().or(global_proxy);
-    let network = OAuthNetworkConfig { proxy: effective_proxy };
+    let network = OAuthNetworkConfig {
+        proxy: effective_proxy,
+    };
     let manager = OAuthManager::new_with_network(config, network.clone());
 
     let token_pair = match manager.complete_auth(&code, session.pkce_state).await {
         Ok(tp) => tp,
-        Err(e) => return Html(format!("<h1>Error</h1><p>Token exchange failed: {}</p>", e)).into_response(),
+        Err(e) => {
+            let message = crate::rpc::oauth::token_exchange_error_message(&session.provider, &e);
+            return Html(format!("<h1>Error</h1><p>{}</p>", message)).into_response();
+        }
     };
 
     // Note: We've decoupled fetch_userinfo and account creation into a background task
@@ -124,22 +138,38 @@ pub async fn callback_handler(
     // For now we'll do it inline, using a dummy fetch_userinfo if we don't want to copy the whole thing,
     // but actually we can make fetch_userinfo in oauth.rs pub(crate). Let's assume we will.
 
-    match complete_account_creation(&state, &session.provider, token_pair, &network, session.proxy.clone()).await {
-        Ok(_) => Html(format!("
+    match complete_account_creation(
+        &state,
+        &session.provider,
+        token_pair,
+        &network,
+        session.proxy.clone(),
+    )
+    .await
+    {
+        Ok(_) => Html(
+            "
             <html>
                 <head><title>Success</title></head>
                 <body style='font-family:sans-serif;text-align:center;padding:50px;'>
                     <h2>Account Added Successfully!</h2>
                     <p>You can close this tab and return to the application.</p>
                     <script>
-                        setTimeout(() => {{
+                        setTimeout(() => {
                             window.location.href = '/';
-                        }}, 2000);
+                        }, 2000);
                     </script>
                 </body>
             </html>
-        ")).into_response(),
-        Err(e) => Html(format!("<h1>Error</h1><p>Failed to create account: {}</p>", e)).into_response(),
+        "
+            .to_string(),
+        )
+        .into_response(),
+        Err(e) => Html(format!(
+            "<h1>Error</h1><p>Failed to create account: {}</p>",
+            e
+        ))
+        .into_response(),
     }
 }
 

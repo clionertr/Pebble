@@ -4,7 +4,7 @@ use crate::rpc::attachments::{sanitize_stored_filename, stage_local_attachment_r
 use crate::rpc::messages::refresh_search_document;
 use crate::rpc::network::{account_proxy_mode_from_auth_value, resolve_mail_proxy_from_mode};
 use crate::rpc::oauth::ensure_account_oauth_auth;
-use crate::{events, state::AppState};
+use crate::state::AppState;
 use pebble_core::traits::{MailTransport, OutgoingMessage};
 use pebble_core::{
     new_id, now_timestamp, Account, EmailAddress, Folder, FolderRole, FolderType, Message,
@@ -24,7 +24,7 @@ pub(crate) fn validate_attachment_paths(
 ) -> std::result::Result<Vec<String>, PebbleError> {
     let mut allowed_dirs: Vec<PathBuf> = vec![attachments_dir.to_path_buf()];
 
-    // Add user home subdirectories (Documents, Downloads, Desktop) and temp dir
+    // 允许用户目录下常见附件来源目录以及系统临时目录。
     if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
         let home = PathBuf::from(home);
         for sub in &["Documents", "Downloads", "Desktop"] {
@@ -38,7 +38,7 @@ pub(crate) fn validate_attachment_paths(
         allowed_dirs.push(tmp);
     }
 
-    // Canonicalize allowed dirs for consistent comparison
+    // 统一解析成真实路径，避免路径比较被符号链接或相对路径绕过。
     let allowed_dirs: Vec<PathBuf> = allowed_dirs
         .into_iter()
         .filter_map(|d| std::fs::canonicalize(&d).ok())
@@ -322,10 +322,8 @@ fn queue_failed_send(
     Ok(op_id)
 }
 
-
 #[allow(clippy::too_many_arguments)]
 pub async fn send_email(
-    
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     account_id: String,
     to: Vec<String>,
@@ -413,6 +411,44 @@ pub async fn send_email(
         }
         Err(e) => Err(e),
     }
+}
+
+pub(crate) fn stage_compose_attachment_bytes(
+    attachments_dir: &Path,
+    filename: &str,
+    bytes: &[u8],
+) -> std::result::Result<PathBuf, PebbleError> {
+    let staging_dir = attachments_dir.join("compose_staging");
+    std::fs::create_dir_all(&staging_dir).map_err(|e| {
+        PebbleError::Internal(format!(
+            "Failed to create compose attachment staging directory {}: {e}",
+            staging_dir.display()
+        ))
+    })?;
+    let canonical_staging_dir = staging_dir.canonicalize().map_err(|e| {
+        PebbleError::Internal(format!(
+            "Failed to resolve compose attachment staging directory {}: {e}",
+            staging_dir.display()
+        ))
+    })?;
+    let safe_filename = sanitize_stored_filename(filename);
+    let staged_path = canonical_staging_dir.join(format!("{}-{safe_filename}", new_id()));
+    std::fs::write(&staged_path, bytes).map_err(|e| {
+        PebbleError::Internal(format!(
+            "Failed to stage compose attachment {}: {e}",
+            staged_path.display()
+        ))
+    })?;
+    Ok(staged_path)
+}
+
+pub async fn stage_compose_attachment(
+    state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
+    filename: String,
+    bytes: Vec<u8>,
+) -> std::result::Result<String, PebbleError> {
+    let staged = stage_compose_attachment_bytes(&state.attachments_dir, &filename, &bytes)?;
+    Ok(staged.to_string_lossy().into_owned())
 }
 
 #[cfg(test)]
@@ -601,43 +637,4 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(attachments_dir);
     }
-}
-
-pub(crate) fn stage_compose_attachment_bytes(
-    attachments_dir: &Path,
-    filename: &str,
-    bytes: &[u8],
-) -> std::result::Result<PathBuf, PebbleError> {
-    let staging_dir = attachments_dir.join("compose_staging");
-    std::fs::create_dir_all(&staging_dir).map_err(|e| {
-        PebbleError::Internal(format!(
-            "Failed to create compose attachment staging directory {}: {e}",
-            staging_dir.display()
-        ))
-    })?;
-    let canonical_staging_dir = staging_dir.canonicalize().map_err(|e| {
-        PebbleError::Internal(format!(
-            "Failed to resolve compose attachment staging directory {}: {e}",
-            staging_dir.display()
-        ))
-    })?;
-    let safe_filename = sanitize_stored_filename(filename);
-    let staged_path = canonical_staging_dir.join(format!("{}-{safe_filename}", new_id()));
-    std::fs::write(&staged_path, bytes).map_err(|e| {
-        PebbleError::Internal(format!(
-            "Failed to stage compose attachment {}: {e}",
-            staged_path.display()
-        ))
-    })?;
-    Ok(staged_path)
-}
-
-
-pub async fn stage_compose_attachment(
-    state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
-    filename: String,
-    bytes: Vec<u8>,
-) -> std::result::Result<String, PebbleError> {
-    let staged = stage_compose_attachment_bytes(&state.attachments_dir, &filename, &bytes)?;
-    Ok(staged.to_string_lossy().into_owned())
 }

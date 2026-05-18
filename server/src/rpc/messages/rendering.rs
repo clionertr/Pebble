@@ -1,4 +1,3 @@
-use crate::state::AppState;
 use axum::extract::State;
 use pebble_core::{Message, PebbleError, PrivacyMode, RenderedHtml, TrustType};
 use pebble_privacy::PrivacyGuard;

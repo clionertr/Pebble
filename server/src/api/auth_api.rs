@@ -64,12 +64,15 @@ async fn login_handler(
         let cookie = Cookie::build((SESSION_COOKIE, session_id))
             .path("/")
             .http_only(true)
+            .secure(true)
             .same_site(axum_extra::extract::cookie::SameSite::Strict)
             .max_age(cookie::time::Duration::days(7))
             .build();
         Ok((
             jar.add(cookie),
-            Json(AuthStatus { authenticated: true }),
+            Json(AuthStatus {
+                authenticated: true,
+            }),
         ))
     } else {
         session_store.record_failure(&source_ip).await;
@@ -80,22 +83,42 @@ async fn login_handler(
     }
 }
 
-async fn logout_handler(jar: CookieJar) -> impl axum::response::IntoResponse {
+async fn logout_handler(
+    State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+) -> impl axum::response::IntoResponse {
+    if let Some(session_cookie) = jar.get(SESSION_COOKIE) {
+        state
+            .session_store
+            .remove_session(session_cookie.value())
+            .await;
+    }
+
     let cookie = Cookie::build((SESSION_COOKIE, ""))
         .path("/")
+        .http_only(true)
+        .secure(true)
+        .same_site(axum_extra::extract::cookie::SameSite::Strict)
         .max_age(cookie::time::Duration::seconds(0))
         .build();
-    (jar.add(cookie), Json(AuthStatus { authenticated: false }))
+    (
+        jar.add(cookie),
+        Json(AuthStatus {
+            authenticated: false,
+        }),
+    )
 }
 
-async fn status_handler(
-    jar: CookieJar,
-    State(state): State<Arc<AppState>>,
-) -> Json<AuthStatus> {
+async fn status_handler(jar: CookieJar, State(state): State<Arc<AppState>>) -> Json<AuthStatus> {
     if let Some(session_cookie) = jar.get(SESSION_COOKIE) {
-        let authenticated = state.session_store.validate_session(session_cookie.value()).await;
+        let authenticated = state
+            .session_store
+            .validate_session(session_cookie.value())
+            .await;
         Json(AuthStatus { authenticated })
     } else {
-        Json(AuthStatus { authenticated: false })
+        Json(AuthStatus {
+            authenticated: false,
+        })
     }
 }

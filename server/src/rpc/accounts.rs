@@ -6,7 +6,6 @@ use crate::rpc::network::{
     AccountProxyMode, AccountProxySetting,
 };
 use crate::rpc::oauth::ensure_account_oauth_auth;
-use crate::state::AppState;
 use pebble_core::traits::FolderProvider;
 use pebble_core::{new_id, now_timestamp, Account, HttpProxyConfig, PebbleError, ProviderType};
 use pebble_mail::GmailProvider;

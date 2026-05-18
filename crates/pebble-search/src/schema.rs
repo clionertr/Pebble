@@ -168,12 +168,11 @@ pub fn build_schema() -> SearchSchema {
     // character-level for CJK. Avoids n-gram bloat on large bodies.
     // Body is INDEXED only (not stored) to avoid duplicating content with SQLite.
     // Snippets are fetched from SQLite by the caller.
-    let body_indexed_only = TextOptions::default()
-        .set_indexing_options(
-            TextFieldIndexing::default()
-                .set_tokenizer(BODY_TOKENIZER)
-                .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-        );
+    let body_indexed_only = TextOptions::default().set_indexing_options(
+        TextFieldIndexing::default()
+            .set_tokenizer(BODY_TOKENIZER)
+            .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+    );
 
     let subject = builder.add_text_field("subject", ngram_stored.clone());
     let body_text = builder.add_text_field("body_text", body_indexed_only);

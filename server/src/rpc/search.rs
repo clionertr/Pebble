@@ -1,8 +1,5 @@
-use crate::state::AppState;
 use pebble_core::traits::SearchHit;
 use pebble_core::PebbleError;
-
-
 
 pub async fn search_messages(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

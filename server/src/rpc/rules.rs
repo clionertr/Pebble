@@ -1,7 +1,4 @@
-use crate::state::AppState;
 use pebble_core::{new_id, now_timestamp, PebbleError, Rule};
-
-
 
 pub async fn create_rule(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -25,11 +22,11 @@ pub async fn create_rule(
     Ok(rule)
 }
 
-
-pub async fn list_rules(state: axum::extract::State<std::sync::Arc<crate::state::AppState>>) -> std::result::Result<Vec<Rule>, PebbleError> {
+pub async fn list_rules(
+    state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
+) -> std::result::Result<Vec<Rule>, PebbleError> {
     state.store.list_rules()
 }
-
 
 pub async fn update_rule(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -37,7 +34,6 @@ pub async fn update_rule(
 ) -> std::result::Result<(), PebbleError> {
     state.store.update_rule(&rule)
 }
-
 
 pub async fn delete_rule(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

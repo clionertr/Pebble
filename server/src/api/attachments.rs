@@ -1,6 +1,8 @@
 // Attachment endpoints: list, upload (multipart), download (streaming).
 
+use crate::state::AppState;
 use axum::{
+    body::Body,
     extract::{Multipart, Path, State},
     http::{header, StatusCode},
     response::IntoResponse,
@@ -8,11 +10,14 @@ use axum::{
     Router,
 };
 use std::sync::Arc;
-use crate::state::AppState;
+use tokio_util::io::ReaderStream;
 
 pub fn attachment_routes() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/api/messages/:id/attachments", get(list_attachments_handler))
+        .route(
+            "/api/messages/:id/attachments",
+            get(list_attachments_handler),
+        )
         .route("/api/attachments/stage", post(stage_handler))
         .route("/api/attachments/:id", get(download_handler))
 }
@@ -23,9 +28,8 @@ async fn list_attachments_handler(
     State(state): State<Arc<AppState>>,
     Path(message_id): Path<String>,
 ) -> Result<axum::Json<Vec<pebble_core::Attachment>>, crate::api::error::ApiError> {
-    let atts = crate::rpc::attachments::list_attachments(
-        axum::extract::State(state), message_id,
-    ).await?;
+    let atts =
+        crate::rpc::attachments::list_attachments(axum::extract::State(state), message_id).await?;
     Ok(axum::Json(atts))
 }
 
@@ -37,16 +41,16 @@ async fn stage_handler(
 ) -> Result<axum::Json<serde_json::Value>, crate::api::error::ApiError> {
     let mut uploaded = Vec::new();
 
-    while let Some(field) = multipart.next_field().await.map_err(|e|
-        crate::api::error::ApiError::bad_request(e.to_string())
-    )? {
-        let filename = field
-            .file_name()
-            .unwrap_or("attachment")
-            .to_string();
-        let data = field.bytes().await.map_err(|e|
-            crate::api::error::ApiError::bad_request(e.to_string())
-        )?;
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| crate::api::error::ApiError::bad_request(e.to_string()))?
+    {
+        let filename = field.file_name().unwrap_or("attachment").to_string();
+        let data = field
+            .bytes()
+            .await
+            .map_err(|e| crate::api::error::ApiError::bad_request(e.to_string()))?;
 
         let path = crate::rpc::compose::stage_compose_attachment(
             axum::extract::State(state.clone()),
@@ -71,7 +75,6 @@ async fn download_handler(
     State(state): State<Arc<AppState>>,
     Path(attachment_id): Path<String>,
 ) -> Result<impl IntoResponse, crate::api::error::ApiError> {
-    // Get the local path of the attachment
     let path = crate::rpc::attachments::get_attachment_path(
         axum::extract::State(state.clone()),
         attachment_id.clone(),
@@ -79,22 +82,38 @@ async fn download_handler(
     .await?
     .ok_or_else(|| crate::api::error::ApiError::not_found("Attachment not found"))?;
 
-    // Get attachment metadata for filename and MIME
-    let att = state.store.get_attachment(&attachment_id)
+    let att = state
+        .store
+        .get_attachment(&attachment_id)
         .map_err(|e| crate::api::error::ApiError::internal(e.to_string()))?
         .ok_or_else(|| crate::api::error::ApiError::not_found("Attachment not found"))?;
 
-    // Read the file
-    let bytes = tokio::fs::read(&path).await
+    let file = tokio::fs::File::open(&path)
+        .await
         .map_err(|e| crate::api::error::ApiError::internal(e.to_string()))?;
+    let stream = ReaderStream::new(file);
+    let body = Body::from_stream(stream);
 
     let mime = att.mime_type;
     let filename = att.filename;
+    let disposition = if is_inline_preview_mime(&mime) {
+        "inline"
+    } else {
+        "attachment"
+    };
+    let safe_filename = filename.replace(['"', '\r', '\n'], "_");
 
     let headers = [
         (header::CONTENT_TYPE, mime),
-        (header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", filename)),
+        (
+            header::CONTENT_DISPOSITION,
+            format!("{disposition}; filename=\"{safe_filename}\""),
+        ),
     ];
 
-    Ok((StatusCode::OK, headers, bytes))
+    Ok((StatusCode::OK, headers, body))
+}
+
+fn is_inline_preview_mime(mime: &str) -> bool {
+    mime.starts_with("image/") || mime == "application/pdf"
 }

@@ -2,9 +2,8 @@
 
 use axum::{
     extract::{Path, Query, State},
-    Json,
-    routing::{get, patch, post, delete},
-    Router,
+    routing::{delete, get, patch, post},
+    Json, Router,
 };
 use serde::Deserialize;
 use std::sync::Arc;
@@ -26,7 +25,10 @@ pub struct InboxQuery {
 impl InboxQuery {
     pub fn folder_ids(&self) -> Option<Vec<String>> {
         self.folder_ids_raw.as_ref().map(|s| {
-            s.split(',').map(|id| id.trim().to_string()).filter(|id| !id.is_empty()).collect()
+            s.split(',')
+                .map(|id| id.trim().to_string())
+                .filter(|id| !id.is_empty())
+                .collect()
         })
     }
 }
@@ -61,7 +63,10 @@ pub fn message_routes() -> Router<Arc<AppState>> {
         .route("/api/messages/batch/star", post(batch_star_handler))
         .route("/api/pending-ops", get(list_pending_ops_handler))
         .route("/api/pending-ops/summary", get(pending_ops_summary_handler))
-        .route("/api/pending-ops/:id/cancel", post(cancel_pending_op_handler))
+        .route(
+            "/api/pending-ops/:id/cancel",
+            post(cancel_pending_op_handler),
+        )
         .route("/api/pending-ops/:id", delete(delete_pending_op_handler))
 }
 
@@ -108,11 +113,8 @@ async fn get_message_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(message_id): axum::extract::Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
-    let msg = crate::rpc::messages::query::get_message(
-        axum::extract::State(state),
-        message_id,
-    )
-    .await?;
+    let msg =
+        crate::rpc::messages::query::get_message(axum::extract::State(state), message_id).await?;
 
     match msg {
         Some(m) => Ok(Json(serde_json::to_value(m).unwrap())),
@@ -167,11 +169,9 @@ async fn archive_handler(
     State(state): State<Arc<AppState>>,
     Path(message_id): Path<String>,
 ) -> Result<Json<String>, crate::api::error::ApiError> {
-    let target = crate::rpc::messages::lifecycle::archive_message(
-        axum::extract::State(state),
-        message_id,
-    )
-    .await?;
+    let target =
+        crate::rpc::messages::lifecycle::archive_message(axum::extract::State(state), message_id)
+            .await?;
     Ok(Json(target))
 }
 
@@ -179,11 +179,8 @@ async fn delete_handler(
     State(state): State<Arc<AppState>>,
     Path(message_id): Path<String>,
 ) -> Result<Json<()>, crate::api::error::ApiError> {
-    crate::rpc::messages::lifecycle::delete_message(
-        axum::extract::State(state),
-        message_id,
-    )
-    .await?;
+    crate::rpc::messages::lifecycle::delete_message(axum::extract::State(state), message_id)
+        .await?;
     Ok(Json(()))
 }
 
@@ -191,11 +188,8 @@ async fn restore_handler(
     State(state): State<Arc<AppState>>,
     Path(message_id): Path<String>,
 ) -> Result<Json<()>, crate::api::error::ApiError> {
-    crate::rpc::messages::lifecycle::restore_message(
-        axum::extract::State(state),
-        message_id,
-    )
-    .await?;
+    crate::rpc::messages::lifecycle::restore_message(axum::extract::State(state), message_id)
+        .await?;
     Ok(Json(()))
 }
 
@@ -223,11 +217,8 @@ async fn batch_archive_handler(
     State(state): State<Arc<AppState>>,
     Json(body): Json<BatchRequest>,
 ) -> Result<Json<u32>, crate::api::error::ApiError> {
-    let count = crate::rpc::batch::batch_archive(
-        axum::extract::State(state),
-        body.message_ids,
-    )
-    .await?;
+    let count =
+        crate::rpc::batch::batch_archive(axum::extract::State(state), body.message_ids).await?;
     Ok(Json(count))
 }
 
@@ -235,11 +226,8 @@ async fn batch_delete_handler(
     State(state): State<Arc<AppState>>,
     Json(body): Json<BatchRequest>,
 ) -> Result<Json<u32>, crate::api::error::ApiError> {
-    let count = crate::rpc::batch::batch_delete(
-        axum::extract::State(state),
-        body.message_ids,
-    )
-    .await?;
+    let count =
+        crate::rpc::batch::batch_delete(axum::extract::State(state), body.message_ids).await?;
     Ok(Json(count))
 }
 
@@ -275,12 +263,9 @@ async fn batch_star_handler(
     State(state): State<Arc<AppState>>,
     Json(body): Json<BatchStarRequest>,
 ) -> Result<Json<u32>, crate::api::error::ApiError> {
-    let count = crate::rpc::batch::batch_star(
-        axum::extract::State(state),
-        body.message_ids,
-        body.starred,
-    )
-    .await?;
+    let count =
+        crate::rpc::batch::batch_star(axum::extract::State(state), body.message_ids, body.starred)
+            .await?;
     Ok(Json(count))
 }
 
@@ -309,7 +294,8 @@ async fn html_handler(
         axum::extract::State(state),
         message_id,
         privacy,
-    ).await?;
+    )
+    .await?;
     Ok(Json(serde_json::to_value(html).unwrap()))
 }
 
@@ -330,7 +316,8 @@ async fn full_handler(
         axum::extract::State(state),
         message_id,
         privacy,
-    ).await?;
+    )
+    .await?;
     Ok(Json(serde_json::to_value(result).unwrap()))
 }
 
@@ -370,10 +357,7 @@ async fn cancel_pending_op_handler(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<()>, crate::api::error::ApiError> {
-    crate::rpc::pending_mail_ops::cancel_pending_mail_op(
-        axum::extract::State(state),
-        id,
-    )?;
+    crate::rpc::pending_mail_ops::cancel_pending_mail_op(axum::extract::State(state), id)?;
     Ok(Json(()))
 }
 
@@ -381,9 +365,6 @@ async fn delete_pending_op_handler(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<()>, crate::api::error::ApiError> {
-    crate::rpc::pending_mail_ops::delete_pending_mail_op(
-        axum::extract::State(state),
-        id,
-    )?;
+    crate::rpc::pending_mail_ops::delete_pending_mail_op(axum::extract::State(state), id)?;
     Ok(Json(()))
 }

@@ -1,14 +1,13 @@
 // Send email + drafts endpoints.
 
+use crate::state::AppState;
 use axum::{
     extract::{Path, Query, State},
-    Json,
     routing::{delete, post},
-    Router,
+    Json, Router,
 };
 use serde::Deserialize;
 use std::sync::Arc;
-use crate::state::AppState;
 
 pub fn compose_routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -83,8 +82,7 @@ async fn save_draft_handler(
     State(state): State<Arc<AppState>>,
     Json(body): Json<SaveDraftRequest>,
 ) -> Result<Json<String>, crate::api::error::ApiError> {
-    // The RPC save_draft doesn't take existing_draft_id directly — it's handled
-    // by the frontend creating a new draft or updating. For API, we just save.
+    // REST 入口直接把 existing_draft_id 传给草稿层，由后端统一决定新增或更新。
     let draft_id = crate::rpc::drafts::save_draft(
         axum::extract::State(state),
         body.account_id,
@@ -113,11 +111,7 @@ async fn delete_draft_handler(
     Path(draft_id): Path<String>,
     Query(query): Query<DeleteDraftQuery>,
 ) -> Result<Json<()>, crate::api::error::ApiError> {
-    crate::rpc::drafts::delete_draft(
-        axum::extract::State(state),
-        query.account_id,
-        draft_id,
-    )
-    .await?;
+    crate::rpc::drafts::delete_draft(axum::extract::State(state), query.account_id, draft_id)
+        .await?;
     Ok(Json(()))
 }

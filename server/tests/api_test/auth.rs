@@ -1,6 +1,6 @@
 use crate::test_app;
-use axum::http::{Request, StatusCode, header};
 use axum::body::Body;
+use axum::http::{header, Request, StatusCode};
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -97,11 +97,29 @@ async fn login_correct_password_returns_200_and_cookie() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let set_cookie = response.headers().get(header::SET_COOKIE).unwrap().to_str().unwrap();
-    assert!(set_cookie.starts_with("pebble_session="), "cookie name: {set_cookie}");
-    assert!(set_cookie.contains("HttpOnly"), "HttpOnly flag: {set_cookie}");
-    assert!(set_cookie.contains("SameSite=Strict"), "SameSite flag: {set_cookie}");
-    assert!(set_cookie.contains("Max-Age=604800"), "Max-Age: {set_cookie}");
+    let set_cookie = response
+        .headers()
+        .get(header::SET_COOKIE)
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert!(
+        set_cookie.starts_with("pebble_session="),
+        "cookie name: {set_cookie}"
+    );
+    assert!(
+        set_cookie.contains("HttpOnly"),
+        "HttpOnly flag: {set_cookie}"
+    );
+    assert!(set_cookie.contains("Secure"), "Secure flag: {set_cookie}");
+    assert!(
+        set_cookie.contains("SameSite=Strict"),
+        "SameSite flag: {set_cookie}"
+    );
+    assert!(
+        set_cookie.contains("Max-Age=604800"),
+        "Max-Age: {set_cookie}"
+    );
     assert!(set_cookie.contains("Path=/"), "Path: {set_cookie}");
 }
 
@@ -160,7 +178,9 @@ async fn auth_status_without_cookie_returns_false() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+    let body = axum::body::to_bytes(response.into_body(), 1024)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(json["authenticated"], false);
 }
@@ -203,7 +223,9 @@ async fn auth_status_with_valid_cookie_returns_true() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+    let body = axum::body::to_bytes(response.into_body(), 1024)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(json["authenticated"], true);
 }
@@ -235,11 +257,12 @@ async fn logout_clears_cookie() {
 
     // Logout
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .uri("/api/auth/logout")
                 .method("POST")
-                .header(header::COOKIE, cookie)
+                .header(header::COOKIE, &cookie)
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -247,8 +270,29 @@ async fn logout_clears_cookie() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let set_cookie = response.headers().get(header::SET_COOKIE).unwrap().to_str().unwrap();
-    assert!(set_cookie.contains("Max-Age=0"), "cookie should be expired: {set_cookie}");
+    let set_cookie = response
+        .headers()
+        .get(header::SET_COOKIE)
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert!(
+        set_cookie.contains("Max-Age=0"),
+        "cookie should be expired: {set_cookie}"
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/health")
+                .header(header::COOKIE, cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -270,7 +314,12 @@ async fn rate_limit_blocks_after_5_failures() {
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "attempt {}", i + 1);
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "attempt {}",
+            i + 1
+        );
     }
 
     // 6th attempt is rate limited
@@ -324,4 +373,21 @@ async fn auth_exempt_routes_are_accessible() {
 
     // Redirect or error from missing config, but NOT 401 from auth middleware
     assert_ne!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn events_requires_session_cookie() {
+    let (app, _dir) = test_app().await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/events")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }

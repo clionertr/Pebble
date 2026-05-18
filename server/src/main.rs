@@ -1,23 +1,11 @@
-mod account_colors;
-mod api;
-mod auth;
-mod events;
-mod gmail_realtime;
-mod mail_latency;
-mod middleware;
-mod realtime;
-mod rpc;
-mod session;
-mod snooze_watcher;
-mod state;
-
 use axum::{
     extract::State,
+    http::{header, HeaderValue, Method},
     response::sse::{Event, Sse},
     routing::{get, post},
     Router,
 };
-use state::AppState;
+use pebble::{api, auth, gmail_realtime, middleware, rpc, snooze_watcher, state::AppState};
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -25,6 +13,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
+use tower_http::cors::CorsLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 fn init_logging(data_dir: &std::path::Path) -> Option<tracing_appender::non_blocking::WorkerGuard> {
@@ -77,6 +66,28 @@ async fn sse_handler(
     )
 }
 
+fn cors_layer() -> CorsLayer {
+    let mut layer = CorsLayer::new()
+        .allow_headers([header::CONTENT_TYPE])
+        .allow_methods([
+            Method::DELETE,
+            Method::GET,
+            Method::OPTIONS,
+            Method::PATCH,
+            Method::POST,
+            Method::PUT,
+        ]);
+
+    if let Ok(origin) = std::env::var("ALLOWED_ORIGIN") {
+        let origin = origin
+            .parse::<HeaderValue>()
+            .expect("ALLOWED_ORIGIN must be a valid HTTP origin");
+        layer = layer.allow_origin(origin).allow_credentials(true);
+    }
+
+    layer
+}
+
 #[tokio::main]
 async fn main() {
     // Use a local ./data directory for VPS deployment
@@ -98,11 +109,7 @@ async fn main() {
 
     let (snooze_stop_tx, snooze_stop_rx) = std::sync::mpsc::channel::<()>();
     let password_hash = std::env::var("PEBBLE_PASSWORD_HASH")
-        .unwrap_or_else(|_| {
-            tracing::warn!("PEBBLE_PASSWORD_HASH not set, using default (insecure)");
-            // Default bcrypt hash of "admin" — change in production!
-            "$2b$12$LJ3m4ys3rxImvlLzyGRbPOcAIORMzJDGJnRi4ZVXNIs6pS8bJGxKW".to_string()
-        });
+        .expect("PEBBLE_PASSWORD_HASH must be set to a bcrypt password hash");
     let state = Arc::new(AppState::new(
         store,
         search,
@@ -134,12 +141,7 @@ async fn main() {
             state.clone(),
             middleware::auth_middleware,
         ))
-        .layer(
-            tower_http::cors::CorsLayer::new()
-                .allow_origin(tower_http::cors::Any)
-                .allow_headers(tower_http::cors::Any)
-                .allow_methods(tower_http::cors::Any),
-        )
+        .layer(cors_layer())
         .layer(tower_http::compression::CompressionLayer::new())
         .with_state(state);
 
@@ -153,5 +155,10 @@ async fn main() {
     tracing::info!("listening on {}", addr);
 
     let listener = TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .unwrap();
 }

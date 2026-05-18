@@ -36,8 +36,5 @@ fn method_not_allowed_detection() {
     // This is a design test: axum correctly returns 405 for wrong methods
     // when routes are defined with specific method filters.
     // We verify the concept here; full integration test in Phase 1.
-    assert_eq!(
-        axum::http::StatusCode::METHOD_NOT_ALLOWED.as_u16(),
-        405
-    );
+    assert_eq!(axum::http::StatusCode::METHOD_NOT_ALLOWED.as_u16(), 405);
 }

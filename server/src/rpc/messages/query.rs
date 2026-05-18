@@ -1,6 +1,5 @@
-use crate::state::AppState;
-use pebble_core::{Message, MessageSummary, PebbleError};
 use axum::extract::State;
+use pebble_core::{Message, MessageSummary, PebbleError};
 
 pub async fn list_messages(
     state: State<std::sync::Arc<crate::state::AppState>>,

@@ -1,12 +1,11 @@
 use super::network::{
     account_proxy_setting_from_parts, get_global_proxy_raw, normalize_account_proxy_setting,
-    proxy_config_from_parts, resolve_effective_proxy, resolve_effective_proxy_setting,
-    AccountProxyMode, AccountProxySetting,
+    proxy_config_from_parts, resolve_effective_proxy_setting, AccountProxyMode,
+    AccountProxySetting,
 };
-use crate::account_colors::default_account_color;
 use crate::state::AppState;
 use pebble_core::{
-    new_id, now_timestamp, Account, HttpProxyConfig, OAuthTokens, PebbleError, ProviderType,
+    now_timestamp, Account, HttpProxyConfig, OAuthTokens, PebbleError, ProviderType,
 };
 use pebble_crypto::CryptoService;
 use pebble_mail::gmail_sync::TokenRefresher;
@@ -15,18 +14,6 @@ use pebble_store::Store;
 use std::sync::Arc;
 
 use tracing::debug;
-
-fn constant_time_eq(left: &str, right: &str) -> bool {
-    if left.len() != right.len() {
-        return false;
-    }
-
-    let mut diff = 0u8;
-    for (a, b) in left.as_bytes().iter().zip(right.as_bytes()) {
-        diff |= a ^ b;
-    }
-    diff == 0
-}
 
 /// Fetch the user's email and display name from the OAuth provider's userinfo endpoint.
 pub(crate) async fn fetch_userinfo(
@@ -234,7 +221,7 @@ pub(crate) fn runtime_config_value(key: &str) -> Option<String> {
         })
 }
 
-fn token_exchange_error_message(provider: &str, error: &OAuthError) -> String {
+pub(crate) fn token_exchange_error_message(provider: &str, error: &OAuthError) -> String {
     let detail = match error {
         OAuthError::TokenExchange(message) => message.as_str(),
         _ => return format!("Token exchange failed: {error}"),
@@ -253,7 +240,7 @@ fn token_exchange_error_message(provider: &str, error: &OAuthError) -> String {
             .to_ascii_lowercase()
             .contains("client_secret is missing")
     {
-        return "Token exchange failed: Google rejected this OAuth client because it requires a client secret. Set GOOGLE_CLIENT_SECRET in .env from the Google OAuth Desktop app credentials, then restart Pebble.".to_string();
+        return "Token exchange failed: Google rejected this OAuth client because it requires a client secret. Set GOOGLE_CLIENT_SECRET in .env from your Google OAuth client credentials, then restart Pebble.".to_string();
     }
 
     format!("Token exchange failed: {detail}")
@@ -678,7 +665,6 @@ pub(crate) async fn ensure_account_oauth_auth(
 /// Starts a redirect listener, waits for the browser callback, exchanges the
 /// authorization code for tokens, encrypts and stores the tokens, and creates
 /// the account record.
-
 pub async fn complete_oauth_flow(
     _state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     _provider: String,

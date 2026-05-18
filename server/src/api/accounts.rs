@@ -1,30 +1,56 @@
 // Account-related mutation endpoints + proxy, sync commands, signatures.
 
+use crate::api::error::ApiError;
+use crate::state::AppState;
 use axum::{
     extract::{Path, State},
-    Json,
-    routing::{delete, get, patch, post, put},
-    Router,
+    routing::{delete, get, patch, post},
+    Json, Router,
 };
 use serde::Deserialize;
 use std::sync::Arc;
-use crate::state::AppState;
-use crate::api::error::ApiError;
 
 pub fn account_routes() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/api/accounts", get(list_accounts).post(add_account_handler))
-        .route("/api/accounts/:id", patch(update_account_handler).delete(delete_account_handler))
-        .route("/api/accounts/:id/signature", get(get_signature).put(set_signature))
+        .route(
+            "/api/accounts",
+            get(list_accounts).post(add_account_handler),
+        )
+        .route(
+            "/api/accounts/:id",
+            patch(update_account_handler).delete(delete_account_handler),
+        )
+        .route(
+            "/api/accounts/:id/signature",
+            get(get_signature).put(set_signature),
+        )
         .route("/api/accounts/:id/sync/start", post(start_sync_handler))
         .route("/api/accounts/:id/sync/trigger", post(trigger_sync))
         .route("/api/accounts/:id/sync/stop", post(stop_sync_handler))
-        .route("/api/accounts/:id/test-connection", post(test_connection_handler))
-        .route("/api/accounts/:id/gmail-realtime", get(get_gmail_realtime).put(update_gmail_realtime_handler))
-        .route("/api/accounts/:id/gmail-realtime/enable", post(enable_gmail_realtime_handler))
-        .route("/api/accounts/:id/gmail-realtime/disable", post(disable_gmail_realtime_handler))
-        .route("/api/accounts/:id/proxy", get(get_account_proxy_handler).put(update_account_proxy_handler))
-        .route("/api/accounts/:id/proxy-setting", get(get_proxy_setting_handler).put(update_proxy_setting_handler))
+        .route(
+            "/api/accounts/:id/test-connection",
+            post(test_connection_handler),
+        )
+        .route(
+            "/api/accounts/:id/gmail-realtime",
+            get(get_gmail_realtime).put(update_gmail_realtime_handler),
+        )
+        .route(
+            "/api/accounts/:id/gmail-realtime/enable",
+            post(enable_gmail_realtime_handler),
+        )
+        .route(
+            "/api/accounts/:id/gmail-realtime/disable",
+            post(disable_gmail_realtime_handler),
+        )
+        .route(
+            "/api/accounts/:id/proxy",
+            get(get_account_proxy_handler).put(update_account_proxy_handler),
+        )
+        .route(
+            "/api/accounts/:id/proxy-setting",
+            get(get_proxy_setting_handler).put(update_proxy_setting_handler),
+        )
         .route("/api/accounts/:id/folders", get(list_folders_handler))
         .route("/api/accounts/:id/trash", delete(empty_trash_handler))
         .route("/api/imap/test-connection", post(test_imap_handler))
@@ -35,9 +61,7 @@ pub fn account_routes() -> Router<Arc<AppState>> {
 async fn list_accounts(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<pebble_core::Account>>, ApiError> {
-    let accounts = crate::rpc::accounts::list_accounts(
-        axum::extract::State(state),
-    ).await?;
+    let accounts = crate::rpc::accounts::list_accounts(axum::extract::State(state)).await?;
     Ok(Json(accounts))
 }
 
@@ -51,11 +75,8 @@ async fn trigger_sync(
     Path(account_id): Path<String>,
     Json(body): Json<TriggerSyncRequest>,
 ) -> Result<Json<()>, ApiError> {
-    crate::rpc::sync_cmd::trigger_sync(
-        axum::extract::State(state),
-        account_id,
-        body.reason,
-    ).await?;
+    crate::rpc::sync_cmd::trigger_sync(axum::extract::State(state), account_id, body.reason)
+        .await?;
     Ok(Json(()))
 }
 
@@ -63,10 +84,8 @@ async fn get_signature(
     State(state): State<Arc<AppState>>,
     Path(account_id): Path<String>,
 ) -> Result<Json<String>, ApiError> {
-    let sig = crate::rpc::user_data::get_email_signature(
-        axum::extract::State(state),
-        account_id,
-    ).await?;
+    let sig =
+        crate::rpc::user_data::get_email_signature(axum::extract::State(state), account_id).await?;
     Ok(Json(sig))
 }
 
@@ -84,7 +103,8 @@ async fn set_signature(
         axum::extract::State(state),
         account_id,
         body.signature,
-    ).await?;
+    )
+    .await?;
     Ok(Json(()))
 }
 
@@ -92,10 +112,9 @@ async fn empty_trash_handler(
     State(state): State<Arc<AppState>>,
     Path(account_id): Path<String>,
 ) -> Result<Json<u32>, ApiError> {
-    let count = crate::rpc::messages::lifecycle::empty_trash(
-        axum::extract::State(state),
-        account_id,
-    ).await?;
+    let count =
+        crate::rpc::messages::lifecycle::empty_trash(axum::extract::State(state), account_id)
+            .await?;
     Ok(Json(count))
 }
 
@@ -105,10 +124,7 @@ async fn add_account_handler(
     State(state): State<Arc<AppState>>,
     Json(body): Json<crate::rpc::accounts::AddAccountRequest>,
 ) -> Result<Json<pebble_core::Account>, ApiError> {
-    let account = crate::rpc::accounts::add_account(
-        axum::extract::State(state),
-        body,
-    ).await?;
+    let account = crate::rpc::accounts::add_account(axum::extract::State(state), body).await?;
     Ok(Json(account))
 }
 
@@ -133,10 +149,12 @@ async fn update_account_handler(
     Path(account_id): Path<String>,
     Json(body): Json<UpdateAccountBody>,
 ) -> Result<Json<()>, ApiError> {
-    let imap_sec: Option<pebble_mail::imap::ConnectionSecurity> =
-        body.imap_security.and_then(|s| serde_json::from_str(&format!("\"{}\"", s)).ok());
-    let smtp_sec: Option<pebble_mail::imap::ConnectionSecurity> =
-        body.smtp_security.and_then(|s| serde_json::from_str(&format!("\"{}\"", s)).ok());
+    let imap_sec: Option<pebble_mail::imap::ConnectionSecurity> = body
+        .imap_security
+        .and_then(|s| serde_json::from_str(&format!("\"{}\"", s)).ok());
+    let smtp_sec: Option<pebble_mail::imap::ConnectionSecurity> = body
+        .smtp_security
+        .and_then(|s| serde_json::from_str(&format!("\"{}\"", s)).ok());
     crate::rpc::accounts::update_account(
         axum::extract::State(state),
         account_id,
@@ -152,7 +170,8 @@ async fn update_account_handler(
         body.proxy_host,
         body.proxy_port,
         body.account_color,
-    ).await?;
+    )
+    .await?;
     Ok(Json(()))
 }
 
@@ -160,10 +179,7 @@ async fn delete_account_handler(
     State(state): State<Arc<AppState>>,
     Path(account_id): Path<String>,
 ) -> Result<Json<()>, ApiError> {
-    crate::rpc::accounts::delete_account(
-        axum::extract::State(state),
-        account_id,
-    ).await?;
+    crate::rpc::accounts::delete_account(axum::extract::State(state), account_id).await?;
     Ok(Json(()))
 }
 
@@ -183,7 +199,8 @@ async fn start_sync_handler(
         axum::extract::State(state),
         account_id,
         body.poll_interval_secs,
-    ).await?;
+    )
+    .await?;
     Ok(Json(result))
 }
 
@@ -191,10 +208,7 @@ async fn stop_sync_handler(
     State(state): State<Arc<AppState>>,
     Path(account_id): Path<String>,
 ) -> Result<Json<()>, ApiError> {
-    crate::rpc::sync_cmd::stop_sync(
-        axum::extract::State(state),
-        account_id,
-    ).await?;
+    crate::rpc::sync_cmd::stop_sync(axum::extract::State(state), account_id).await?;
     Ok(Json(()))
 }
 
@@ -204,10 +218,9 @@ async fn test_connection_handler(
     State(state): State<Arc<AppState>>,
     Path(account_id): Path<String>,
 ) -> Result<Json<String>, ApiError> {
-    let result = crate::rpc::accounts::test_account_connection(
-        axum::extract::State(state),
-        account_id,
-    ).await?;
+    let result =
+        crate::rpc::accounts::test_account_connection(axum::extract::State(state), account_id)
+            .await?;
     Ok(Json(result))
 }
 
@@ -215,10 +228,8 @@ async fn test_imap_handler(
     State(state): State<Arc<AppState>>,
     Json(body): Json<crate::rpc::accounts::TestConnectionRequest>,
 ) -> Result<Json<String>, ApiError> {
-    let result = crate::rpc::accounts::test_imap_connection(
-        axum::extract::State(state),
-        body,
-    ).await?;
+    let result =
+        crate::rpc::accounts::test_imap_connection(axum::extract::State(state), body).await?;
     Ok(Json(result))
 }
 
@@ -231,7 +242,8 @@ async fn get_gmail_realtime(
     let config = crate::rpc::gmail_realtime::get_gmail_realtime_config(
         axum::extract::State(state),
         account_id,
-    ).await?;
+    )
+    .await?;
     Ok(Json(config))
 }
 
@@ -249,7 +261,8 @@ async fn enable_gmail_realtime_handler(
         axum::extract::State(state),
         account_id,
         body.fallback_interval_minutes,
-    ).await?;
+    )
+    .await?;
     Ok(Json(config))
 }
 
@@ -257,10 +270,9 @@ async fn disable_gmail_realtime_handler(
     State(state): State<Arc<AppState>>,
     Path(account_id): Path<String>,
 ) -> Result<Json<crate::gmail_realtime::GmailRealtimeConfig>, ApiError> {
-    let config = crate::rpc::gmail_realtime::disable_gmail_realtime(
-        axum::extract::State(state),
-        account_id,
-    ).await?;
+    let config =
+        crate::rpc::gmail_realtime::disable_gmail_realtime(axum::extract::State(state), account_id)
+            .await?;
     Ok(Json(config))
 }
 
@@ -278,7 +290,8 @@ async fn update_gmail_realtime_handler(
         axum::extract::State(state),
         account_id,
         body.fallback_interval_minutes,
-    ).await?;
+    )
+    .await?;
     Ok(Json(config))
 }
 
@@ -288,10 +301,8 @@ async fn get_account_proxy_handler(
     State(state): State<Arc<AppState>>,
     Path(account_id): Path<String>,
 ) -> Result<Json<Option<pebble_core::HttpProxyConfig>>, ApiError> {
-    let proxy = crate::rpc::accounts::get_account_proxy(
-        axum::extract::State(state),
-        account_id,
-    ).await?;
+    let proxy =
+        crate::rpc::accounts::get_account_proxy(axum::extract::State(state), account_id).await?;
     Ok(Json(proxy))
 }
 
@@ -311,7 +322,8 @@ async fn update_account_proxy_handler(
         account_id,
         body.proxy_host,
         body.proxy_port,
-    ).await?;
+    )
+    .await?;
     Ok(Json(()))
 }
 
@@ -326,10 +338,9 @@ async fn get_proxy_setting_handler(
     State(state): State<Arc<AppState>>,
     Path(account_id): Path<String>,
 ) -> Result<Json<crate::rpc::network::AccountProxySetting>, ApiError> {
-    let setting = crate::rpc::accounts::get_account_proxy_setting(
-        axum::extract::State(state),
-        account_id,
-    ).await?;
+    let setting =
+        crate::rpc::accounts::get_account_proxy_setting(axum::extract::State(state), account_id)
+            .await?;
     Ok(Json(setting))
 }
 
@@ -346,7 +357,8 @@ async fn update_proxy_setting_handler(
         mode,
         body.proxy_host,
         body.proxy_port,
-    ).await?;
+    )
+    .await?;
     Ok(Json(()))
 }
 
@@ -356,9 +368,7 @@ async fn list_folders_handler(
     State(state): State<Arc<AppState>>,
     Path(account_id): Path<String>,
 ) -> Result<Json<Vec<pebble_core::Folder>>, ApiError> {
-    let folders = crate::rpc::folders::list_folders(
-        axum::extract::State(state),
-        account_id,
-    ).await?;
+    let folders =
+        crate::rpc::folders::list_folders(axum::extract::State(state), account_id).await?;
     Ok(Json(folders))
 }

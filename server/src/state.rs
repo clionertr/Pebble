@@ -8,7 +8,7 @@ use pebble_store::Store;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{broadcast, mpsc, watch, Mutex, Semaphore};
@@ -86,7 +86,9 @@ impl AppState {
                     warn!(
                         "SSE event dropped (no subscribers): event={} payload_keys={:?}",
                         event,
-                        e.0.payload.as_object().map(|obj| obj.keys().collect::<Vec<_>>()),
+                        e.0.payload
+                            .as_object()
+                            .map(|obj| obj.keys().collect::<Vec<_>>()),
                     );
                 }
             }

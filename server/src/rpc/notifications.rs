@@ -1,8 +1,5 @@
-use crate::state::AppState;
 use pebble_core::PebbleError;
 use std::sync::atomic::Ordering;
-
-
 
 pub async fn set_notifications_enabled(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

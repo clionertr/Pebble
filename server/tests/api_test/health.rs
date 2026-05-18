@@ -1,6 +1,6 @@
 use crate::test_app;
-use axum::http::{Request, StatusCode, header};
 use axum::body::Body;
+use axum::http::{header, Request, StatusCode};
 use axum::Router;
 use tower::ServiceExt;
 
@@ -63,7 +63,9 @@ async fn health_returns_text_ok() {
         .await
         .unwrap();
 
-    let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+    let body = axum::body::to_bytes(response.into_body(), 1024)
+        .await
+        .unwrap();
     assert_eq!(body, "ok");
 }
 

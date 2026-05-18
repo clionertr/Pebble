@@ -1,13 +1,10 @@
 use crate::rpc::kanban::{
     load_kanban_context_notes_for_state, replace_kanban_context_notes_for_state,
 };
-use crate::state::AppState;
 use pebble_core::PebbleError;
 use pebble_store::cloud_sync::{preview_backup, BackupPreview, SettingsBackup, WebDavClient};
 
-
 const BACKUP_FILENAME: &str = "pebble-settings-backup.json";
-
 
 pub async fn test_webdav_connection(
     url: String,
@@ -18,7 +15,6 @@ pub async fn test_webdav_connection(
     client.test_connection().await?;
     Ok("Connection successful".to_string())
 }
-
 
 pub async fn backup_to_webdav(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -40,7 +36,6 @@ pub async fn backup_to_webdav(
 /// Download the backup and return a summary so the user can review the
 /// contents before committing to a restore. Enforces size limits and schema
 /// version validation in `download` and `preview_backup`.
-
 pub async fn preview_webdav_backup(
     url: String,
     username: String,
@@ -50,7 +45,6 @@ pub async fn preview_webdav_backup(
     let data = client.download(BACKUP_FILENAME).await?;
     preview_backup(&data)
 }
-
 
 pub async fn restore_from_webdav(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

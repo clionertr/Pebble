@@ -1,14 +1,13 @@
 // Label read/mutation endpoints.
 
+use crate::state::AppState;
 use axum::{
     extract::{Path, State},
-    Json,
     routing::{delete, get, post},
-    Router,
+    Json, Router,
 };
 use serde::Deserialize;
 use std::sync::Arc;
-use crate::state::AppState;
 
 pub fn label_routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -29,9 +28,8 @@ async fn get_labels(
     State(state): State<Arc<AppState>>,
     Path(message_id): Path<String>,
 ) -> Result<Json<Vec<pebble_store::labels::Label>>, crate::api::error::ApiError> {
-    let labels = crate::rpc::labels::get_message_labels(
-        axum::extract::State(state), message_id,
-    ).await?;
+    let labels =
+        crate::rpc::labels::get_message_labels(axum::extract::State(state), message_id).await?;
     Ok(Json(labels))
 }
 
@@ -46,9 +44,8 @@ async fn add_label(
     Path(message_id): Path<String>,
     Json(body): Json<AddLabelRequest>,
 ) -> Result<Json<()>, crate::api::error::ApiError> {
-    crate::rpc::labels::add_message_label(
-        axum::extract::State(state), message_id, body.label_name,
-    ).await?;
+    crate::rpc::labels::add_message_label(axum::extract::State(state), message_id, body.label_name)
+        .await?;
     Ok(Json(()))
 }
 
@@ -56,9 +53,7 @@ async fn remove_label(
     State(state): State<Arc<AppState>>,
     Path((message_id, name)): Path<(String, String)>,
 ) -> Result<Json<()>, crate::api::error::ApiError> {
-    crate::rpc::labels::remove_message_label(
-        axum::extract::State(state), message_id, name,
-    ).await?;
+    crate::rpc::labels::remove_message_label(axum::extract::State(state), message_id, name).await?;
     Ok(Json(()))
 }
 
@@ -71,9 +66,12 @@ pub struct BatchLabelRequest {
 async fn get_labels_batch(
     State(state): State<Arc<AppState>>,
     Json(body): Json<BatchLabelRequest>,
-) -> Result<Json<std::collections::HashMap<String, Vec<pebble_store::labels::Label>>>, crate::api::error::ApiError> {
-    let result = crate::rpc::labels::get_message_labels_batch(
-        axum::extract::State(state), body.message_ids,
-    ).await?;
+) -> Result<
+    Json<std::collections::HashMap<String, Vec<pebble_store::labels::Label>>>,
+    crate::api::error::ApiError,
+> {
+    let result =
+        crate::rpc::labels::get_message_labels_batch(axum::extract::State(state), body.message_ids)
+            .await?;
     Ok(Json(result))
 }

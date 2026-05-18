@@ -52,7 +52,6 @@ fn hard_delete_local_draft(state: &AppState, draft_id: &str) {
     }
 }
 
-
 #[allow(clippy::too_many_arguments)]
 pub async fn save_draft(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -190,7 +189,6 @@ fn save_draft_locally(
         .replace_message_with_attachments(&msg, &folder_ids, &attachment_records)?;
     Ok(id)
 }
-
 
 pub async fn delete_draft(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

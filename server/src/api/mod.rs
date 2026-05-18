@@ -10,9 +10,9 @@ pub mod resources;
 pub mod shell;
 pub mod threads;
 
-use axum::{Router, routing::get};
-use std::sync::Arc;
 use crate::state::AppState;
+use axum::{routing::get, Router};
+use std::sync::Arc;
 
 /// Build the /api router with all resource sub-routers nested under it.
 pub fn api_routes() -> Router<Arc<AppState>> {

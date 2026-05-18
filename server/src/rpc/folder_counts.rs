@@ -1,8 +1,5 @@
-use crate::state::AppState;
 use pebble_core::PebbleError;
 use std::collections::HashMap;
-
-
 
 pub async fn get_folder_unread_counts(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

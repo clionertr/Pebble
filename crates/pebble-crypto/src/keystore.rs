@@ -1,8 +1,8 @@
 use pebble_core::{PebbleError, Result};
 use rand::RngCore;
+use std::path::Path;
 use tracing::info;
 use zeroize::Zeroizing;
-use std::path::Path;
 
 pub struct KeyStore;
 
@@ -26,15 +26,16 @@ impl KeyStore {
             info!("No DEK file found, generating new one at {:?}", key_path);
             let mut key = Zeroizing::new([0u8; 32]);
             rand::thread_rng().fill_bytes(&mut *key);
-            
+
             if let Some(parent) = key_path.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| PebbleError::Auth(format!("Failed to create DEK directory: {e}")))?;
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    PebbleError::Auth(format!("Failed to create DEK directory: {e}"))
+                })?;
             }
-            
+
             std::fs::write(key_path, *key)
                 .map_err(|e| PebbleError::Auth(format!("Failed to write DEK file: {e}")))?;
-                
+
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -42,10 +43,11 @@ impl KeyStore {
                     .map_err(|e| PebbleError::Auth(format!("Failed to get DEK metadata: {e}")))?
                     .permissions();
                 perms.set_mode(0o600);
-                std::fs::set_permissions(key_path, perms)
-                    .map_err(|e| PebbleError::Auth(format!("Failed to set DEK permissions: {e}")))?;
+                std::fs::set_permissions(key_path, perms).map_err(|e| {
+                    PebbleError::Auth(format!("Failed to set DEK permissions: {e}"))
+                })?;
             }
-            
+
             Ok(key)
         }
     }

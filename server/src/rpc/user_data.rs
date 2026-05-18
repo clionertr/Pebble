@@ -3,7 +3,6 @@ use pebble_core::{new_id, now_timestamp, PebbleError};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;
 
-
 const EMAIL_TEMPLATES_KEY: &str = "email_templates";
 const EMAIL_SIGNATURES_KEY: &str = "email_signatures";
 
@@ -52,13 +51,11 @@ fn normalize_template_input(input: SaveEmailTemplateRequest) -> SaveEmailTemplat
     }
 }
 
-
 pub async fn list_email_templates(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
 ) -> Result<Vec<EmailTemplate>, PebbleError> {
     Ok(decrypt_json(&state, EMAIL_TEMPLATES_KEY)?.unwrap_or_default())
 }
-
 
 pub async fn save_email_template(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -85,7 +82,6 @@ pub async fn save_email_template(
     Ok(saved)
 }
 
-
 pub async fn delete_email_template(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     id: String,
@@ -96,7 +92,6 @@ pub async fn delete_email_template(
     encrypt_json(&state, EMAIL_TEMPLATES_KEY, &templates)
 }
 
-
 pub async fn get_email_signature(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     account_id: String,
@@ -105,7 +100,6 @@ pub async fn get_email_signature(
         decrypt_json(&state, EMAIL_SIGNATURES_KEY)?.unwrap_or_default();
     Ok(signatures.get(&account_id).cloned().unwrap_or_default())
 }
-
 
 pub async fn set_email_signature(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

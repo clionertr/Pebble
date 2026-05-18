@@ -1,7 +1,5 @@
-use crate::state::AppState;
 use semver::Version;
 use serde::Serialize;
-
 
 #[derive(Serialize)]
 pub struct UpdateInfo {
@@ -9,7 +7,6 @@ pub struct UpdateInfo {
     pub release_url: String,
     pub is_newer: bool,
 }
-
 
 pub async fn check_for_update(current_version: String) -> Result<UpdateInfo, String> {
     let client = reqwest::Client::builder()
@@ -54,7 +51,6 @@ pub async fn check_for_update(current_version: String) -> Result<UpdateInfo, Str
     })
 }
 
-
 pub fn open_external_url(url: String) -> Result<(), String> {
     // Only allow safe URL schemes to prevent command injection via opener::open / ShellExecuteW
     if !url.starts_with("https://") && !url.starts_with("http://") && !url.starts_with("mailto:") {
@@ -63,8 +59,9 @@ pub fn open_external_url(url: String) -> Result<(), String> {
     opener::open(&url).map_err(|e| format!("Failed to open URL: {e}"))
 }
 
-
-pub fn health_check(state: axum::extract::State<std::sync::Arc<crate::state::AppState>>) -> Result<String, String> {
+pub fn health_check(
+    state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
+) -> Result<String, String> {
     match state.store.list_accounts() {
         Ok(accounts) => Ok(format!(
             "Pebble is healthy. {} account(s) configured.",

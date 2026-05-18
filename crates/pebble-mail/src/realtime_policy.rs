@@ -58,7 +58,10 @@ impl SyncTrigger {
     }
 
     pub fn bypasses_circuit_backoff(self) -> bool {
-        matches!(self, Self::Manual | Self::NetworkOnline | Self::ProviderPush)
+        matches!(
+            self,
+            Self::Manual | Self::NetworkOnline | Self::ProviderPush
+        )
     }
 }
 

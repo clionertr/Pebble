@@ -1,7 +1,5 @@
-use crate::state::AppState;
 use pebble_core::{Attachment, PebbleError};
 use std::path::{Path, PathBuf};
-
 
 fn is_windows_reserved_name(name: &str) -> bool {
     matches!(
@@ -320,14 +318,12 @@ pub(crate) fn stage_local_attachment_records(
     Ok(records)
 }
 
-
 pub async fn list_attachments(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     message_id: String,
 ) -> std::result::Result<Vec<Attachment>, PebbleError> {
     state.store.list_attachments_by_message(&message_id)
 }
-
 
 pub async fn get_attachment_path(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
@@ -337,10 +333,9 @@ pub async fn get_attachment_path(
     Ok(att.and_then(|a| a.local_path))
 }
 
-
 pub async fn download_attachment(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
-    
+
     attachment_id: String,
     save_to: String,
 ) -> std::result::Result<String, PebbleError> {

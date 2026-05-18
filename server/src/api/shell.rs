@@ -1,13 +1,6 @@
-// GET /api/shell — composite endpoint returning accounts, folders per account,
-// and unread counts per account. Replaces 3 separate RPC calls that were always
-// made together on every page load.
+// GET /api/shell：一次返回账号、各账号文件夹和未读计数，减少首屏请求数。
 
-use axum::{
-    extract::State,
-    response::Json,
-    routing::get,
-    Router,
-};
+use axum::{extract::State, response::Json, routing::get, Router};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -23,17 +16,13 @@ pub struct ShellResponse {
 }
 
 pub fn shell_routes() -> Router<Arc<AppState>> {
-    Router::new()
-        .route("/api/shell", get(shell_handler))
+    Router::new().route("/api/shell", get(shell_handler))
 }
 
 async fn shell_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ShellResponse>, crate::api::error::ApiError> {
-    let accounts = crate::rpc::accounts::list_accounts(
-        axum::extract::State(state.clone()),
-    )
-    .await?;
+    let accounts = crate::rpc::accounts::list_accounts(axum::extract::State(state.clone())).await?;
 
     let mut folders: HashMap<String, Vec<pebble_core::Folder>> = HashMap::new();
     let mut unread_counts: HashMap<String, HashMap<String, u32>> = HashMap::new();

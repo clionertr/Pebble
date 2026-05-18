@@ -76,7 +76,21 @@ impl TranslateService {
                 api_key,
                 model,
                 mode,
-            } => llm::translate(&client, endpoint, api_key, model, mode, text, from, to).await,
+            } => {
+                llm::translate(
+                    &client,
+                    llm::LlmTranslateRequest {
+                        endpoint,
+                        api_key,
+                        model,
+                        mode,
+                        text,
+                        from,
+                        to,
+                    },
+                )
+                .await
+            }
         }
     }
 }

@@ -1,7 +1,5 @@
-use crate::state::AppState;
 use pebble_core::{new_id, Folder, FolderRole, FolderType, PebbleError, ProviderType};
 use pebble_mail::should_hide_outlook_folder;
-
 
 fn provider_folders_have_arrived(folders: &[Folder]) -> bool {
     folders
@@ -33,7 +31,6 @@ fn filter_display_folders(provider: Option<&ProviderType>, folders: Vec<Folder>)
         .filter(|folder| !should_hide_stored_outlook_folder(folder))
         .collect()
 }
-
 
 pub async fn list_folders(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

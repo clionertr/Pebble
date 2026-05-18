@@ -1,6 +1,6 @@
 use crate::test_app;
-use axum::http::{Request, StatusCode, header};
 use axum::body::Body;
+use axum::http::{header, Request, StatusCode};
 use axum::Router;
 use tower::ServiceExt;
 
@@ -79,7 +79,9 @@ async fn inbox_returns_expected_structure() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = axum::body::to_bytes(response.into_body(), 65536).await.unwrap();
+    let body = axum::body::to_bytes(response.into_body(), 65536)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert!(json["messages"].is_array());
     assert!(json["total"].is_number());

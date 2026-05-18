@@ -737,7 +737,7 @@ pub(crate) async fn run_gmail_watch_renewal_pass(state: Arc<AppState>) {
     }
 }
 
-pub(crate) fn spawn_gmail_watch_renewal_task(state: Arc<AppState>) {
+pub fn spawn_gmail_watch_renewal_task(state: Arc<AppState>) {
     tokio::spawn(async move {
         loop {
             run_gmail_watch_renewal_pass(state.clone()).await;
@@ -831,10 +831,12 @@ async fn process_gmail_push_notification(
             Some(&account.id),
             None,
             Some("gmail_push"),
-            || format!(
-                "history_id={} backend_received_at_ms={}",
-                notification.history_id, backend_received_at_ms
-            ),
+            || {
+                format!(
+                    "history_id={} backend_received_at_ms={}",
+                    notification.history_id, backend_received_at_ms
+                )
+            },
         );
 
         if !claim_push_trigger(&state, &account.id, Instant::now()).await {
@@ -883,7 +885,7 @@ fn webhook_secret_authorized(query: &HashMap<String, String>) -> bool {
     constant_time_eq(&expected, actual)
 }
 
-pub(crate) async fn gmail_webhook_handler(
+pub async fn gmail_webhook_handler(
     State(state): State<Arc<AppState>>,
     Query(query): Query<HashMap<String, String>>,
     body: Bytes,
@@ -905,10 +907,12 @@ pub(crate) async fn gmail_webhook_handler(
         None,
         None,
         Some("gmail_push"),
-        || format!(
-            "history_id={} backend_received_at_ms={}",
-            notification.history_id, backend_received_at_ms
-        ),
+        || {
+            format!(
+                "history_id={} backend_received_at_ms={}",
+                notification.history_id, backend_received_at_ms
+            )
+        },
     );
     tokio::spawn(process_gmail_push_notification(
         state,

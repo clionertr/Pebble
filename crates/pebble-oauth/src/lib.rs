@@ -108,7 +108,7 @@ impl OAuthManager {
         let token_url = TokenUrl::new(self.config.token_url.clone())
             .map_err(|e| OAuthError::Config(format!("Invalid token URL: {}", e)))?;
         let redirect_url = RedirectUrl::new(self.config.redirect_url.clone())
-        .map_err(|e| OAuthError::Config(format!("Invalid redirect URL: {}", e)))?;
+            .map_err(|e| OAuthError::Config(format!("Invalid redirect URL: {}", e)))?;
         Ok(ParsedUrls {
             auth_url,
             token_url,

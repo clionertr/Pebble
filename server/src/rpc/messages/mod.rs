@@ -96,17 +96,11 @@ pub(super) async fn modify_gmail_labels_with_auth_retry(
     remove: &[String],
 ) -> std::result::Result<(), PebbleError> {
     retry_gmail_auth_error_once(
-        || {
-            let provider = provider;
-            async move { provider.modify_labels(remote_id, add, remove).await }
-        },
-        || {
-            let provider = provider;
-            async move {
-                let auth = refresh_account_oauth_auth(state, account_id, "gmail").await?;
-                provider.set_access_token(auth.tokens.access_token);
-                Ok(())
-            }
+        || async move { provider.modify_labels(remote_id, add, remove).await },
+        || async move {
+            let auth = refresh_account_oauth_auth(state, account_id, "gmail").await?;
+            provider.set_access_token(auth.tokens.access_token);
+            Ok(())
         },
     )
     .await
