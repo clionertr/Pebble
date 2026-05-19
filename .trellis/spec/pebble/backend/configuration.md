@@ -28,3 +28,70 @@ PEBBLE_PASSWORD_HASH=$$2b$$12$$...
 OAUTH_REDIRECT_URL=https://mail.example.com
 ALLOWED_ORIGIN=
 ```
+
+## Scenario: 一键 Docker 部署配置链路
+
+### 1. Scope / Trigger
+- Trigger: Pebble 支持从 GitHub 拉取 `deploy/install.sh` 后直接部署，部署链路横跨 GitHub Actions、GHCR 镜像、Docker Compose、`.env` 和后端启动参数。
+- 范围：`.github/workflows/docker.yml`、`deploy/install.sh`、`deploy/compose.prod.yml`、`deploy/backend.Dockerfile`、`deploy/frontend.Dockerfile`、`server/src/main.rs`。
+
+### 2. Signatures
+- 安装命令：`curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh | bash`。
+- 密码哈希命令：`pebble hash-password [password]`，不传参数时从 stdin 读取。
+- 生产 compose：`deploy/compose.prod.yml`，默认镜像 `ghcr.io/clionertr/pebble:edge` 和 `ghcr.io/clionertr/pebble-frontend:edge`。
+- 入口端口：前端容器默认绑定 `127.0.0.1:9191:80`。
+
+### 3. Contracts
+- `deploy/install.sh` 默认在当前目录创建 `./pebble`，其中包含 `compose.yml`、`.env` 和 `data/`。
+- `.env` 必须写入 `PEBBLE_PASSWORD_HASH`、`OAUTH_REDIRECT_URL`、`PEBBLE_BACKEND_IMAGE`、`PEBBLE_FRONTEND_IMAGE`、`PEBBLE_HTTP_BIND`。
+- Docker Compose 中后端必须设置 `PEBBLE_HOST=0.0.0.0`，前端 nginx 通过容器网络访问 `backend:3000`。
+- 同源 Docker 部署中 `ALLOWED_ORIGIN` 必须保持为空。
+- bcrypt hash 写入 Docker Compose `.env` 时，`$` 必须写成 `$$`；容器运行时会得到单 `$`。
+- GHCR 镜像应公开可拉取；安装脚本不得要求普通用户先 `docker login ghcr.io`。
+
+### 4. Validation & Error Matrix
+- 缺少 `docker` -> 安装脚本报错并退出，不继续写半截部署。
+- 缺少 `docker compose` -> 安装脚本报错并退出。
+- GHCR 镜像拉取失败 -> 提示检查 GitHub Packages 是否设为 Public。
+- `PEBBLE_PUBLIC_URL` 不以 `http://` 或 `https://` 开头 -> 安装脚本报错或重新提示。
+- 健康检查 `http://127.0.0.1:9191` 超时 -> 打印 `docker compose ps` 和 backend/frontend 最近日志。
+- `pebble hash-password` 收到空密码 -> 返回错误，不输出 hash。
+
+### 5. Good/Base/Bad Cases
+- Good: 用户运行安装脚本，输入 `https://mail.closev.com` 和登录密码，脚本生成 `.env`、拉取 `edge` 镜像、启动服务，并确认 `127.0.0.1:9191` 可访问。
+- Base: 用户暂不配置 Google/Microsoft OAuth，`.env` 中 OAuth 字段为空，服务仍能启动；后续可编辑 `.env` 后重启。
+- Bad: 将生产 compose 改回本地 `build:` 或暴露后端 `3000` 到公网，会破坏“一键部署拉镜像”和后端只在内部网络可达的契约。
+
+### 6. Tests Required
+- `bash -n deploy/install.sh`。
+- `docker compose --project-directory <tmp> --env-file <tmp>/.env -f <tmp>/compose.yml config`，断言前端绑定 `127.0.0.1:9191`。
+- `printf '%s' 'password' | cargo run -p pebble -- hash-password` 输出 bcrypt 格式。
+- `cargo clippy --workspace --all-targets -- -D warnings`。
+- `cargo test --workspace --all-targets`。
+- `pnpm test` 和 `pnpm build:frontend`。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```yaml
+services:
+  backend:
+    ports:
+      - "3000:3000"
+  frontend:
+    build:
+      context: .
+```
+
+#### Correct
+```yaml
+services:
+  backend:
+    image: ghcr.io/clionertr/pebble:edge
+    environment:
+      PEBBLE_HOST: 0.0.0.0
+  frontend:
+    image: ghcr.io/clionertr/pebble-frontend:edge
+    ports:
+      - "127.0.0.1:9191:80"
+```
