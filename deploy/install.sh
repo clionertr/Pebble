@@ -81,13 +81,13 @@ prompt_required() {
   done
 }
 
-prompt_password_or_generate() {
+read_password_or_generate() {
   local password=""
   local repeated=""
 
   if ! has_tty; then
     GENERATED_PASSWORD="$(random_password)"
-    printf "%s" "$GENERATED_PASSWORD"
+    RESOLVED_PASSWORD="$GENERATED_PASSWORD"
     return 0
   fi
 
@@ -98,7 +98,7 @@ prompt_password_or_generate() {
 
     if [[ -z "$password" ]]; then
       GENERATED_PASSWORD="$(random_password)"
-      printf "%s" "$GENERATED_PASSWORD"
+      RESOLVED_PASSWORD="$GENERATED_PASSWORD"
       return 0
     fi
 
@@ -109,7 +109,7 @@ prompt_password_or_generate() {
     if [[ "$password" != "$repeated" ]]; then
       warn "Passwords do not match."
     else
-      printf "%s" "$password"
+      RESOLVED_PASSWORD="$password"
       return 0
     fi
   done
@@ -243,13 +243,20 @@ fetch_compose_template() {
 
 resolve_password() {
   if [[ -n "${PEBBLE_PASSWORD:-}" ]]; then
-    printf "%s" "$PEBBLE_PASSWORD"
+    RESOLVED_PASSWORD="$PEBBLE_PASSWORD"
   elif [[ "${PEBBLE_RANDOM_PASSWORD:-}" == "1" ]]; then
     GENERATED_PASSWORD="$(random_password)"
-    printf "%s" "$GENERATED_PASSWORD"
+    RESOLVED_PASSWORD="$GENERATED_PASSWORD"
   else
-    prompt_password_or_generate
+    read_password_or_generate
   fi
+}
+
+reset_password_hash() {
+  RESOLVED_PASSWORD=""
+  resolve_password
+  PEBBLE_PASSWORD_HASH_VALUE="$(generate_password_hash "$RESOLVED_PASSWORD")"
+  RESOLVED_PASSWORD=""
 }
 
 generate_password_hash() {
@@ -348,6 +355,7 @@ main() {
   ENV_FILE="${INSTALL_DIR}/.env"
   COMPOSE_FILE="${INSTALL_DIR}/compose.yml"
   GENERATED_PASSWORD=""
+  RESOLVED_PASSWORD=""
 
   log "Installing Pebble into ${INSTALL_DIR}"
   fetch_compose_template
@@ -360,15 +368,15 @@ main() {
   PEBBLE_PASSWORD_HASH_VALUE="$existing_hash"
 
   if [[ -n "${PEBBLE_PASSWORD:-}" || "${PEBBLE_RANDOM_PASSWORD:-}" == "1" || "${RESET_PASSWORD:-}" == "1" ]]; then
-    PEBBLE_PASSWORD_HASH_VALUE="$(generate_password_hash "$(resolve_password)")"
+    reset_password_hash
   elif [[ -n "$existing_hash" ]]; then
     if confirm "Existing login password found. Reset it now?" "n"; then
-      PEBBLE_PASSWORD_HASH_VALUE="$(generate_password_hash "$(resolve_password)")"
+      reset_password_hash
     else
       log "Keeping existing login password."
     fi
   else
-    PEBBLE_PASSWORD_HASH_VALUE="$(generate_password_hash "$(resolve_password)")"
+    reset_password_hash
   fi
 
   configure_oauth
