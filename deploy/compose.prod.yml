@@ -2,7 +2,7 @@ name: pebble
 
 services:
   backend:
-    image: ${PEBBLE_BACKEND_IMAGE:-ghcr.io/clionertr/pebble:edge}
+    image: ${PEBBLE_BACKEND_IMAGE:-ghcr.io/clionertr/pebble:latest}
     container_name: pebble-backend
     env_file:
       - .env
@@ -16,7 +16,7 @@ services:
       - pebble-net
 
   frontend:
-    image: ${PEBBLE_FRONTEND_IMAGE:-ghcr.io/clionertr/pebble-frontend:edge}
+    image: ${PEBBLE_FRONTEND_IMAGE:-ghcr.io/clionertr/pebble-frontend:latest}
     container_name: pebble-frontend
     ports:
       - "${PEBBLE_HTTP_BIND:-127.0.0.1:9191}:80"

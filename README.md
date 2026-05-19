@@ -40,16 +40,16 @@ Pick the method that fits you.
 
 ### One-command Docker deploy (recommended)
 
-You need Docker and Docker Compose installed. The installer pulls prebuilt images, creates `./pebble`, writes `.env`, starts the services, and checks `http://127.0.0.1:9191`.
+You need Docker and Docker Compose installed. The installer pulls the latest tagged GHCR images, creates `./pebble`, writes `.env`, starts the services, and checks `http://127.0.0.1:9191`. If Docker needs elevated privileges and passwordless sudo is available, the installer will use `sudo -n docker` automatically.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh | bash
 ```
 
-During setup you will enter:
+During setup you can accept or enter:
 
-- your public URL, for example `https://mail.closev.com`
-- your Pebble login password
+- your public URL; the default is auto-detected as `http://<server-ip>:9191`
+- your Pebble login password; leave it blank to generate a 32-character password
 - optional Google/Microsoft OAuth credentials
 
 Point your reverse proxy to `http://127.0.0.1:9191`. All Pebble data is stored in `./pebble/data`.
@@ -57,15 +57,12 @@ Point your reverse proxy to `http://127.0.0.1:9191`. All Pebble data is stored i
 Non-interactive examples:
 
 ```bash
-# Use a provided password instead of interactive input
+# Fully automatic: detects IP and generates a 32-character login password
+curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh | bash
+
+# Use a domain and a provided password instead of generated defaults
 curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh \
   | PEBBLE_PASSWORD='your-secret-password' \
-    PEBBLE_PUBLIC_URL='https://mail.example.com' \
-    bash
-
-# Generate and print a random login password
-curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh \
-  | PEBBLE_RANDOM_PASSWORD=1 \
     PEBBLE_PUBLIC_URL='https://mail.example.com' \
     bash
 ```
@@ -216,12 +213,14 @@ server {
 
 The one-command installer writes a compose file from `deploy/compose.prod.yml`. If you want to maintain it manually, use the prebuilt GHCR images:
 
+`latest` is updated only when this repository pushes a version tag such as `v0.0.9`.
+
 ```yaml
 name: pebble
 
 services:
   backend:
-    image: ghcr.io/clionertr/pebble:edge
+    image: ghcr.io/clionertr/pebble:latest
     volumes:
       - ./data:/app/data
     env_file:
@@ -234,7 +233,7 @@ services:
       - pebble-net
 
   frontend:
-    image: ghcr.io/clionertr/pebble-frontend:edge
+    image: ghcr.io/clionertr/pebble-frontend:latest
     ports:
       - "127.0.0.1:9191:80"
     depends_on:

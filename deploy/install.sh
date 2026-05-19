@@ -5,7 +5,7 @@ set -euo pipefail
 REPO_OWNER="${REPO_OWNER:-clionertr}"
 REPO_NAME="${REPO_NAME:-Pebble}"
 PEBBLE_REF="${PEBBLE_REF:-master}"
-PEBBLE_VERSION="${PEBBLE_VERSION:-edge}"
+PEBBLE_VERSION="${PEBBLE_VERSION:-latest}"
 PEBBLE_INSTALL_DIR="${PEBBLE_INSTALL_DIR:-./pebble}"
 PEBBLE_HTTP_BIND="${PEBBLE_HTTP_BIND:-127.0.0.1:9191}"
 
@@ -13,6 +13,7 @@ IMAGE_OWNER="${REPO_OWNER,,}"
 PEBBLE_BACKEND_IMAGE="${PEBBLE_BACKEND_IMAGE:-ghcr.io/${IMAGE_OWNER}/pebble:${PEBBLE_VERSION}}"
 PEBBLE_FRONTEND_IMAGE="${PEBBLE_FRONTEND_IMAGE:-ghcr.io/${IMAGE_OWNER}/pebble-frontend:${PEBBLE_VERSION}}"
 PEBBLE_RAW_BASE="${PEBBLE_RAW_BASE:-https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${PEBBLE_REF}}"
+DOCKER_CMD=(docker)
 
 log() {
   printf "\033[1;34m==>\033[0m %s\n" "$*" >&2
@@ -80,24 +81,32 @@ prompt_required() {
   done
 }
 
-prompt_password_twice() {
+prompt_password_or_generate() {
   local password=""
   local repeated=""
 
-  has_tty || die "A terminal is required to enter the login password. Set PEBBLE_PASSWORD or PEBBLE_RANDOM_PASSWORD=1 for non-interactive deployment."
+  if ! has_tty; then
+    GENERATED_PASSWORD="$(random_password)"
+    printf "%s" "$GENERATED_PASSWORD"
+    return 0
+  fi
 
   while true; do
-    printf "Pebble login password: " > /dev/tty
+    printf "Pebble login password (leave blank to generate a 32-character password): " > /dev/tty
     IFS= read -rs password < /dev/tty || password=""
     printf "\n" > /dev/tty
+
+    if [[ -z "$password" ]]; then
+      GENERATED_PASSWORD="$(random_password)"
+      printf "%s" "$GENERATED_PASSWORD"
+      return 0
+    fi
 
     printf "Repeat password: " > /dev/tty
     IFS= read -rs repeated < /dev/tty || repeated=""
     printf "\n" > /dev/tty
 
-    if [[ -z "$password" ]]; then
-      warn "Password cannot be empty."
-    elif [[ "$password" != "$repeated" ]]; then
+    if [[ "$password" != "$repeated" ]]; then
       warn "Passwords do not match."
     else
       printf "%s" "$password"
@@ -108,9 +117,13 @@ prompt_password_twice() {
 
 random_password() {
   if command -v openssl >/dev/null 2>&1; then
-    openssl rand -base64 24 | tr -d "\n"
+    local value=""
+    while [[ "${#value}" -lt 32 ]]; do
+      value+=$(openssl rand -base64 48 | tr -dc "A-Za-z0-9")
+    done
+    printf "%.32s" "$value"
   elif command -v od >/dev/null 2>&1; then
-    od -An -tx1 -N24 /dev/urandom | tr -d " \n"
+    od -An -tx1 -N16 /dev/urandom | tr -d " \n"
   else
     die "Cannot generate a random password because neither openssl nor od is available."
   fi
@@ -126,8 +139,21 @@ require_command() {
 
 check_docker() {
   require_command docker
-  docker compose version >/dev/null 2>&1 || die "Docker Compose v2 is required. Please install/enable 'docker compose'."
-  docker info >/dev/null 2>&1 || die "Docker is installed, but the daemon is not reachable by the current user."
+
+  if docker info >/dev/null 2>&1; then
+    DOCKER_CMD=(docker)
+  elif command -v sudo >/dev/null 2>&1 && sudo -n docker info >/dev/null 2>&1; then
+    DOCKER_CMD=(sudo -n docker)
+    warn "Docker requires elevated privileges; using 'sudo -n docker' for this run."
+  else
+    die "Docker is installed, but the daemon is not reachable. Add this user to the docker group or enable passwordless sudo for docker."
+  fi
+
+  docker_cmd compose version >/dev/null 2>&1 || die "Docker Compose v2 is required. Please install/enable 'docker compose'."
+}
+
+docker_cmd() {
+  "${DOCKER_CMD[@]}" "$@"
 }
 
 env_value() {
@@ -145,13 +171,49 @@ normalize_public_url() {
   esac
 }
 
+detect_public_ip() {
+  local ip=""
+
+  if command -v curl >/dev/null 2>&1; then
+    ip="$(curl -fsS --max-time 3 https://api.ipify.org 2>/dev/null | tr -d '[:space:]' || true)"
+    if [[ -z "$ip" ]]; then
+      ip="$(curl -fsS --max-time 3 https://ifconfig.me/ip 2>/dev/null | tr -d '[:space:]' || true)"
+    fi
+  fi
+
+  if [[ -z "$ip" ]] && command -v hostname >/dev/null 2>&1; then
+    ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  fi
+
+  printf "%s" "${ip:-127.0.0.1}"
+}
+
+url_host() {
+  local host="$1"
+  if [[ "$host" == *:* && "$host" != \[*\] ]]; then
+    printf "[%s]" "$host"
+  else
+    printf "%s" "$host"
+  fi
+}
+
+default_public_url() {
+  local port="${PEBBLE_HTTP_BIND##*:}"
+  printf "http://%s:%s" "$(url_host "$(detect_public_ip)")" "$port"
+}
+
 read_public_url() {
   local existing="$1"
   local value="${PEBBLE_PUBLIC_URL:-}"
+  local default_url="$existing"
+
+  if [[ -z "$value" && -z "$default_url" ]]; then
+    default_url="$(default_public_url)"
+  fi
 
   while true; do
     if [[ -z "$value" ]]; then
-      value="$(prompt "Public URL for Pebble, for example https://mail.closev.com" "$existing")"
+      value="$(prompt "Public URL for Pebble" "$default_url")"
     fi
 
     if normalized="$(normalize_public_url "$value")"; then
@@ -186,7 +248,7 @@ resolve_password() {
     GENERATED_PASSWORD="$(random_password)"
     printf "%s" "$GENERATED_PASSWORD"
   else
-    prompt_password_twice
+    prompt_password_or_generate
   fi
 }
 
@@ -195,10 +257,10 @@ generate_password_hash() {
   local hash=""
 
   log "Pulling backend image for password hashing: ${PEBBLE_BACKEND_IMAGE}"
-  docker pull "$PEBBLE_BACKEND_IMAGE" >/dev/null \
+  docker_cmd pull "$PEBBLE_BACKEND_IMAGE" >/dev/null \
     || die "Cannot pull ${PEBBLE_BACKEND_IMAGE}. If this is a GHCR image, check that the GitHub package is public."
 
-  hash="$(printf "%s" "$password" | docker run --rm -i "$PEBBLE_BACKEND_IMAGE" pebble hash-password)" \
+  hash="$(printf "%s" "$password" | docker_cmd run --rm -i "$PEBBLE_BACKEND_IMAGE" pebble hash-password)" \
     || die "Failed to generate bcrypt password hash with the backend image."
 
   case "$hash" in
@@ -253,7 +315,7 @@ EOF
 }
 
 compose_cmd() {
-  docker compose --project-directory "$INSTALL_DIR" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  docker_cmd compose --project-directory "$INSTALL_DIR" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
 wait_for_http() {

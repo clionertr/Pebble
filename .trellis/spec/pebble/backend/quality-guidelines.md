@@ -14,8 +14,9 @@
 
 ## CI/CD
 
-- `master` 分支：运行 Webmail 质量门，并为 Docker 镜像生成 `edge` 标签。
-- `v*` tag：发布 Docker 镜像，生成版本号、major/minor 和 `latest` 标签。
+- `master` 分支：运行 Webmail 质量门，不触发 Docker 镜像发布。
+- `vMAJOR.MINOR.PATCH` tag：发布 Docker 镜像，生成版本号、major/minor、`latest` 和 `sha-*` 标签。
+- Docker 镜像构建按镜像和 CPU 架构拆分 BuildKit/GitHub Actions cache scope；优先用原生架构 runner，避免 QEMU 拖慢构建。
 - 不构建 Windows/macOS 桌面包；Pebble 当前发布物是后端与前端 Docker 镜像。
 
 ## 必跑门禁

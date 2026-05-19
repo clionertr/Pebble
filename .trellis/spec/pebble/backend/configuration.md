@@ -38,8 +38,9 @@ ALLOWED_ORIGIN=
 ### 2. Signatures
 - 安装命令：`curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh | bash`。
 - 密码哈希命令：`pebble hash-password [password]`，不传参数时从 stdin 读取。
-- 生产 compose：`deploy/compose.prod.yml`，默认镜像 `ghcr.io/clionertr/pebble:edge` 和 `ghcr.io/clionertr/pebble-frontend:edge`。
+- 生产 compose：`deploy/compose.prod.yml`，默认镜像 `ghcr.io/clionertr/pebble:latest` 和 `ghcr.io/clionertr/pebble-frontend:latest`。
 - 入口端口：前端容器默认绑定 `127.0.0.1:9191:80`。
+- Docker 镜像 workflow 只由版本 tag（`vMAJOR.MINOR.PATCH`）触发；`latest` 只在 tag 构建成功后更新。
 
 ### 3. Contracts
 - `deploy/install.sh` 默认在当前目录创建 `./pebble`，其中包含 `compose.yml`、`.env` 和 `data/`。
@@ -48,6 +49,9 @@ ALLOWED_ORIGIN=
 - 同源 Docker 部署中 `ALLOWED_ORIGIN` 必须保持为空。
 - bcrypt hash 写入 Docker Compose `.env` 时，`$` 必须写成 `$$`；容器运行时会得到单 `$`。
 - GHCR 镜像应公开可拉取；安装脚本不得要求普通用户先 `docker login ghcr.io`。
+- 如果当前用户无法连接 Docker daemon，但免密 sudo 可用，安装脚本必须自动使用 `sudo -n docker`。
+- `PEBBLE_PUBLIC_URL` 未设置时，安装脚本默认探测公网 IP 并生成 `http://<ip>:<port>`。
+- 登录密码留空或非交互且未设置 `PEBBLE_PASSWORD` 时，安装脚本默认生成 32 位随机密码并在结束时打印一次。
 
 ### 4. Validation & Error Matrix
 - 缺少 `docker` -> 安装脚本报错并退出，不继续写半截部署。
@@ -58,7 +62,7 @@ ALLOWED_ORIGIN=
 - `pebble hash-password` 收到空密码 -> 返回错误，不输出 hash。
 
 ### 5. Good/Base/Bad Cases
-- Good: 用户运行安装脚本，输入 `https://mail.closev.com` 和登录密码，脚本生成 `.env`、拉取 `edge` 镜像、启动服务，并确认 `127.0.0.1:9191` 可访问。
+- Good: 用户运行安装脚本，输入 `https://mail.closev.com` 或接受自动探测的 IP URL；登录密码可以手动输入，也可以留空生成 32 位随机密码。脚本生成 `.env`、拉取 `latest` 镜像、启动服务，并确认 `127.0.0.1:9191` 可访问。
 - Base: 用户暂不配置 Google/Microsoft OAuth，`.env` 中 OAuth 字段为空，服务仍能启动；后续可编辑 `.env` 后重启。
 - Bad: 将生产 compose 改回本地 `build:` 或暴露后端 `3000` 到公网，会破坏“一键部署拉镜像”和后端只在内部网络可达的契约。
 
@@ -87,11 +91,11 @@ services:
 ```yaml
 services:
   backend:
-    image: ghcr.io/clionertr/pebble:edge
+    image: ghcr.io/clionertr/pebble:latest
     environment:
       PEBBLE_HOST: 0.0.0.0
   frontend:
-    image: ghcr.io/clionertr/pebble-frontend:edge
+    image: ghcr.io/clionertr/pebble-frontend:latest
     ports:
       - "127.0.0.1:9191:80"
 ```

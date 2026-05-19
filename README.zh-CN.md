@@ -42,16 +42,16 @@ Pebble 是一个网页邮件客户端，安装在你自己的 VPS 或 NAS 上。
 
 ### 一键 Docker 部署（推荐）
 
-前提：你已安装 Docker 和 Docker Compose。安装脚本会拉取预构建镜像，创建 `./pebble`，写入 `.env`，启动服务，并检查 `http://127.0.0.1:9191` 是否可访问。
+前提：你已安装 Docker 和 Docker Compose。安装脚本会拉取最新 tag 对应的 GHCR 镜像，创建 `./pebble`，写入 `.env`，启动服务，并检查 `http://127.0.0.1:9191` 是否可访问。如果当前用户不能直接连接 Docker，但免密 sudo 可用，脚本会自动改用 `sudo -n docker`。
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh | bash
 ```
 
-安装过程中会让你输入：
+安装过程中可以直接回车使用默认值，也可以手动输入：
 
-- 公网访问地址，例如 `https://mail.closev.com`
-- Pebble 登录密码
+- 公网访问地址；默认会自动探测成 `http://<服务器IP>:9191`
+- Pebble 登录密码；留空会自动生成 32 位随机密码
 - 可选的 Google/Microsoft OAuth 凭据
 
 把你的反向代理指向 `http://127.0.0.1:9191`。所有数据会保存在 `./pebble/data`。
@@ -59,15 +59,12 @@ curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/inst
 非交互示例：
 
 ```bash
-# 用环境变量传入登录密码
+# 全自动：自动探测 IP，并生成 32 位登录密码
+curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh | bash
+
+# 指定域名和登录密码
 curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh \
   | PEBBLE_PASSWORD='你的密码' \
-    PEBBLE_PUBLIC_URL='https://mail.example.com' \
-    bash
-
-# 自动生成并打印随机登录密码
-curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh \
-  | PEBBLE_RANDOM_PASSWORD=1 \
     PEBBLE_PUBLIC_URL='https://mail.example.com' \
     bash
 ```
@@ -218,12 +215,14 @@ server {
 
 一键安装脚本会从 `deploy/compose.prod.yml` 写出 compose 文件。如果你想手动维护，可以使用预构建的 GHCR 镜像：
 
+`latest` 只会在仓库推送版本 tag（例如 `v0.0.9`）时更新。
+
 ```yaml
 name: pebble
 
 services:
   backend:
-    image: ghcr.io/clionertr/pebble:edge
+    image: ghcr.io/clionertr/pebble:latest
     volumes:
       - ./data:/app/data
     env_file:
@@ -236,7 +235,7 @@ services:
       - pebble-net
 
   frontend:
-    image: ghcr.io/clionertr/pebble-frontend:edge
+    image: ghcr.io/clionertr/pebble-frontend:latest
     ports:
       - "127.0.0.1:9191:80"
     depends_on:
