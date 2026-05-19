@@ -15,7 +15,7 @@ PEBBLE_FRONTEND_IMAGE="${PEBBLE_FRONTEND_IMAGE:-ghcr.io/${IMAGE_OWNER}/pebble-fr
 PEBBLE_RAW_BASE="${PEBBLE_RAW_BASE:-https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${PEBBLE_REF}}"
 
 log() {
-  printf "\033[1;34m==>\033[0m %s\n" "$*"
+  printf "\033[1;34m==>\033[0m %s\n" "$*" >&2
 }
 
 warn() {
@@ -28,7 +28,7 @@ die() {
 }
 
 has_tty() {
-  [[ -r /dev/tty && -w /dev/tty ]]
+  [[ -t 0 || -t 1 || -t 2 ]] && [[ -r /dev/tty && -w /dev/tty ]]
 }
 
 prompt() {
