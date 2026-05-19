@@ -1744,6 +1744,13 @@ impl SyncWorker {
                     match trigger {
                         Some(ImapWorkerTrigger::ProviderPush) => {
                             runtime.record_trigger(SyncTrigger::ProviderPush, Instant::now());
+                            if backoff.is_circuit_open() {
+                                debug!(
+                                    "Ignoring IMAP provider push while circuit is open for account {}",
+                                    self.base.account_id
+                                );
+                                continue;
+                            }
 
                             if let Err(e) = self.poll_new_messages().await {
                                 warn!("Provider push poll error for account {}: {}", self.base.account_id, e);

@@ -56,6 +56,7 @@ export const useUIStore = create<UIState>((set) => ({
       }
       useComposeStore.setState({
         composeMode: null, composeReplyTo: null, composePrefill: null, composeDirty: false,
+        showComposeLeaveConfirm: false, pendingView: null,
       });
       set({ activeView: view, drawerOpen: false });
       return;

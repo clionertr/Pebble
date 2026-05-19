@@ -88,6 +88,50 @@ fn cors_layer() -> CorsLayer {
     layer
 }
 
+fn maybe_spawn_search_reindex(state: Arc<AppState>) {
+    let schema_needs_reindex = state.search.needs_reindex();
+    let db_count = match state.store.count_all_messages() {
+        Ok(count) => count,
+        Err(error) => {
+            tracing::warn!("Failed to count messages before search reindex check: {error}");
+            return;
+        }
+    };
+    let index_count = state.search.doc_count();
+
+    let reason = if schema_needs_reindex {
+        Some("search index schema changed")
+    } else if db_count > 0 && index_count == 0 {
+        Some("search index is empty while messages exist")
+    } else if index_count != db_count {
+        Some("search index document count differs from message count")
+    } else {
+        None
+    };
+
+    let Some(reason) = reason else {
+        return;
+    };
+
+    tracing::info!(
+        reason,
+        index_count,
+        db_count,
+        "Scheduling background search reindex"
+    );
+
+    let store = state.store.clone();
+    let search = state.search.clone();
+    tokio::spawn(async move {
+        match tokio::task::spawn_blocking(move || rpc::indexing::do_reindex(&store, &search)).await
+        {
+            Ok(Ok(count)) => tracing::info!(count, "Background search reindex completed"),
+            Ok(Err(error)) => tracing::error!("Background search reindex failed: {error}"),
+            Err(error) => tracing::error!("Background search reindex task failed: {error}"),
+        }
+    });
+}
+
 #[tokio::main]
 async fn main() {
     // Use a local ./data directory for VPS deployment
@@ -118,6 +162,8 @@ async fn main() {
         attachments_dir,
         password_hash,
     ));
+
+    maybe_spawn_search_reindex(state.clone());
 
     let store_clone = state.store.clone();
     let state_clone = state.clone();

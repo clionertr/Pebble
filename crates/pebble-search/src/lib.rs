@@ -13,6 +13,8 @@ use tantivy::{DateTime, Index, IndexWriter, ReloadPolicy, TantivyDocument, Term}
 
 use schema::{build_schema, SearchSchema};
 
+const SNIPPET_MAX_LEN: usize = 150;
+
 fn schema_text_field_matches(
     existing_schema: &Schema,
     field_name: &str,
@@ -37,7 +39,7 @@ fn schema_text_field_matches(
 }
 
 fn schema_needs_rebuild(existing_schema: &Schema) -> bool {
-    !schema_text_field_matches(existing_schema, "body_text", schema::BODY_TOKENIZER, false)
+    !schema_text_field_matches(existing_schema, "body_text", schema::BODY_TOKENIZER, true)
         || !schema_text_field_matches(existing_schema, "subject", schema::NGRAM_TOKENIZER, true)
         || !schema_text_field_matches(
             existing_schema,
@@ -52,6 +54,15 @@ fn schema_needs_rebuild(existing_schema: &Schema) -> bool {
             schema::NGRAM_TOKENIZER,
             false,
         )
+}
+
+fn make_snippet(doc: &TantivyDocument, field: tantivy::schema::Field) -> String {
+    let body = doc.get_first(field).and_then(|v| v.as_str()).unwrap_or("");
+    if body.len() > SNIPPET_MAX_LEN {
+        format!("{}…", &body[..body.floor_char_boundary(SNIPPET_MAX_LEN)])
+    } else {
+        body.to_string()
+    }
 }
 
 pub struct AdvancedSearchParams<'a> {
@@ -159,12 +170,6 @@ impl TantivySearch {
     /// Returns true if the index was rebuilt due to schema changes and needs re-population.
     pub fn needs_reindex(&self) -> bool {
         self.needs_reindex
-    }
-
-    fn make_snippet(&self, _doc: &TantivyDocument) -> String {
-        // Body is now INDEXED-only; return empty snippet.
-        // Callers should enrich snippets from SQLite via pebble_store.
-        String::new()
     }
 
     /// Returns the number of documents in the index.
@@ -340,7 +345,7 @@ impl TantivySearch {
                 .unwrap_or("")
                 .to_string();
 
-            let snippet = self.make_snippet(&doc);
+            let snippet = make_snippet(&doc, ss.body_text);
 
             let subject = doc
                 .get_first(ss.subject)
@@ -483,7 +488,7 @@ impl TantivySearch {
                 .unwrap_or("")
                 .to_string();
 
-            let snippet = self.make_snippet(&doc);
+            let snippet = make_snippet(&doc, ss.body_text);
 
             let subject = doc
                 .get_first(ss.subject)
@@ -538,6 +543,24 @@ impl TantivySearch {
 mod tests {
     use super::*;
     use pebble_core::EmailAddress;
+    use std::time::Duration;
+
+    fn remove_test_index_dir(path: &Path) {
+        let mut last_error = None;
+        for _ in 0..5 {
+            match std::fs::remove_dir_all(path) {
+                Ok(()) => return,
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => return,
+                Err(err) => {
+                    last_error = Some(err);
+                    std::thread::sleep(Duration::from_millis(50));
+                }
+            }
+        }
+        if let Some(err) = last_error {
+            panic!("failed to remove test index dir {}: {err}", path.display());
+        }
+    }
 
     fn make_test_message(id: &str, subject: &str, body: &str, from: &str) -> Message {
         Message {
@@ -681,7 +704,67 @@ mod tests {
             );
         }
 
-        std::fs::remove_dir_all(&index_dir).unwrap();
+        remove_test_index_dir(&index_dir);
+    }
+
+    #[test]
+    fn indexed_only_body_schema_triggers_reindex() {
+        let unique = format!(
+            "pebble-search-indexed-only-body-{}-{}",
+            std::process::id(),
+            pebble_core::new_id()
+        );
+        let index_dir = std::env::temp_dir().join(unique);
+        std::fs::create_dir_all(&index_dir).unwrap();
+
+        let mut builder = Schema::builder();
+        let ngram_stored = tantivy::schema::TextOptions::default()
+            .set_indexing_options(
+                tantivy::schema::TextFieldIndexing::default()
+                    .set_tokenizer(schema::NGRAM_TOKENIZER)
+                    .set_index_option(tantivy::schema::IndexRecordOption::WithFreqsAndPositions),
+            )
+            .set_stored();
+        let ngram_only = tantivy::schema::TextOptions::default().set_indexing_options(
+            tantivy::schema::TextFieldIndexing::default()
+                .set_tokenizer(schema::NGRAM_TOKENIZER)
+                .set_index_option(tantivy::schema::IndexRecordOption::WithFreqsAndPositions),
+        );
+        let body_indexed_only = tantivy::schema::TextOptions::default().set_indexing_options(
+            tantivy::schema::TextFieldIndexing::default()
+                .set_tokenizer(schema::BODY_TOKENIZER)
+                .set_index_option(tantivy::schema::IndexRecordOption::WithFreqsAndPositions),
+        );
+
+        builder.add_text_field(
+            "message_id",
+            tantivy::schema::STRING | tantivy::schema::STORED,
+        );
+        builder.add_text_field("subject", ngram_stored.clone());
+        builder.add_text_field("body_text", body_indexed_only);
+        builder.add_text_field("from_address", ngram_stored.clone());
+        builder.add_text_field("from_name", ngram_stored);
+        builder.add_text_field("to_addresses", ngram_only);
+        builder.add_date_field(
+            "date",
+            tantivy::schema::DateOptions::from(tantivy::schema::INDEXED | tantivy::schema::STORED)
+                .set_precision(tantivy::DateTimePrecision::Seconds),
+        );
+        builder.add_text_field("folder_id", tantivy::schema::STRING);
+        builder.add_text_field("account_id", tantivy::schema::STRING);
+        builder.add_text_field("has_attachment", tantivy::schema::STRING);
+
+        Index::create_in_dir(&index_dir, builder.build()).unwrap();
+
+        {
+            let engine = TantivySearch::open(&index_dir).unwrap();
+            assert!(
+                engine.needs_reindex(),
+                "indexed-only body_text should force a rebuild so snippets are available"
+            );
+        }
+
+        remove_test_index_dir(&index_dir);
     }
 
     #[test]
@@ -838,15 +921,15 @@ mod tests {
         engine.commit().unwrap();
 
         let hits = engine.search("quarterly", 10).unwrap();
+        assert!(!hits.is_empty());
         assert!(
-            !hits.is_empty(),
-            "search should still find documents by body text"
+            hits[0].snippet.contains("quarterly"),
+            "snippet should contain body text, got: {}",
+            hits[0].snippet
         );
-        // Snippet is empty because body_text is INDEXED-only (not stored).
-        // Production code enriches snippets from SQLite via pebble_store.
         assert!(
-            hits[0].snippet.is_empty(),
-            "snippet should be empty when body not stored in Tantivy"
+            !hits[0].snippet.contains("Invoice"),
+            "snippet should not be the subject"
         );
     }
 

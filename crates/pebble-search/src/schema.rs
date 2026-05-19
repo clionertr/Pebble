@@ -166,16 +166,16 @@ pub fn build_schema() -> SearchSchema {
 
     // CJK-aware tokenizer for body_text — standard word splitting for Latin,
     // character-level for CJK. Avoids n-gram bloat on large bodies.
-    // Body is INDEXED only (not stored) to avoid duplicating content with SQLite.
-    // Snippets are fetched from SQLite by the caller.
-    let body_indexed_only = TextOptions::default().set_indexing_options(
-        TextFieldIndexing::default()
-            .set_tokenizer(BODY_TOKENIZER)
-            .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-    );
+    let body_stored = TextOptions::default()
+        .set_indexing_options(
+            TextFieldIndexing::default()
+                .set_tokenizer(BODY_TOKENIZER)
+                .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+        )
+        .set_stored();
 
     let subject = builder.add_text_field("subject", ngram_stored.clone());
-    let body_text = builder.add_text_field("body_text", body_indexed_only);
+    let body_text = builder.add_text_field("body_text", body_stored);
     let from_address = builder.add_text_field("from_address", ngram_stored.clone());
     let from_name = builder.add_text_field("from_name", ngram_stored);
     let to_addresses = builder.add_text_field("to_addresses", ngram_only);
