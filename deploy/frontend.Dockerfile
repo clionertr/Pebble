@@ -1,5 +1,6 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
+ARG TARGETARCH
 
 # Install pnpm using corepack
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -8,7 +9,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Install dependencies with cache mount for pnpm store
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+RUN --mount=type=cache,id=pnpm-${TARGETARCH},target=/pnpm/store,sharing=locked \
     PNPM_HOME="/pnpm" pnpm install --frozen-lockfile
 
 # Cache-busting arg: change to force rebuild from this point

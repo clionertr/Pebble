@@ -7,6 +7,7 @@ use axum::{
 };
 use pebble::{api, auth, gmail_realtime, middleware, rpc, snooze_watcher, state::AppState};
 use std::convert::Infallible;
+use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -132,8 +133,60 @@ fn maybe_spawn_search_reindex(state: Arc<AppState>) {
     });
 }
 
+fn hash_password_from_args(args: &[String]) -> Result<String, String> {
+    let password = match args {
+        [] => {
+            let mut input = String::new();
+            std::io::stdin()
+                .read_to_string(&mut input)
+                .map_err(|error| format!("Failed to read password from stdin: {error}"))?;
+            input.trim_end_matches(&['\r', '\n'][..]).to_string()
+        }
+        [password] => password.clone(),
+        _ => {
+            return Err(
+                "Usage: pebble hash-password [password]\n       printf '%s' \"$PASSWORD\" | pebble hash-password"
+                    .to_string(),
+            )
+        }
+    };
+
+    if password.is_empty() {
+        return Err("Password cannot be empty".to_string());
+    }
+
+    bcrypt::hash(password, bcrypt::DEFAULT_COST)
+        .map_err(|error| format!("Failed to hash password: {error}"))
+}
+
+fn handle_cli_command() -> bool {
+    let args = std::env::args().skip(1).collect::<Vec<_>>();
+    let Some(command) = args.first() else {
+        return false;
+    };
+
+    if command != "hash-password" {
+        return false;
+    }
+
+    match hash_password_from_args(&args[1..]) {
+        Ok(hash) => {
+            println!("{hash}");
+            true
+        }
+        Err(message) => {
+            eprintln!("{message}");
+            std::process::exit(2);
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
+    if handle_cli_command() {
+        return;
+    }
+
     // Use a local ./data directory for VPS deployment
     let data_dir = PathBuf::from("./data");
     std::fs::create_dir_all(&data_dir).unwrap();
@@ -207,4 +260,30 @@ async fn main() {
     )
     .await
     .unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::hash_password_from_args;
+
+    #[test]
+    fn hash_password_from_argument_verifies_with_bcrypt() {
+        let hash = hash_password_from_args(&["test-password".to_string()]).unwrap();
+
+        assert!(bcrypt::verify("test-password", &hash).unwrap());
+    }
+
+    #[test]
+    fn hash_password_rejects_empty_password() {
+        let error = hash_password_from_args(&["".to_string()]).unwrap_err();
+
+        assert_eq!(error, "Password cannot be empty");
+    }
+
+    #[test]
+    fn hash_password_rejects_extra_arguments() {
+        let error = hash_password_from_args(&["one".to_string(), "two".to_string()]).unwrap_err();
+
+        assert!(error.starts_with("Usage: pebble hash-password"));
+    }
 }

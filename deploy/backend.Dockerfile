@@ -14,11 +14,13 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 2: Build dependencies and the application
 FROM chef AS builder
+ARG TARGETARCH
 COPY --from=planner /app/recipe.json recipe.json
 
-# Build dependencies - this layer is cached as long as recipe.json doesn't change
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/app/target \
+# Build dependencies - this layer is cached as long as recipe.json doesn't change.
+RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git,sharing=locked \
+    --mount=type=cache,id=pebble-target-${TARGETARCH},target=/app/target \
     cargo chef cook --release --recipe-path recipe.json
 
 # Cache-busting arg: change to force rebuild from this point
@@ -28,8 +30,9 @@ ARG CACHEBUST=0
 COPY . .
 
 # Build the application
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/app/target \
+RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git,sharing=locked \
+    --mount=type=cache,id=pebble-target-${TARGETARCH},target=/app/target \
     echo "Build: ${CACHEBUST}" && \
     cargo build --release -p pebble && \
     cp target/release/pebble /app/pebble-bin

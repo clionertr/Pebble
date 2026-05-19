@@ -38,36 +38,37 @@ Think of it as a self-hosted Gmail. No third party sees your inbox. No ads. No t
 
 Pick the method that fits you.
 
-### Docker Compose (recommended)
+### One-command Docker deploy (recommended)
 
-This is the fastest way to get Pebble running. You need Docker and Docker Compose installed.
+You need Docker and Docker Compose installed. The installer pulls prebuilt images, creates `./pebble`, writes `.env`, starts the services, and checks `http://127.0.0.1:9191`.
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/QingJ01/Pebble.git
-cd Pebble
-
-# 2. Generate a password hash (this is your login password)
-# Install bcrypt-cli: cargo install bcrypt-cli
-bcrypt-cli hash 'your-secret-password'
-# Copy the output — it looks like $2b$12$...
-
-# 3. Create your .env file
-cp .env.example .env
-# Edit .env and set PEBBLE_PASSWORD_HASH to the hash you just generated
-
-# 4. Build and start
-sudo docker compose up -d --build
+curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh | bash
 ```
 
-Open `http://localhost:8080` in your browser. Log in with your password.
+During setup you will enter:
 
-**About the `.env` file**: It stores your password hash and OAuth credentials. Docker Compose reads it via `env_file`. If you change it, run `docker compose down && docker compose up -d` to apply.
+- your public URL, for example `https://mail.closev.com`
+- your Pebble login password
+- optional Google/Microsoft OAuth credentials
 
-> **Note for bcrypt hash**: The `$` signs in bcrypt hashes need escaping as `$$` in `.env` when using Docker Compose. Example:
-> ```
-> PEBBLE_PASSWORD_HASH=$$2b$$12$$LJ3m4ys3rxImvlLzyGRbPOcAIORMzJDGJnRi4ZVXNIs6pS8bJGxKW
-> ```
+Point your reverse proxy to `http://127.0.0.1:9191`. All Pebble data is stored in `./pebble/data`.
+
+Non-interactive examples:
+
+```bash
+# Use a provided password instead of interactive input
+curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh \
+  | PEBBLE_PASSWORD='your-secret-password' \
+    PEBBLE_PUBLIC_URL='https://mail.example.com' \
+    bash
+
+# Generate and print a random login password
+curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh \
+  | PEBBLE_RANDOM_PASSWORD=1 \
+    PEBBLE_PUBLIC_URL='https://mail.example.com' \
+    bash
+```
 
 ### Compile from Source
 
@@ -82,6 +83,7 @@ pnpm install
 
 # Copy and edit environment config
 cp .env.example .env
+# Generate a hash with: printf '%s' 'your-password' | cargo run -p pebble -- hash-password
 # Set PEBBLE_PASSWORD_HASH in .env
 
 # Terminal 1: Start the backend
@@ -116,7 +118,7 @@ All configuration goes into **environment variables**. You can set them in a `.e
 
 | Variable | What it is | How to get it |
 |---|---|---|
-| `PEBBLE_PASSWORD_HASH` | Your login password, bcrypt-hashed | `cargo install bcrypt-cli && bcrypt-cli hash 'your-password'` |
+| `PEBBLE_PASSWORD_HASH` | Your login password, bcrypt-hashed | `printf '%s' 'your-password' \| pebble hash-password` |
 
 This is the only required variable. Without it, the backend refuses to start.
 
@@ -212,28 +214,29 @@ server {
 
 ### Docker Compose (Production)
 
+The one-command installer writes a compose file from `deploy/compose.prod.yml`. If you want to maintain it manually, use the prebuilt GHCR images:
+
 ```yaml
+name: pebble
+
 services:
   backend:
-    image: pebble-backend:latest
-    build:
-      context: .
-      dockerfile: deploy/backend.Dockerfile
+    image: ghcr.io/clionertr/pebble:edge
     volumes:
       - ./data:/app/data
     env_file:
       - .env
+    environment:
+      PEBBLE_HOST: 0.0.0.0
+      PEBBLE_PORT: 3000
     restart: unless-stopped
     networks:
       - pebble-net
 
   frontend:
-    image: pebble-frontend:latest
-    build:
-      context: .
-      dockerfile: deploy/frontend.Dockerfile
+    image: ghcr.io/clionertr/pebble-frontend:edge
     ports:
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:9191:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -245,7 +248,7 @@ networks:
     driver: bridge
 ```
 
-With this setup, point your public reverse proxy (nginx, Caddy, 1Panel OpenResty, etc.) to `http://127.0.0.1:8080`.
+With this setup, point your public reverse proxy (nginx, Caddy, 1Panel OpenResty, etc.) to `http://127.0.0.1:9191`.
 
 ### Data Persistence
 

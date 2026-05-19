@@ -40,34 +40,37 @@ Pebble 是一个网页邮件客户端，安装在你自己的 VPS 或 NAS 上。
 
 选一种适合你的方式。
 
-### Docker Compose（推荐）
+### 一键 Docker 部署（推荐）
 
-这是最快的方式。前提：你已安装 Docker 和 Docker Compose。
+前提：你已安装 Docker 和 Docker Compose。安装脚本会拉取预构建镜像，创建 `./pebble`，写入 `.env`，启动服务，并检查 `http://127.0.0.1:9191` 是否可访问。
 
 ```bash
-# 1. 下载项目
-git clone https://github.com/QingJ01/Pebble.git
-cd Pebble
-
-# 2. 生成登录密码的哈希值
-# 先安装 bcrypt-cli 工具：cargo install bcrypt-cli
-bcrypt-cli hash '你的密码'
-# 复制输出的那一长串（类似 $2b$12$...），这就是 PEBBLE_PASSWORD_HASH
-
-# 3. 创建 .env 文件
-cp .env.example .env
-# 编辑 .env，把 PEBBLE_PASSWORD_HASH 设成刚才生成的哈希
-
-# 4. 构建并启动
-sudo docker compose up -d --build
+curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh | bash
 ```
 
-打开 `http://localhost:8080`，用你设置的密码登录。
+安装过程中会让你输入：
 
-> **关于 bcrypt 哈希**：哈希值里的 `$` 符号在 Docker Compose 的 `.env` 文件中需要写成 `$$`。例如：
-> ```
-> PEBBLE_PASSWORD_HASH=$$2b$$12$$LJ3m4ys3rxImvlLzyGRbPOcAIORMzJDGJnRi4ZVXNIs6pS8bJGxKW
-> ```
+- 公网访问地址，例如 `https://mail.closev.com`
+- Pebble 登录密码
+- 可选的 Google/Microsoft OAuth 凭据
+
+把你的反向代理指向 `http://127.0.0.1:9191`。所有数据会保存在 `./pebble/data`。
+
+非交互示例：
+
+```bash
+# 用环境变量传入登录密码
+curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh \
+  | PEBBLE_PASSWORD='你的密码' \
+    PEBBLE_PUBLIC_URL='https://mail.example.com' \
+    bash
+
+# 自动生成并打印随机登录密码
+curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh \
+  | PEBBLE_RANDOM_PASSWORD=1 \
+    PEBBLE_PUBLIC_URL='https://mail.example.com' \
+    bash
+```
 
 ### 源码编译
 
@@ -82,6 +85,7 @@ pnpm install
 
 # 创建 .env 配置文件
 cp .env.example .env
+# 生成哈希：printf '%s' '你的密码' | cargo run -p pebble -- hash-password
 # 编辑 .env，设置 PEBBLE_PASSWORD_HASH
 
 # 终端 1：启动后端
@@ -116,7 +120,7 @@ PEBBLE_PASSWORD_HASH='你的哈希' ./target/release/pebble
 
 | 变量 | 说明 | 如何获取 |
 |---|---|---|
-| `PEBBLE_PASSWORD_HASH` | 登录密码的 bcrypt 哈希 | 安装 `cargo install bcrypt-cli`，然后运行 `bcrypt-cli hash '你的密码'` |
+| `PEBBLE_PASSWORD_HASH` | 登录密码的 bcrypt 哈希 | `printf '%s' '你的密码' \| pebble hash-password` |
 
 这是唯一的必填项。不填的话，后端会拒绝启动。
 
@@ -212,28 +216,29 @@ server {
 
 ### Docker Compose（生产）
 
+一键安装脚本会从 `deploy/compose.prod.yml` 写出 compose 文件。如果你想手动维护，可以使用预构建的 GHCR 镜像：
+
 ```yaml
+name: pebble
+
 services:
   backend:
-    image: pebble-backend:latest
-    build:
-      context: .
-      dockerfile: deploy/backend.Dockerfile
+    image: ghcr.io/clionertr/pebble:edge
     volumes:
       - ./data:/app/data
     env_file:
       - .env
+    environment:
+      PEBBLE_HOST: 0.0.0.0
+      PEBBLE_PORT: 3000
     restart: unless-stopped
     networks:
       - pebble-net
 
   frontend:
-    image: pebble-frontend:latest
-    build:
-      context: .
-      dockerfile: deploy/frontend.Dockerfile
+    image: ghcr.io/clionertr/pebble-frontend:edge
     ports:
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:9191:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -245,7 +250,7 @@ networks:
     driver: bridge
 ```
 
-这种部署方式下，把你的公网反向代理（nginx、Caddy、1Panel OpenResty 等）指向 `http://127.0.0.1:8080` 即可。
+这种部署方式下，把你的公网反向代理（nginx、Caddy、1Panel OpenResty 等）指向 `http://127.0.0.1:9191` 即可。
 
 ### 数据持久化
 
