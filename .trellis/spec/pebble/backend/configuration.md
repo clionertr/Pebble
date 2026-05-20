@@ -40,7 +40,7 @@ ALLOWED_ORIGIN=
 - 密码哈希命令：`pebble hash-password [password]`，不传参数时从 stdin 读取。
 - 生产 compose：`deploy/compose.prod.yml`，默认镜像 `ghcr.io/clionertr/pebble:latest` 和 `ghcr.io/clionertr/pebble-frontend:latest`。
 - 入口端口：前端容器默认绑定 `127.0.0.1:9191:80`。
-- Docker 镜像 workflow 只由 SemVer tag（`vMAJOR.MINOR.PATCH` 或 `vMAJOR.MINOR.PATCH-prerelease`）触发；`latest` 和 `MAJOR.MINOR` 只在正式版本 tag 构建成功后更新，预发布 tag 只发布完整版本号和 `sha-*` tag。
+- Docker 镜像 workflow 只由 SemVer tag（`vMAJOR.MINOR.PATCH` 或 `vMAJOR.MINOR.PATCH-prerelease`）触发；每次构建始终发布 `latest` 和 `sha-*` tag；`MAJOR.MINOR` 只在正式版本 tag 构建成功后更新，预发布 tag 只发布完整版本号。
 
 ### 3. Contracts
 - `deploy/install.sh` 默认在当前目录创建 `./pebble`，其中包含 `compose.yml`、`.env` 和 `data/`。
