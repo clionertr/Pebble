@@ -66,6 +66,21 @@ import type {
   TrustedSender,
 } from "./api-types";
 
+function privacyModeQueryParam(mode: PrivacyMode): string {
+  if (typeof mode !== "string") {
+    return `trust:${mode.TrustSender}`;
+  }
+
+  switch (mode) {
+    case "Strict":
+      return "strict";
+    case "LoadOnce":
+      return "load_once";
+    case "Off":
+      return "off";
+  }
+}
+
 // ─── Account API ─────────────────────────────────────────────────────────────
 
 export async function healthCheck(): Promise<string> {
@@ -292,7 +307,10 @@ export async function getRenderedHtml(
   messageId: string,
   privacyMode: PrivacyMode,
 ): Promise<RenderedHtml> {
-  return client.getRenderedHtml(messageId, privacyMode as string) as Promise<RenderedHtml>;
+  return client.getRenderedHtml(
+    messageId,
+    privacyModeQueryParam(privacyMode),
+  ) as Promise<RenderedHtml>;
 }
 
 /** Single IPC call that returns both Message and RenderedHtml. */
@@ -300,7 +318,10 @@ export async function getMessageWithHtml(
   messageId: string,
   privacyMode: PrivacyMode,
 ): Promise<[Message, RenderedHtml] | null> {
-  return client.getMessageWithHtml(messageId, privacyMode as string) as Promise<[Message, RenderedHtml] | null>;
+  return client.getMessageWithHtml(
+    messageId,
+    privacyModeQueryParam(privacyMode),
+  ) as Promise<[Message, RenderedHtml] | null>;
 }
 
 export async function updateMessageFlags(

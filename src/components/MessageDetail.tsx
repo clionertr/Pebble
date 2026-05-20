@@ -38,7 +38,10 @@ function formatFullDate(timestamp: number): string {
 
 export default function MessageDetail({ messageId, onBack, folderRole }: Props) {
   const { t } = useTranslation();
-  const [privacyMode, setPrivacyMode] = useState<PrivacyMode>(() => defaultPrivacyMode());
+  const [privacyOverride, setPrivacyOverride] = useState<{
+    messageId: string;
+    mode: PrivacyMode;
+  } | null>(null);
   const [showSnooze, setShowSnooze] = useState(false);
   const [showSelectionActions, setShowSelectionActions] = useState<{ text: string; position: { x: number; y: number } } | null>(null);
   const [showTranslate, setShowTranslate] = useState<{ text: string; position: { x: number; y: number } } | null>(null);
@@ -47,6 +50,9 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
   const selectionActionsRef = useRef<HTMLDivElement>(null);
   const translateRef = useRef<HTMLDivElement>(null);
 
+  const privacyMode = privacyOverride?.messageId === messageId
+    ? privacyOverride.mode
+    : defaultPrivacyMode();
   const { message, setMessage, rendered, loading, error } = useMessageLoader(messageId, privacyMode);
   const { bilingualMode, bilingualResult, bilingualLoading, handleBilingualToggle, resetBilingual } = useBilingualTranslation(messageId, rendered, message);
   const { data: accounts } = useAccountsQuery();
@@ -62,15 +68,15 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
   }, [messageId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleLoadImages() {
-    setPrivacyMode("LoadOnce");
+    setPrivacyOverride({ messageId, mode: "LoadOnce" });
   }
 
   async function handleTrustSender(trustType: "images" | "all") {
     if (message) {
       if (trustType === "all") {
-        setPrivacyMode({ TrustSender: message.from_address });
+        setPrivacyOverride({ messageId, mode: { TrustSender: message.from_address } });
       } else {
-        setPrivacyMode("LoadOnce");
+        setPrivacyOverride({ messageId, mode: "LoadOnce" });
       }
       try {
         await trustSender(message.account_id, message.from_address, trustType);

@@ -58,6 +58,64 @@ await apiPut("/api/accounts/account-1/proxy", {
 });
 ```
 
+## Scenario: 邮件隐私渲染查询参数
+
+### 1. Scope / Trigger
+- Trigger: 邮件详情页的“加载图片”“仅信任图片”“信任发件人”会跨越前端状态、HTTP 查询参数、后端渲染服务和 `pebble-privacy` 清理器。
+- 范围：`src/lib/api.ts`、`src/hooks/useMessageLoader.ts`、`server/src/api/messages.rs`、`server/src/rpc/messages/rendering.rs`、`crates/pebble-privacy/`。
+
+### 2. Signatures
+- `GET /api/messages/:id/html?privacyMode=<mode>` -> `RenderedHtml`。
+- `GET /api/messages/:id/full?privacyMode=<mode>` -> `[Message, RenderedHtml] | null`。
+- 前端领域类型：`PrivacyMode = "Strict" | "LoadOnce" | "Off" | { TrustSender: string }`。
+- HTTP 查询参数值：`strict`、`load_once`、`off`、`trust:<sender email>`。
+
+### 3. Contracts
+- 前端必须在 `src/lib/api.ts` 把领域枚举显式转换成 HTTP 参数；不要把 `PrivacyMode` 直接 `as string` 后传给 `api-client.ts`。
+- `Strict`/`strict`：阻止外部图片和追踪图。
+- `LoadOnce`/`load_once`：本次加载非追踪外部图片，仍阻止追踪像素和已知追踪域。
+- `Off`/`off`：不做图片/追踪阻止。
+- `trust:<sender email>`：只在参数邮箱与当前消息 `from_address` 匹配时按 `TrustSender` 渲染；不匹配必须回退到 `Strict`。
+- 已持久化的 `TrustedSender(images)` 等价于 `LoadOnce`；`TrustedSender(all)` 等价于当前消息发件人的 `TrustSender`。
+- 前端“加载图片”和未持久化的本次 `TrustSender` 覆盖必须绑定当前 `messageId`；切换到另一封邮件时必须回到全局默认隐私模式或该邮件自己的持久化信任结果。
+- 隐私设置页取消信任时，按 `accountId + email` 删除 `trusted_senders` 记录；`images` 和 `all` 是同一发件人的不同信任等级，不是两条独立开关。
+
+### 4. Validation & Error Matrix
+- 缺少 `privacyMode` -> `Strict`。
+- 未知 `privacyMode` -> `Strict`。
+- `trust:<email>` 与当前消息发件人不匹配 -> `Strict`。
+- `load_once` 下追踪像素或已知追踪域 -> 阻止并计入 `trackers_blocked`。
+- `strict` 下普通外部图片 -> 替换为 blocked placeholder，并计入 `images_blocked`。
+- A 邮件点击“加载图片”后切到 B 邮件 -> B 邮件不得沿用 A 的 `LoadOnce` 或 `TrustSender` 临时覆盖。
+- 取消信任发件人或信任图片 -> 删除当前账号下该邮箱的整条信任记录，后续渲染不再获得持久化信任覆盖。
+
+### 5. Good/Base/Bad Cases
+- Good: 点击“加载图片”后，前端请求 `privacyMode=load_once`，后端立即重新渲染非追踪图片。
+- Base: 点击“仅信任图片”后，即使持久化请求还没完成，本次渲染也可通过 `load_once` 显示普通图片；后续切换消息再由 `trusted_senders` 表生效。
+- Bad: 前端发送 `privacyMode=LoadOnce` 或 `privacyMode=[object Object]`，后端把它兜底成 `Strict`，用户看到按钮无反应或必须切换界面才刷新。
+- Bad: 前端把 `LoadOnce` 存成组件级全局状态，A 邮件授权后切到 B 邮件仍按 `LoadOnce` 首次渲染。
+
+### 6. Tests Required
+- 前端测试：断言 `getRenderedHtml("id", "LoadOnce")` 调用 HTTP client 时传入 `load_once`。
+- 前端测试：断言 `{ TrustSender: "sender@example.com" }` 序列化为 `trust:sender@example.com`，不能变成 `[object Object]`。
+- 前端测试：断言 A 邮件点击“加载图片”或“信任发件人”后，切到 B 邮件时 `useMessageLoader` 收到全局默认隐私模式。
+- 前端设置测试：断言取消信任调用 `removeTrustedSender(activeAccountId, email)` 并从列表移除该邮箱。
+- Rust API 测试：断言 `parse_privacy_mode` 识别 `strict/load_once/off/trust:*`，未知值回退 `Strict`。
+- Rust 服务测试：断言 `TrustSender` 参数必须匹配当前消息发件人，不匹配时回退 `Strict`。
+- `pebble-privacy` 测试：断言 `LoadOnce` 仍阻止追踪图，`TrustSender`/`Off` 才放开追踪图。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```typescript
+return client.getRenderedHtml(messageId, privacyMode as string);
+```
+
+#### Correct
+```typescript
+return client.getRenderedHtml(messageId, privacyModeQueryParam(privacyMode));
+```
+
 ## Scenario: SSE 新邮件事件驱动前端缓存刷新
 
 ### 1. Scope / Trigger

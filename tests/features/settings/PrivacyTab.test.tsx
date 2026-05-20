@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PrivacyTab from "../../../src/features/settings/PrivacyTab";
 
@@ -70,5 +70,37 @@ describe("PrivacyTab", () => {
       expect(screen.queryByText("trusted@example.com")).toBeNull();
     });
     expect(screen.getByText("No trusted senders yet. Trust a sender from the privacy banner in a message.")).toBeTruthy();
+  });
+
+  it("removes trusted sender records by active account and email", async () => {
+    mocks.activeAccountId = "account-1";
+    mocks.listTrustedSenders.mockResolvedValue([
+      {
+        account_id: "account-1",
+        email: "all@example.com",
+        trust_type: "all",
+        created_at: 1,
+      },
+      {
+        account_id: "account-1",
+        email: "images@example.com",
+        trust_type: "images",
+        created_at: 2,
+      },
+    ]);
+    mocks.removeTrustedSender.mockResolvedValue(undefined);
+
+    render(<PrivacyTab />);
+
+    expect(await screen.findByText("all@example.com")).toBeTruthy();
+    expect(screen.getByText("images@example.com")).toBeTruthy();
+
+    fireEvent.click(screen.getAllByTitle("Delete")[0]);
+
+    await waitFor(() => {
+      expect(mocks.removeTrustedSender).toHaveBeenCalledWith("account-1", "all@example.com");
+    });
+    expect(screen.queryByText("all@example.com")).toBeNull();
+    expect(screen.getByText("images@example.com")).toBeTruthy();
   });
 });

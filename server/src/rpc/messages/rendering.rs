@@ -68,7 +68,14 @@ fn resolve_privacy_mode(
                 None => Ok(privacy_mode),
             }
         }
-        PrivacyMode::TrustSender(_) | PrivacyMode::Off => Ok(privacy_mode),
+        PrivacyMode::TrustSender(sender) => {
+            if sender.eq_ignore_ascii_case(&message.from_address) {
+                Ok(PrivacyMode::TrustSender(message.from_address.clone()))
+            } else {
+                Ok(PrivacyMode::Strict)
+            }
+        }
+        PrivacyMode::Off => Ok(privacy_mode),
     }
 }
 
@@ -170,6 +177,38 @@ mod tests {
 
         assert!(
             matches!(mode, PrivacyMode::TrustSender(sender) if sender == "trusted@example.com")
+        );
+    }
+
+    #[test]
+    fn explicit_trust_sender_must_match_message_sender() {
+        let store = Store::open_in_memory().unwrap();
+        let message = make_message("account-1", "trusted@example.com");
+
+        let mode = resolve_privacy_mode(
+            &store,
+            &message,
+            PrivacyMode::TrustSender("other@example.com".to_string()),
+        )
+        .unwrap();
+
+        assert!(matches!(mode, PrivacyMode::Strict));
+    }
+
+    #[test]
+    fn explicit_trust_sender_allows_matching_message_sender() {
+        let store = Store::open_in_memory().unwrap();
+        let message = make_message("account-1", "Trusted@Example.com");
+
+        let mode = resolve_privacy_mode(
+            &store,
+            &message,
+            PrivacyMode::TrustSender("trusted@example.com".to_string()),
+        )
+        .unwrap();
+
+        assert!(
+            matches!(mode, PrivacyMode::TrustSender(sender) if sender == "Trusted@Example.com")
         );
     }
 }

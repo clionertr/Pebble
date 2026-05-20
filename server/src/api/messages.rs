@@ -9,6 +9,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 
 use crate::state::AppState;
+use pebble_core::PrivacyMode;
 
 #[derive(Deserialize)]
 pub struct InboxQuery {
@@ -277,19 +278,22 @@ pub struct HtmlQuery {
     pub privacy_mode: Option<String>,
 }
 
+fn parse_privacy_mode(value: Option<&str>) -> PrivacyMode {
+    match value {
+        Some("strict" | "Strict") => PrivacyMode::Strict,
+        Some("off" | "Off") => PrivacyMode::Off,
+        Some("load_once" | "LoadOnce") => PrivacyMode::LoadOnce,
+        Some(s) if s.starts_with("trust:") => PrivacyMode::TrustSender(s[6..].to_string()),
+        _ => PrivacyMode::Strict,
+    }
+}
+
 async fn html_handler(
     State(state): State<Arc<AppState>>,
     Path(message_id): Path<String>,
     Query(query): Query<HtmlQuery>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
-    use pebble_core::PrivacyMode;
-    let privacy = match query.privacy_mode.as_deref() {
-        Some("strict") => PrivacyMode::Strict,
-        Some("off") => PrivacyMode::Off,
-        Some("load_once") => PrivacyMode::LoadOnce,
-        Some(s) if s.starts_with("trust:") => PrivacyMode::TrustSender(s[6..].to_string()),
-        _ => PrivacyMode::Strict,
-    };
+    let privacy = parse_privacy_mode(query.privacy_mode.as_deref());
     let html = crate::rpc::messages::rendering::get_rendered_html(
         axum::extract::State(state),
         message_id,
@@ -304,14 +308,7 @@ async fn full_handler(
     Path(message_id): Path<String>,
     Query(query): Query<HtmlQuery>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
-    use pebble_core::PrivacyMode;
-    let privacy = match query.privacy_mode.as_deref() {
-        Some("strict") => PrivacyMode::Strict,
-        Some("off") => PrivacyMode::Off,
-        Some("load_once") => PrivacyMode::LoadOnce,
-        Some(s) if s.starts_with("trust:") => PrivacyMode::TrustSender(s[6..].to_string()),
-        _ => PrivacyMode::Strict,
-    };
+    let privacy = parse_privacy_mode(query.privacy_mode.as_deref());
     let result = crate::rpc::messages::rendering::get_message_with_html(
         axum::extract::State(state),
         message_id,
@@ -319,6 +316,45 @@ async fn full_handler(
     )
     .await?;
     Ok(Json(serde_json::to_value(result).unwrap()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_privacy_mode_query_values() {
+        assert!(matches!(
+            parse_privacy_mode(Some("strict")),
+            PrivacyMode::Strict
+        ));
+        assert!(matches!(
+            parse_privacy_mode(Some("Strict")),
+            PrivacyMode::Strict
+        ));
+        assert!(matches!(
+            parse_privacy_mode(Some("load_once")),
+            PrivacyMode::LoadOnce
+        ));
+        assert!(matches!(
+            parse_privacy_mode(Some("LoadOnce")),
+            PrivacyMode::LoadOnce
+        ));
+        assert!(matches!(parse_privacy_mode(Some("off")), PrivacyMode::Off));
+        assert!(matches!(parse_privacy_mode(Some("Off")), PrivacyMode::Off));
+
+        let mode = parse_privacy_mode(Some("trust:sender@example.com"));
+        assert!(matches!(mode, PrivacyMode::TrustSender(sender) if sender == "sender@example.com"));
+    }
+
+    #[test]
+    fn defaults_unknown_privacy_mode_to_strict() {
+        assert!(matches!(parse_privacy_mode(None), PrivacyMode::Strict));
+        assert!(matches!(
+            parse_privacy_mode(Some("LoadImages")),
+            PrivacyMode::Strict
+        ));
+    }
 }
 
 // ── Pending Ops ──────────────────────────────────────────────────────
