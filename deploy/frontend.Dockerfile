@@ -3,7 +3,7 @@ WORKDIR /app
 ARG TARGETARCH
 
 # Install pnpm using corepack
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 
 # Copy package files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
