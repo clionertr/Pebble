@@ -568,6 +568,24 @@ export async function translateText(text: string, fromLang: string, toLang: stri
   return client.translateText(text, fromLang, toLang) as Promise<TranslateResult>;
 }
 
+export async function translateTextStream(
+  text: string,
+  fromLang: string,
+  toLang: string,
+  onDelta?: (translated: string) => void,
+): Promise<TranslateResult> {
+  try {
+    return await client.translateTextStream(text, fromLang, toLang, { onDelta }) as TranslateResult;
+  } catch (err) {
+    if (err instanceof client.ApiError && err.message.includes("only supported for LLM")) {
+      const result = await translateText(text, fromLang, toLang);
+      onDelta?.(result.translated);
+      return result;
+    }
+    throw err;
+  }
+}
+
 export async function getTranslateConfig(): Promise<TranslateConfig | null> {
   return client.getTranslateConfig() as Promise<TranslateConfig | null>;
 }

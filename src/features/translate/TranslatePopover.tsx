@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, Check, X } from "lucide-react";
-import { translateText } from "@/lib/api";
+import { translateTextStream } from "@/lib/api";
+import { extractErrorMessage } from "@/lib/extractErrorMessage";
 
 interface Props {
   text: string;
@@ -25,21 +26,32 @@ export default function TranslatePopover({ text, position, onClose }: Props) {
   useEffect(() => {
     if (!privacyAcked) {
       setLoading(false);
+      setTranslated("");
       return;
     }
     let cancelled = false;
     setLoading(true);
     setError("");
-    translateText(text, "auto", targetLang)
-      .then((result) => {
-        if (!cancelled) setTranslated(result.translated);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(String(err));
-      })
-      .finally(() => {
+    setTranslated("");
+
+    async function runTranslate() {
+      try {
+        const result = await translateTextStream(text, "auto", targetLang, (nextText) => {
+          if (!cancelled) {
+            setLoading(false);
+            setTranslated(nextText);
+          }
+        });
+        if (cancelled) return;
+        setTranslated(result.translated);
+      } catch (err) {
+        if (!cancelled) setError(extractErrorMessage(err));
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    }
+
+    void runTranslate();
     return () => { cancelled = true; };
   }, [text, targetLang, privacyAcked]);
 

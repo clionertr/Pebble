@@ -50,6 +50,59 @@ pub async fn translate_text(
     from_lang: String,
     to_lang: String,
 ) -> std::result::Result<TranslateResult, PebbleError> {
+    let provider_config = load_active_provider_config(&state)?;
+    let proxy = get_global_proxy_raw(&state.crypto, &state.store)?;
+
+    TranslateService::translate_with_proxy(
+        &provider_config,
+        proxy.as_ref(),
+        &text,
+        &from_lang,
+        &to_lang,
+    )
+    .await
+}
+
+pub async fn translate_text_stream(
+    state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
+    text: String,
+    from_lang: String,
+    to_lang: String,
+) -> std::result::Result<reqwest::Response, PebbleError> {
+    let provider_config = load_active_provider_config(&state)?;
+    let TranslateProviderConfig::LLM {
+        endpoint,
+        api_key,
+        model,
+        mode,
+    } = provider_config
+    else {
+        return Err(PebbleError::Validation(
+            "Streaming translation is only supported for LLM providers".to_string(),
+        ));
+    };
+
+    let proxy = get_global_proxy_raw(&state.crypto, &state.store)?;
+    let client = TranslateService::http_client_with_proxy(proxy.as_ref())?;
+
+    pebble_translate::llm::stream(
+        &client,
+        pebble_translate::llm::LlmTranslateRequest {
+            endpoint: &endpoint,
+            api_key: &api_key,
+            model: &model,
+            mode: &mode,
+            text: &text,
+            from: &from_lang,
+            to: &to_lang,
+        },
+    )
+    .await
+}
+
+fn load_active_provider_config(
+    state: &AppState,
+) -> std::result::Result<TranslateProviderConfig, PebbleError> {
     let config = state
         .store
         .get_translate_config()?
@@ -61,23 +114,12 @@ pub async fn translate_text(
         ));
     }
 
-    // Decrypt config before parsing
-    let decrypted = decrypt_config(&state, &config.config)?;
+    let decrypted = decrypt_config(state, &config.config)?;
     let provider_config: TranslateProviderConfig = serde_json::from_str(&decrypted)
         .map_err(|e| PebbleError::Translate(format!("Invalid config: {e}")))?;
 
     validate_provider_config(&provider_config)?;
-
-    let proxy = get_global_proxy_raw(&state.crypto, &state.store)?;
-
-    TranslateService::translate_with_proxy(
-        &provider_config,
-        proxy.as_ref(),
-        &text,
-        &from_lang,
-        &to_lang,
-    )
-    .await
+    Ok(provider_config)
 }
 
 pub async fn get_translate_config(
@@ -103,6 +145,11 @@ pub async fn save_translate_config(
     // Validate URL(s) in config before persisting
     let provider_config: TranslateProviderConfig = serde_json::from_str(&config)
         .map_err(|e| PebbleError::Translate(format!("Invalid config: {e}")))?;
+    if provider_type != provider_type_name(&provider_config) {
+        return Err(PebbleError::Translate(
+            "Provider type does not match translate config".to_string(),
+        ));
+    }
     validate_provider_config(&provider_config)?;
 
     let now = now_timestamp();
@@ -128,6 +175,15 @@ fn validate_provider_config(
         TranslateProviderConfig::GenericApi { endpoint, .. } => validate_translate_url(endpoint),
         TranslateProviderConfig::LLM { endpoint, .. } => validate_translate_url(endpoint),
         TranslateProviderConfig::DeepL { .. } => Ok(()), // uses official API, no custom URL
+    }
+}
+
+fn provider_type_name(provider_config: &TranslateProviderConfig) -> &'static str {
+    match provider_config {
+        TranslateProviderConfig::DeepLX { .. } => "deeplx",
+        TranslateProviderConfig::DeepL { .. } => "deepl",
+        TranslateProviderConfig::GenericApi { .. } => "generic_api",
+        TranslateProviderConfig::LLM { .. } => "llm",
     }
 }
 

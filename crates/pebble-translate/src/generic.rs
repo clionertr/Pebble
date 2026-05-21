@@ -56,12 +56,21 @@ pub async fn translate(
 
     let translated = resolve_json_path(&json, result_path)
         .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
+        .ok_or_else(|| {
+            PebbleError::Translate(format!(
+                "Translate API response missing string at result path '{result_path}'"
+            ))
+        })?;
+
+    if translated.trim().is_empty() {
+        return Err(PebbleError::Translate(
+            "Translate API response contained empty translation".to_string(),
+        ));
+    }
 
     Ok(TranslateResult {
-        segments: build_segments(text, &translated),
-        translated,
+        segments: build_segments(text, translated),
+        translated: translated.to_string(),
     })
 }
 

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { translateText } from "@/lib/api";
+import { useRef, useState } from "react";
+import { translateText, translateTextStream } from "@/lib/api";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import type { Message, RenderedHtml, TranslateResult } from "@/lib/api";
 import { useToastStore } from "@/stores/toast.store";
@@ -17,15 +17,21 @@ export function useBilingualTranslation(
 ) {
   const addToast = useToastStore((s) => s.addToast);
   const [bilingualMode, setBilingualMode] = useState(false);
-  const [bilingualResult, setBilingualResult] = useState<TranslateResult | null>(null);
+  const [bilingualResult, setBilingualResult] = useState<(TranslateResult & { _isHtml?: boolean }) | null>(null);
   const [bilingualLoading, setBilingualLoading] = useState(false);
+  const activeRunId = useRef(0);
 
   async function handleBilingualToggle() {
     if (bilingualMode) {
+      activeRunId.current += 1;
       setBilingualMode(false);
+      setBilingualLoading(false);
       return;
     }
     if (!message || !messageId) return;
+    const runId = activeRunId.current + 1;
+    activeRunId.current = runId;
+    const isCurrentRun = () => activeRunId.current === runId;
 
     const uiLang = localStorage.getItem("pebble-language") || "zh";
     const cacheKey = `${messageId}:${uiLang}`;
@@ -40,6 +46,7 @@ export function useBilingualTranslation(
 
     setBilingualMode(true);
     setBilingualLoading(true);
+    setBilingualResult(null);
     try {
       const hasHtml = !!(rendered && rendered.html);
 
@@ -61,6 +68,7 @@ export function useBilingualTranslation(
           const chunk = textNodes.slice(start, start + CHUNK_SIZE);
           const batch = chunk.map((nd) => nd.textContent!.trim()).join(SEP);
           const result = await translateText(batch, "auto", uiLang);
+          if (!isCurrentRun()) return;
 
           // Split on separator; if the service preserved it, we get exact mapping
           const parts = result.translated.split("⸻").map((s) => s.trim()).filter(Boolean);
@@ -78,11 +86,20 @@ export function useBilingualTranslation(
             }
           }
           // Show progressive results after each chunk
-          const partial = { translated: sanitizeHtml(doc.body.innerHTML), segments: [], _isHtml: true } as TranslateResult & { _isHtml?: boolean };
+          const partial = {
+            translated: sanitizeHtml(doc.body.innerHTML),
+            segments: [],
+            _isHtml: true,
+          } as TranslateResult & { _isHtml?: boolean };
           setBilingualResult(partial);
         }
 
-        const final_ = { translated: sanitizeHtml(doc.body.innerHTML), segments: [], _isHtml: true } as TranslateResult & { _isHtml?: boolean };
+        if (!isCurrentRun()) return;
+        const final_ = {
+          translated: sanitizeHtml(doc.body.innerHTML),
+          segments: [],
+          _isHtml: true,
+        } as TranslateResult & { _isHtml?: boolean };
         setBilingualResult(final_);
         if (translationCache.size >= TRANSLATION_CACHE_MAX) {
           translationCache.delete(translationCache.keys().next().value!);
@@ -93,7 +110,15 @@ export function useBilingualTranslation(
         const textToTranslate = message.body_text
           || new DOMParser().parseFromString(message.body_html_raw || "", "text/html").body.textContent
           || "";
-        const result = { ...await translateText(textToTranslate, "auto", uiLang), _isHtml: false } as TranslateResult & { _isHtml?: boolean };
+        const result = {
+          ...await translateTextStream(textToTranslate, "auto", uiLang, (translated) => {
+            if (isCurrentRun()) {
+              setBilingualResult({ translated, segments: [], _isHtml: false });
+            }
+          }),
+          _isHtml: false,
+        } as TranslateResult & { _isHtml?: boolean };
+        if (!isCurrentRun()) return;
         setBilingualResult(result);
         if (translationCache.size >= TRANSLATION_CACHE_MAX) {
           translationCache.delete(translationCache.keys().next().value!);
@@ -101,17 +126,22 @@ export function useBilingualTranslation(
         translationCache.set(cacheKey, result);
       }
     } catch (err) {
+      if (!isCurrentRun()) return;
       console.error("Translation failed:", err);
       addToast({ message: `Translation failed: ${extractErrorMessage(err)}`, type: "error" });
     } finally {
-      setBilingualLoading(false);
+      if (isCurrentRun()) {
+        setBilingualLoading(false);
+      }
     }
   }
 
   /** Reset bilingual state (call when messageId changes) */
   function resetBilingual() {
+    activeRunId.current += 1;
     setBilingualMode(false);
     setBilingualResult(null);
+    setBilingualLoading(false);
   }
 
   return { bilingualMode, bilingualResult, bilingualLoading, handleBilingualToggle, resetBilingual };

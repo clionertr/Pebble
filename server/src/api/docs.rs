@@ -324,6 +324,12 @@ fn build_spec() -> Value {
         }),
     );
     paths.insert(
+        "/api/translate/stream".into(),
+        json!({
+            "post": { "summary": "Stream LLM translation deltas" }
+        }),
+    );
+    paths.insert(
         "/api/translate/config".into(),
         json!({
             "get": { "summary": "Get translate config" },

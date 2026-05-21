@@ -17,17 +17,12 @@ pub async fn translate(
         "https://api.deepl.com/v2/translate"
     };
 
-    let from_upper = from.to_uppercase();
-    let to_upper = to.to_uppercase();
+    let form = build_deepl_form(text, from, to);
 
     let resp = client
         .post(base)
         .header("Authorization", format!("DeepL-Auth-Key {api_key}"))
-        .form(&[
-            ("text", text),
-            ("source_lang", from_upper.as_str()),
-            ("target_lang", to_upper.as_str()),
-        ])
+        .form(&form)
         .send()
         .await
         .map_err(|e| PebbleError::Translate(format!("DeepL request failed: {e}")))?;
@@ -50,11 +45,46 @@ pub async fn translate(
         .and_then(|t| t.get(0))
         .and_then(|t| t.get("text"))
         .and_then(|t| t.as_str())
-        .unwrap_or("")
-        .to_string();
+        .ok_or_else(|| PebbleError::Translate("DeepL response missing translated text".to_string()))?;
+
+    if translated.trim().is_empty() {
+        return Err(PebbleError::Translate(
+            "DeepL response contained empty translation".to_string(),
+        ));
+    }
 
     Ok(TranslateResult {
-        segments: build_segments(text, &translated),
-        translated,
+        segments: build_segments(text, translated),
+        translated: translated.to_string(),
     })
+}
+
+fn build_deepl_form(text: &str, from: &str, to: &str) -> Vec<(&'static str, String)> {
+    let mut form = vec![
+        ("text", text.to_string()),
+        ("target_lang", to.trim().to_uppercase()),
+    ];
+    let from_trimmed = from.trim();
+    if !from_trimmed.is_empty() && !from_trimmed.eq_ignore_ascii_case("auto") {
+        form.push(("source_lang", from_trimmed.to_uppercase()));
+    }
+    form
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deepl_form_omits_auto_source_lang() {
+        let form = build_deepl_form("Hello", "AUTO", "zh");
+
+        assert_eq!(
+            form,
+            vec![
+                ("text", "Hello".to_string()),
+                ("target_lang", "ZH".to_string()),
+            ]
+        );
+    }
 }

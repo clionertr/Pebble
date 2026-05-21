@@ -124,26 +124,26 @@ export default function TranslateTab() {
   function buildConfigJson(): string {
     switch (providerType) {
       case "deeplx":
-        return JSON.stringify({ type: "deeplx", endpoint: deeplxEndpoint });
+        return JSON.stringify({ type: "deeplx", endpoint: deeplxEndpoint.trim() });
       case "deepl":
-        return JSON.stringify({ type: "deepl", api_key: deeplApiKey, use_free_api: deeplUseFree });
+        return JSON.stringify({ type: "deepl", api_key: deeplApiKey.trim(), use_free_api: deeplUseFree });
       case "generic_api":
         return JSON.stringify({
           type: "generic_api",
-          endpoint: genericEndpoint,
-          api_key: genericApiKey || null,
+          endpoint: genericEndpoint.trim(),
+          api_key: genericApiKey.trim() || null,
           method: null,
-          source_lang_param: genericSourceLangParam,
-          target_lang_param: genericTargetLangParam,
-          text_param: genericTextParam,
-          result_path: genericResultPath,
+          source_lang_param: genericSourceLangParam.trim(),
+          target_lang_param: genericTargetLangParam.trim(),
+          text_param: genericTextParam.trim(),
+          result_path: genericResultPath.trim(),
         });
       case "llm":
         return JSON.stringify({
           type: "llm",
-          endpoint: llmEndpoint,
-          api_key: llmApiKey,
-          model: llmModel,
+          endpoint: llmEndpoint.trim(),
+          api_key: llmApiKey.trim(),
+          model: llmModel.trim(),
           mode: llmMode,
         });
     }

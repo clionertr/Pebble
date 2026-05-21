@@ -361,26 +361,33 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
         onContextMenu={handleContextMenu}
         onKeyUp={handleContentKeyUp}
       >
-        {bilingualMode && bilingualLoading ? (
-            <div style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>{t("common.translating", "Translating...")}</div>
-        ) : bilingualMode && bilingualResult ? (
-          (bilingualResult as TranslateResult & { _isHtml?: boolean })._isHtml ? (
-            <ShadowDomEmail html={bilingualResult.translated} />
-          ) : (
-            <pre
-              style={{
-                fontSize: "14px",
-                color: "var(--color-text-primary)",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                margin: 0,
-                fontFamily: "inherit",
-                lineHeight: 1.7,
-              }}
-            >
-              {bilingualResult.translated}
-            </pre>
-          )
+        {bilingualMode && bilingualResult ? (
+          <>
+            {bilingualLoading && (
+              <div style={{ fontSize: "13px", color: "var(--color-text-secondary)", marginBottom: "8px" }}>
+                {t("common.translating", "Translating...")}
+              </div>
+            )}
+            {(bilingualResult as TranslateResult & { _isHtml?: boolean })._isHtml ? (
+              <ShadowDomEmail html={bilingualResult.translated} />
+            ) : (
+              <pre
+                style={{
+                  fontSize: "14px",
+                  color: "var(--color-text-primary)",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  margin: 0,
+                  fontFamily: "inherit",
+                  lineHeight: 1.7,
+                }}
+              >
+                {bilingualResult.translated}
+              </pre>
+            )}
+          </>
+        ) : bilingualMode && bilingualLoading ? (
+          <div style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>{t("common.translating", "Translating...")}</div>
         ) : bilingualMode && !bilingualLoading ? (
             <div style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>{t("common.translationFailed", "Translation failed")}</div>
         ) : rendered && rendered.html ? (

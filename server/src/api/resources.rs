@@ -4,7 +4,10 @@
 
 use crate::state::AppState;
 use axum::{
+    body::Body,
     extract::{Path, Query, State},
+    http::{header, StatusCode},
+    response::IntoResponse,
     routing::{delete, get, post, put},
     Json, Router,
 };
@@ -16,6 +19,7 @@ pub fn resource_routes() -> Router<Arc<AppState>> {
         .route("/api/rules", get(list_rules).post(create_rule))
         .route("/api/rules/:id", put(update_rule).delete(delete_rule))
         .route("/api/translate", post(translate_text))
+        .route("/api/translate/stream", post(translate_text_stream))
         .route(
             "/api/translate/config",
             get(get_translate_config).put(save_translate_config),
@@ -113,6 +117,28 @@ async fn translate_text(
         crate::rpc::translate::translate_text(axum::extract::State(state), b.text, b.from, b.to)
             .await?;
     Ok(Json(serde_json::to_value(result).unwrap()))
+}
+
+async fn translate_text_stream(
+    State(state): State<Arc<AppState>>,
+    Json(b): Json<TranslateRequest>,
+) -> Result<impl IntoResponse, crate::api::error::ApiError> {
+    let response = crate::rpc::translate::translate_text_stream(
+        axum::extract::State(state),
+        b.text,
+        b.from,
+        b.to,
+    )
+    .await?;
+    let body = Body::from_stream(response.bytes_stream());
+    let headers = [
+        (header::CONTENT_TYPE, "text/event-stream; charset=utf-8"),
+        (header::CACHE_CONTROL, "no-cache, no-transform"),
+        (header::CONNECTION, "keep-alive"),
+        (header::HeaderName::from_static("x-accel-buffering"), "no"),
+    ];
+
+    Ok((StatusCode::OK, headers, body))
 }
 
 async fn get_translate_config(

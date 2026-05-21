@@ -14,6 +14,11 @@ export class ApiError extends Error {
   }
 }
 
+async function apiErrorFromResponse(res: Response): Promise<ApiError> {
+  const errBody = await res.json().catch(() => ({ error: res.statusText }));
+  return new ApiError(res.status, errBody);
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -30,10 +35,189 @@ async function request<T>(
   }
   const res = await fetch(url.toString(), init);
   if (!res.ok) {
-    const errBody = await res.json().catch(() => ({ error: res.statusText }));
-    throw new ApiError(res.status, errBody);
+    throw await apiErrorFromResponse(res);
   }
   return res.json();
+}
+
+export interface TranslateStreamOptions {
+  onDelta?: (translated: string) => void;
+  signal?: AbortSignal;
+}
+
+export interface ServerSentEventBlock {
+  event: string;
+  data: string;
+}
+
+export function parseServerSentEventBlock(block: string): ServerSentEventBlock | null {
+  const data: string[] = [];
+  let event = "message";
+
+  for (const line of block.split(/\r?\n/)) {
+    if (line.startsWith("event:")) {
+      event = line.slice(6).trim();
+    } else if (line.startsWith("data:")) {
+      data.push(line.slice(5).trimStart());
+    }
+  }
+
+  if (data.length === 0) return null;
+  return { event, data: data.join("\n") };
+}
+
+export function parseServerSentEvents(buffer: string): { events: ServerSentEventBlock[]; rest: string } {
+  const blocks = buffer.split(/\r?\n\r?\n/);
+  const rest = blocks.pop() ?? "";
+  const events = blocks
+    .map(parseServerSentEventBlock)
+    .filter((event): event is ServerSentEventBlock => event !== null);
+  return { events, rest };
+}
+
+function objectValue(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function contentText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return "";
+
+  return value
+    .map((item) => {
+      const obj = objectValue(item);
+      if (!obj) return "";
+      if (typeof obj.text === "string") return obj.text;
+      if (typeof obj.content === "string") return obj.content;
+      return "";
+    })
+    .join("");
+}
+
+export function extractTranslateStreamDelta(value: unknown): string {
+  const root = objectValue(value);
+  if (!root) return "";
+
+  if (typeof root.delta === "string") return root.delta;
+  if (typeof root.text === "string") return root.text;
+
+  const choices = Array.isArray(root.choices) ? root.choices : [];
+  for (const choiceValue of choices) {
+    const choice = objectValue(choiceValue);
+    const delta = objectValue(choice?.delta);
+    const text = contentText(delta?.content);
+    if (text) return text;
+  }
+
+  return "";
+}
+
+export function extractTranslateStreamFullText(value: unknown): string {
+  const root = objectValue(value);
+  if (!root) return "";
+
+  if (typeof root.output_text === "string") return root.output_text;
+
+  const choices = Array.isArray(root.choices) ? root.choices : [];
+  for (const choiceValue of choices) {
+    const choice = objectValue(choiceValue);
+    const message = objectValue(choice?.message);
+    const text = contentText(message?.content);
+    if (text) return text;
+  }
+
+  const output = Array.isArray(root.output) ? root.output : [];
+  return output
+    .map((item) => contentText(objectValue(item)?.content))
+    .join("");
+}
+
+function extractTranslateStreamError(value: unknown): string {
+  const root = objectValue(value);
+  const error = objectValue(root?.error);
+  if (typeof error?.message === "string") return error.message;
+  if (typeof root?.error === "string") return root.error;
+  return "";
+}
+
+function applyTranslateStreamEvent(
+  event: ServerSentEventBlock,
+  currentText: string,
+): { translated: string; done: boolean } {
+  const trimmedData = event.data.trim();
+  if (!trimmedData) {
+    return { translated: currentText, done: false };
+  }
+  if (trimmedData === "[DONE]") {
+    return { translated: currentText, done: true };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmedData);
+  } catch {
+    return { translated: currentText, done: false };
+  }
+
+  const error = extractTranslateStreamError(parsed);
+  if (error) throw new Error(error);
+
+  const delta = extractTranslateStreamDelta(parsed);
+  if (delta) {
+    return { translated: currentText + delta, done: false };
+  }
+
+  const fullText = currentText ? "" : extractTranslateStreamFullText(parsed);
+  if (fullText) {
+    return { translated: fullText, done: false };
+  }
+
+  return { translated: currentText, done: false };
+}
+
+export async function readTranslateStream(
+  res: Response,
+  options: TranslateStreamOptions = {},
+) {
+  if (!res.body) throw new Error("Translate stream response has no body");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let translated = "";
+  let done = false;
+
+  while (!done) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+
+    buffer += decoder.decode(chunk.value, { stream: true });
+    const parsed = parseServerSentEvents(buffer);
+    buffer = parsed.rest;
+
+    for (const event of parsed.events) {
+      const result = applyTranslateStreamEvent(event, translated);
+      done = result.done;
+      if (result.translated !== translated) {
+        translated = result.translated;
+        options.onDelta?.(translated);
+      }
+      if (done) break;
+    }
+  }
+
+  buffer += decoder.decode();
+  const trailing = parseServerSentEventBlock(buffer.trim());
+  if (!done && trailing) {
+    const result = applyTranslateStreamEvent(trailing, translated);
+    if (result.translated !== translated) {
+      translated = result.translated;
+      options.onDelta?.(translated);
+    }
+  }
+
+  return { translated, segments: [] };
 }
 
 export function apiGet<T>(path: string): Promise<T> {
@@ -458,6 +642,28 @@ export function deleteRule(ruleId: string) {
 
 export function translateText(text: string, fromLang: string, toLang: string) {
   return apiPost<unknown>(`${BASE}/translate`, { text, fromLang, toLang });
+}
+
+export async function translateTextStream(
+  text: string,
+  fromLang: string,
+  toLang: string,
+  options: TranslateStreamOptions = {},
+) {
+  const url = new URL(`${BASE}/translate/stream`, window.location.origin);
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    signal: options.signal,
+    body: JSON.stringify({ text, fromLang, toLang }),
+  });
+
+  if (!res.ok) {
+    throw await apiErrorFromResponse(res);
+  }
+
+  return readTranslateStream(res, options);
 }
 
 export function getTranslateConfig() {
