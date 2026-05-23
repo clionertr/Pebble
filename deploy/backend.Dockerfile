@@ -8,6 +8,7 @@ RUN apt-get update && \
         pkg-config \
         libssl-dev \
         perl \
+        make \
         perl-modules && \
     rm -rf /var/lib/apt/lists/*
 
