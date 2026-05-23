@@ -13,12 +13,17 @@
 | `OAUTH_REDIRECT_URL` | OAuth 回调根地址，最终回调为 `/auth/callback`。 | `http://localhost:3000` |
 | `GMAIL_PUBSUB_TOPIC` | Gmail Pub/Sub topic，用于 Gmail 实时推送。 | 可选 |
 | `GMAIL_WEBHOOK_SECRET` | Gmail webhook query secret。 | 可选 |
+| `PEBBLE_VAPID_PRIVATE_KEY` | 浏览器 Web Push 使用的 base64url VAPID 私钥；缺省时自动生成并保存。 | 自动生成 |
+| `PEBBLE_VAPID_PUBLIC_KEY` | 可选 VAPID 公钥；若设置必须和私钥匹配，否则启动失败。 | 从私钥推导 |
 
 ### Binding Strategy
 
 - **本地开发**：保持默认 `127.0.0.1:3000`，通过 Vite dev server 代理访问。
+- **源码直接运行**：后端启动时会读取当前工作目录的 `.env`，但已经存在的进程环境变量优先；systemd 部署必须设置正确的 `WorkingDirectory` 和 `EnvironmentFile`。
 - **Docker 部署**：Compose 必须设置 `PEBBLE_HOST=0.0.0.0`，否则 frontend 容器无法通过容器网络访问 backend。
 - **公网部署**：推荐只暴露前端 nginx 端口，后端只在容器网络或本机回环地址内可达。
+- **浏览器通知**：Web Push 生产环境需要 HTTPS 或浏览器认可的安全上下文；localhost 仅用于开发例外。
+- **单进程数据目录**：同一个 `data/` 目录只能有一个 Pebble 后端进程；`data/index/` 的 Tantivy writer lock 出现 `LockBusy` 时，先停止旧进程，不要并行运行 `cargo run`、release binary 和 systemd 服务。
 
 ## Examples
 
@@ -60,6 +65,8 @@ ALLOWED_ORIGIN=
 - `PEBBLE_PUBLIC_URL` 不以 `http://` 或 `https://` 开头 -> 安装脚本报错或重新提示。
 - 健康检查 `http://127.0.0.1:9191` 超时 -> 打印 `docker compose ps` 和 backend/frontend 最近日志。
 - `pebble hash-password` 收到空密码 -> 返回错误，不输出 hash。
+- 源码运行时 `.env` 缺失 `PEBBLE_PASSWORD_HASH` 或值不是 bcrypt hash -> 启动失败并打印生成命令。
+- `data/index/` 返回 `LockBusy` -> 启动失败并提示停止旧后端或处理 stale lock。
 
 ### 5. Good/Base/Bad Cases
 - Good: 用户运行安装脚本，输入 `https://mail.closev.com` 或接受自动探测的 IP URL；登录密码可以手动输入，也可以留空生成 32 位随机密码。脚本生成 `.env`、拉取 `latest` 镜像、启动服务，并确认 `127.0.0.1:9191` 可访问。
