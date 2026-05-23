@@ -242,6 +242,9 @@ mod tests {
             true,
         );
 
-        assert_eq!(body.get("stream").and_then(|value| value.as_bool()), Some(true));
+        assert_eq!(
+            body.get("stream").and_then(|value| value.as_bool()),
+            Some(true)
+        );
     }
 }

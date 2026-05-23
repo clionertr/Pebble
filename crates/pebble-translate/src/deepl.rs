@@ -45,7 +45,9 @@ pub async fn translate(
         .and_then(|t| t.get(0))
         .and_then(|t| t.get("text"))
         .and_then(|t| t.as_str())
-        .ok_or_else(|| PebbleError::Translate("DeepL response missing translated text".to_string()))?;
+        .ok_or_else(|| {
+            PebbleError::Translate("DeepL response missing translated text".to_string())
+        })?;
 
     if translated.trim().is_empty() {
         return Err(PebbleError::Translate(

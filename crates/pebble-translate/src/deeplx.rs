@@ -155,8 +155,8 @@ mod tests {
 
     #[test]
     fn parse_deeplx_translation_rejects_empty_data() {
-        let err = parse_deeplx_translation(&serde_json::json!({ "code": 200, "data": "" }))
-            .unwrap_err();
+        let err =
+            parse_deeplx_translation(&serde_json::json!({ "code": 200, "data": "" })).unwrap_err();
 
         assert!(err.to_string().contains("empty translation"));
     }
