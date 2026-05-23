@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 target/
+target
 dist/
 docs/
 .worktrees/
@@ -43,4 +44,6 @@ data/
 # Claude Code
 .claude/
 src-tauri/data/
+
+
 
