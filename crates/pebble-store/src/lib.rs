@@ -9,6 +9,7 @@ pub mod kanban;
 pub mod labels;
 pub mod messages;
 pub mod migrations;
+pub mod notification_devices;
 pub mod pending_ops;
 pub mod rules;
 pub mod search_pending;

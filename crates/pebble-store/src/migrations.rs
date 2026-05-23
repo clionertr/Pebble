@@ -2,7 +2,7 @@ use pebble_core::{PebbleError, Result};
 use rusqlite::Connection;
 use std::collections::HashSet;
 
-const CURRENT_VERSION: u32 = 13;
+const CURRENT_VERSION: u32 = 14;
 const ACCOUNT_COLOR_PRESETS: [&str; 12] = [
     "#0ea5e9", "#22c55e", "#f59e0b", "#8b5cf6", "#f43f5e", "#14b8a6", "#6366f1", "#f97316",
     "#06b6d4", "#ec4899", "#84cc16", "#3b82f6",
@@ -307,9 +307,40 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                  ON messages(is_deleted, date DESC, id ASC);",
         )
         .map_err(|e| PebbleError::Storage(format!("Migration V13 failed: {e}")))?;
-        set_schema_version(&tx, CURRENT_VERSION)?;
+        set_schema_version(&tx, 13)?;
         tx.commit()
             .map_err(|e| PebbleError::Storage(format!("Migration V13 commit failed: {e}")))?;
+    }
+
+    if version < 14 {
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| PebbleError::Storage(format!("Migration V14 begin failed: {e}")))?;
+        tx.execute_batch(
+            "CREATE TABLE IF NOT EXISTS notification_devices (
+                 id TEXT PRIMARY KEY,
+                 endpoint TEXT NOT NULL UNIQUE,
+                 p256dh TEXT NOT NULL,
+                 auth TEXT NOT NULL,
+                 device_name TEXT NOT NULL,
+                 user_agent TEXT,
+                 status TEXT NOT NULL CHECK(status IN ('active', 'paused')),
+                 session_id TEXT,
+                 session_expires_at INTEGER,
+                 last_active_at INTEGER NOT NULL,
+                 summary_sent_at INTEGER,
+                 created_at INTEGER NOT NULL,
+                 updated_at INTEGER NOT NULL
+             );
+             CREATE INDEX IF NOT EXISTS idx_notification_devices_status
+                 ON notification_devices(status, session_expires_at);
+             CREATE INDEX IF NOT EXISTS idx_notification_devices_session
+                 ON notification_devices(session_id);",
+        )
+        .map_err(|e| PebbleError::Storage(format!("Migration V14 failed: {e}")))?;
+        set_schema_version(&tx, CURRENT_VERSION)?;
+        tx.commit()
+            .map_err(|e| PebbleError::Storage(format!("Migration V14 commit failed: {e}")))?;
     }
 
     Ok(())
@@ -555,7 +586,7 @@ mod tests {
         let version: u32 = conn
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 13);
+        assert_eq!(version, CURRENT_VERSION);
 
         let index_count: i32 = conn
             .query_row(
@@ -588,7 +619,7 @@ mod tests {
         let version: u32 = conn
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 13);
+        assert_eq!(version, CURRENT_VERSION);
 
         let index_count: i32 = conn
             .query_row(

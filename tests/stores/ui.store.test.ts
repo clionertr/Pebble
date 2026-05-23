@@ -20,6 +20,7 @@ describe("UIStore", () => {
       searchQuery: "",
       settingsTab: "accounts",
       pendingRuleDraftText: null,
+      pendingInboxMessageId: null,
       showFolderUnreadCount: false,
     });
     useThemeStore.setState({
@@ -33,7 +34,7 @@ describe("UIStore", () => {
       realtimeStatusByAccount: {},
       pollInterval: 15,
       realtimeMode: "realtime",
-      notificationsEnabled: true,
+      notificationsEnabled: false,
     });
     useComposeStore.setState({
       composeMode: null,
@@ -223,6 +224,32 @@ describe("UIStore", () => {
     expect(composeState.pendingView).toBe(null);
   });
 
+  it("clears pending notification message when compose leave is cancelled", () => {
+    useUIStore.setState({ activeView: "compose", previousView: "inbox" });
+    useComposeStore.setState({ composeMode: "new", composeDirty: true });
+
+    useUIStore.getState().openMessageInInbox("message-from-notification");
+    expect(useUIStore.getState().pendingInboxMessageId).toBe("message-from-notification");
+
+    useComposeStore.getState().cancelCloseCompose();
+
+    expect(useUIStore.getState().activeView).toBe("compose");
+    expect(useUIStore.getState().pendingInboxMessageId).toBe(null);
+  });
+
+  it("opens pending notification message after compose leave is confirmed", () => {
+    useUIStore.setState({ activeView: "compose", previousView: "inbox" });
+    useComposeStore.setState({ composeMode: "new", composeDirty: true });
+
+    useUIStore.getState().openMessageInInbox("message-from-notification");
+    useComposeStore.getState().confirmCloseCompose();
+
+    expect(useUIStore.getState().activeView).toBe("inbox");
+    expect(useUIStore.getState().pendingInboxMessageId).toBe(null);
+    expect(useMailStore.getState().selectedMessageId).toBe("message-from-notification");
+    expect(useComposeStore.getState().composeMode).toBe(null);
+  });
+
   it("should set theme", () => {
     useThemeStore.getState().setTheme("dark");
     expect(useThemeStore.getState().theme).toBe("dark");
@@ -242,11 +269,11 @@ describe("UIStore", () => {
     expect(realtimePreferenceToPollInterval("manual")).toBe(0);
   });
 
-  it("defaults notifications to enabled when the user has no stored preference", () => {
+  it("defaults notifications to disabled when the user has no stored preference", () => {
     localStorage.removeItem("pebble-notifications-enabled");
 
-    expect(readNotificationsEnabledPreference()).toBe(true);
-    expect(useSyncStore.getState().notificationsEnabled).toBe(true);
+    expect(readNotificationsEnabledPreference()).toBe(false);
+    expect(useSyncStore.getState().notificationsEnabled).toBe(false);
   });
 
   it("persists notification preference through the sync store", () => {

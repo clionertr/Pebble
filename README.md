@@ -13,13 +13,13 @@
 <p align="center">
   <a href="README.zh-CN.md">简体中文</a>
   ·
-  <a href="https://github.com/QingJ01/Pebble/releases">Releases</a>
+  <a href="https://github.com/clionertr/Pebble/releases">Releases</a>
   ·
   <a href="LICENSE">License</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/QingJ01/Pebble/releases"><img src="https://img.shields.io/github/v/release/QingJ01/Pebble?style=flat-square&color=d4714e" alt="Release"></a>
+  <a href="https://github.com/clionertr/Pebble/releases"><img src="https://img.shields.io/github/v/release/clionertr/Pebble?style=flat-square&color=d4714e" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20VPS%20%7C%20Self--hosted-lightgrey?style=flat-square" alt="Platform">
 </p>
@@ -37,6 +37,8 @@ Think of it as a self-hosted Gmail. No third party sees your inbox. No ads. No t
 ## Quick Start
 
 Pick the method that fits you.
+
+> This webmail fork is maintained at `https://github.com/clionertr/Pebble.git`. `https://github.com/QingJ01/Pebble.git` is the original upstream project; do not clone it when you want this webmail version.
 
 ### One-command Docker deploy (recommended)
 
@@ -67,12 +69,12 @@ curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/inst
     bash
 ```
 
-### Compile from Source
+### Development from Source
 
 You need: **Rust** (stable), **Node.js 18+**, **pnpm 8+**.
 
 ```bash
-git clone https://github.com/QingJ01/Pebble.git
+git clone https://github.com/clionertr/Pebble.git
 cd Pebble
 
 # Install frontend dependencies
@@ -92,24 +94,77 @@ pnpm dev:frontend
 
 Open `http://localhost:1420`. The dev server proxies API calls to the backend at port 3000.
 
-### Production (bare metal)
+Important dev rule: run only one backend process against the same `./data` directory. If a release binary, `cargo run`, or a systemd service is already running, the search index will be locked and the next backend start will fail.
+
+### Production from Source
+
+For a VPS that runs from source, use a process manager such as systemd. The mental model is:
+
+1. stop the old Pebble backend
+2. pull/build the new code
+3. start exactly one backend again
 
 ```bash
-# Build the release binary
+# One-time setup
+git clone https://github.com/clionertr/Pebble.git /opt/pebble
+cd /opt/pebble
+pnpm install --frozen-lockfile
+cp .env.example .env
+printf '%s' 'your-password' | cargo run -p pebble -- hash-password
+# Edit .env and set PEBBLE_PASSWORD_HASH to the generated hash.
+# Direct source runs use single $ characters, for example '$2b$12$...'.
+```
+
+Build and restart after code changes:
+
+```bash
+# Update code if this server tracks git
+git pull --ff-only
+
+# Build while the old service keeps serving traffic
+pnpm install --frozen-lockfile
+pnpm run build:frontend
 cargo build --release -p pebble
 
-# Build the frontend
-pnpm build:frontend
-
-# Run the backend
-PEBBLE_PASSWORD_HASH='your-hash' ./target/release/pebble
+# Restart once. systemd stops the old backend before starting the new one.
+sudo systemctl restart pebble
 ```
 
 Serve `dist/` with nginx (example config below). The backend listens on port 3000 by default.
 
+Example systemd unit. A ready-to-edit copy is also available at `deploy/pebble.service.example`:
+
+```ini
+[Unit]
+Description=Pebble webmail backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/pebble
+EnvironmentFile=/opt/pebble/.env
+ExecStart=/opt/pebble/target/release/pebble
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Install it with:
+
+```bash
+sudo cp deploy/pebble.service.example /etc/systemd/system/pebble.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now pebble
+```
+
+For quick manual testing without systemd, stop any existing Pebble process first, then run `./target/release/pebble` from the repository root. The binary now reads `.env` from the current working directory.
+
 ## Configuration Guide
 
-All configuration goes into **environment variables**. You can set them in a `.env` file, pass them directly when running the binary, or use Docker Compose's `env_file`.
+All configuration goes into **environment variables**. You can set them in a `.env` file, pass them directly when running the binary, or use Docker Compose's `env_file`. Direct source runs read `.env` from the current working directory without an extra `source .env` step.
 
 ### Required: Password
 
@@ -154,6 +209,8 @@ MICROSOFT_CLIENT_ID=your-microsoft-client-id
 | `PEBBLE_PORT` | `3000` | TCP port. |
 | `OAUTH_REDIRECT_URL` | `http://localhost:3000` | Full URL where `/auth/callback` is reachable. Set to `https://your-domain.com` in production. |
 | `ALLOWED_ORIGIN` | (empty) | CORS allowed origin. Leave empty for same-origin. Set to your frontend URL if hosting frontend and backend on different origins. |
+| `PEBBLE_VAPID_PRIVATE_KEY` | auto-generated | Optional base64url VAPID private key for browser Web Push. If omitted, Pebble generates and stores one in its local data. |
+| `PEBBLE_VAPID_PUBLIC_KEY` | derived | Optional VAPID public key. If set, it must match `PEBBLE_VAPID_PRIVATE_KEY`; otherwise the server refuses to start. |
 
 ### Optional: Gmail Real-time Push
 
@@ -301,6 +358,8 @@ Pebble uses **cookie-based session auth**:
 
 The frontend connects to `GET /events` via **Server-Sent Events** (SSE). The server pushes notifications for new mail, sync progress, and snooze wakeups. The SSE connection uses the same session cookie for auth.
 
+Browser push notifications use **Web Push + Service Worker** so notifications can arrive after the Pebble tab is closed. Production browsers require HTTPS or another secure context; localhost works for development.
+
 ### Email Sync
 
 Pebble syncs with your providers in the background:
@@ -371,8 +430,10 @@ Shortcuts can be customized in Settings.
 | `pnpm build:frontend` | Type-check and build frontend to `dist/` |
 | `cargo build --release -p pebble` | Build release backend binary |
 | `pnpm test` | Run frontend tests (Vitest) |
-| `cargo test -p pebble-mail` | Run mail crate tests |
-| `cargo check` | Check Rust workspace for errors |
+| `cargo fmt --check` | Check Rust formatting |
+| `cargo clippy --all-targets -- -D warnings` | Run Rust lint checks |
+| `cargo test --all` | Run all Rust tests |
+| `sudo systemctl restart pebble` | Restart a source-deployed backend managed by systemd |
 
 ## Troubleshooting
 
@@ -381,6 +442,24 @@ Your session expired (7-day TTL) or the backend restarted. Log in again.
 
 ### Can't log in after deployment
 Check that `PEBBLE_PASSWORD_HASH` in `.env` has `$$` escaping (not `$`) when used with Docker Compose. Test with: `docker exec pebble-backend env | grep PASSWORD`.
+
+For direct source runs, use normal single `$` characters, usually quoted: `PEBBLE_PASSWORD_HASH='$2b$12$...'`. The backend reads `.env` automatically from the directory where you start it.
+
+### `Failed to acquire index lock` or `LockBusy`
+
+Pebble's full-text search index lives in `data/index/`. Tantivy allows only one writer, so this error almost always means another Pebble backend is still running with the same `./data` directory.
+
+Check and stop the old process:
+
+```bash
+sudo systemctl status pebble
+sudo systemctl stop pebble
+pgrep -af pebble
+```
+
+Then start only one backend again: either `sudo systemctl start pebble`, `cargo run -p pebble`, or `./target/release/pebble`, not several at the same time.
+
+If `pgrep -af pebble` shows no running process but the lock remains, reboot the server first. Only remove stale lock files under `data/index/` after confirming no Pebble process is running and after backing up `data/`.
 
 ### Routes returning 404
 Make sure the nginx config proxies `/api/*` to the backend. The proxy rule should be: `location ~ ^/(api|events|auth|webhook)`.

@@ -15,6 +15,7 @@ interface UIState {
   searchQuery: string;
   settingsTab: SettingsTab;
   pendingRuleDraftText: string | null;
+  pendingInboxMessageId: string | null;
   showFolderUnreadCount: boolean;
   setIsMobile: (isMobile: boolean) => void;
   setDrawerOpen: (open: boolean) => void;
@@ -22,6 +23,7 @@ interface UIState {
   toggleSidebar: () => void;
   setActiveView: (view: ActiveView) => void;
   openMessageInInbox: (messageId: string) => void;
+  openPendingInboxMessage: () => void;
   setSearchQuery: (q: string) => void;
   setSettingsTab: (tab: SettingsTab) => void;
   setPendingRuleDraftText: (text: string | null) => void;
@@ -37,6 +39,7 @@ export const useUIStore = create<UIState>((set) => ({
   searchQuery: "",
   settingsTab: (sessionStorage.getItem("pebble-settings-tab") as SettingsTab) || "accounts",
   pendingRuleDraftText: null,
+  pendingInboxMessageId: null,
   showFolderUnreadCount: localStorage.getItem("pebble-show-unread-count") === "true",
   setIsMobile: (isMobile) => set({ isMobile }),
   setDrawerOpen: (open) => set({ drawerOpen: open }),
@@ -64,11 +67,29 @@ export const useUIStore = create<UIState>((set) => ({
     set({ activeView: view, drawerOpen: false });
   },
   openMessageInInbox: (messageId) => {
+    const state = useUIStore.getState();
+    if (state.activeView === "compose") {
+      const composeState = useComposeStore.getState();
+      if (composeState.composeDirty) {
+        set({ pendingInboxMessageId: messageId });
+        useComposeStore.setState({ showComposeLeaveConfirm: true, pendingView: "inbox" });
+        return;
+      }
+    }
     useMailStore.setState({
       selectedMessageId: messageId, selectedThreadId: null, threadView: false,
       selectedMessageIds: new Set(), batchMode: false,
     });
-    set({ activeView: "inbox" });
+    set({ activeView: "inbox", pendingInboxMessageId: null });
+  },
+  openPendingInboxMessage: () => {
+    const messageId = useUIStore.getState().pendingInboxMessageId;
+    if (!messageId) return;
+    useMailStore.setState({
+      selectedMessageId: messageId, selectedThreadId: null, threadView: false,
+      selectedMessageIds: new Set(), batchMode: false,
+    });
+    set({ activeView: "inbox", pendingInboxMessageId: null });
   },
   setSearchQuery: (q) => set({ searchQuery: q }),
   setSettingsTab: (tab) => {

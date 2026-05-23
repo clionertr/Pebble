@@ -6,6 +6,7 @@ pub mod docs;
 pub mod error;
 pub mod labels;
 pub mod messages;
+pub mod notifications;
 pub mod resources;
 pub mod shell;
 pub mod threads;
@@ -23,6 +24,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .merge(compose::compose_routes())
         .merge(labels::label_routes())
         .merge(messages::message_routes())
+        .merge(notifications::notification_routes())
         .merge(resources::resource_routes())
         .merge(shell::shell_routes())
         .merge(threads::thread_routes())

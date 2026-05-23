@@ -88,6 +88,12 @@ async fn logout_handler(
     jar: CookieJar,
 ) -> impl axum::response::IntoResponse {
     if let Some(session_cookie) = jar.get(SESSION_COOKIE) {
+        if let Err(error) = state
+            .store
+            .delete_notification_devices_by_session(session_cookie.value())
+        {
+            tracing::warn!("Failed to delete notification devices for logout session: {error}");
+        }
         state
             .session_store
             .remove_session(session_cookie.value())

@@ -88,7 +88,10 @@ export const useComposeStore = create<ComposeState>((set) => ({
     const targetView = state.pendingView ?? uiState.previousView;
     useComposeStore.getState().discardComposeAndSetActiveView(targetView);
   },
-  cancelCloseCompose: () => set({ showComposeLeaveConfirm: false, pendingView: null }),
+  cancelCloseCompose: () => {
+    useUIStore.setState({ pendingInboxMessageId: null });
+    set({ showComposeLeaveConfirm: false, pendingView: null });
+  },
   discardComposeAndSetActiveView: (view) => {
     useUIStore.setState({ activeView: view });
     set({
@@ -96,5 +99,6 @@ export const useComposeStore = create<ComposeState>((set) => ({
       pendingView: null,
       ...getComposeResetState(),
     });
+    useUIStore.getState().openPendingInboxMessage();
   },
 }));

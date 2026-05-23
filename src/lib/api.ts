@@ -34,6 +34,8 @@ export type {
   TrustedSender,
 } from "./api-types";
 
+export type { BrowserPushSubscriptionPayload, NotificationDevice } from "./api-client";
+
 import type {
   Account,
   AccountProxyMode,
@@ -689,4 +691,44 @@ export async function deleteDraft(accountId: string, draftId: string): Promise<v
 export async function getFolderUnreadCounts(accountId: string): Promise<Record<string, number>> {
   const shell = await client.getShell();
   return (shell.unreadCounts as Record<string, Record<string, number>>)[accountId] || {};
+}
+
+// ─── Browser Push Notifications ─────────────────────────────────────────────
+
+export async function getWebPushPublicKey(): Promise<string> {
+  const response = await client.getWebPushPublicKey();
+  return response.public_key;
+}
+
+export async function listNotificationDevices(): Promise<client.NotificationDevice[]> {
+  const response = await client.listNotificationDevices();
+  return response.devices;
+}
+
+export async function upsertWebPushSubscription(params: {
+  deviceId: string;
+  deviceName?: string;
+  subscription: client.BrowserPushSubscriptionPayload;
+}): Promise<client.NotificationDevice> {
+  const response = await client.upsertWebPushSubscription(params);
+  return response.device;
+}
+
+export async function deleteWebPushSubscription(deviceId: string): Promise<void> {
+  return client.deleteWebPushSubscription(deviceId);
+}
+
+export async function renameNotificationDevice(
+  deviceId: string,
+  deviceName: string,
+): Promise<client.NotificationDevice> {
+  return client.renameNotificationDevice(deviceId, deviceName);
+}
+
+export async function deleteNotificationDevice(deviceId: string): Promise<void> {
+  return client.deleteNotificationDevice(deviceId);
+}
+
+export async function sendTestNotification(deviceId: string): Promise<void> {
+  return client.sendTestNotification(deviceId);
 }

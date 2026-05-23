@@ -167,3 +167,80 @@ queryClient.invalidateQueries({ queryKey: ["threads"] });
 queryClient.invalidateQueries({ queryKey: ["folders", accountId] });
 queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] });
 ```
+
+## Scenario: 浏览器 Web Push 通知契约
+
+### 1. Scope / Trigger
+- Trigger: Pebble 支持页面关闭后的浏览器系统通知，链路横跨 Service Worker、前端设置页、REST API、SQLite 订阅存储、规则后新邮件处理和 VAPID 配置。
+- 范围：`public/pebble-sw.js`、`src/lib/web-push.ts`、`src/features/settings/GeneralTab.tsx`、`server/src/api/notifications.rs`、`server/src/push_notifications.rs`、`crates/pebble-store/src/notification_devices.rs`。
+
+### 2. Signatures
+- `GET /api/notifications/vapid-public-key` -> `{ public_key: string }`。
+- `GET /api/notifications/devices` -> `{ devices: NotificationDevice[] }`。
+- `POST /api/notifications/subscriptions` body `{ device_id: string, device_name?: string, subscription: { endpoint: string, keys: { p256dh: string, auth: string } } }` -> `{ device: NotificationDevice }`。
+- `DELETE /api/notifications/subscriptions/:device_id` -> `null`。
+- `PATCH /api/notifications/devices/:device_id` body `{ device_name: string }` -> `NotificationDevice`。
+- `DELETE /api/notifications/devices/:device_id` -> `null`。
+- `POST /api/notifications/test` body `{ device_id: string }` -> `null`。
+- DB table: `notification_devices(id, endpoint, p256dh, auth, device_name, user_agent, status, session_id, session_expires_at, last_active_at, summary_sent_at, created_at, updated_at)`。
+
+### 3. Contracts
+- 所有 `/api/notifications/*` 路由必须经过 cookie session 鉴权；不要加入 auth exempt 白名单。
+- 前端必须只在用户点击通知开关时调用 `Notification.requestPermission()`；自动恢复只能在 `Notification.permission === "granted"` 时重新登记订阅。
+- 新设备默认通知关闭；本地 `pebble-notifications-enabled=true` 只表示旧偏好，可在权限已允许时恢复，否则必须写回关闭。
+- Manual only 模式不得开启通知；切到 Manual only 时当前设备订阅要取消。
+- `PEBBLE_VAPID_PRIVATE_KEY` 是可选 base64url 私钥；缺省时自动生成并保存到 `secure_user_data` 的 `web_push_vapid_private_key`。
+- `PEBBLE_VAPID_PUBLIC_KEY` 可选；若设置，必须和私钥推导出的公钥一致，否则启动失败。
+- 规则处理后最终仍在收件箱、未读、未删除且 `StoredMessage.notify=true` 的新邮件才进入 Web Push 队列。
+- 普通邮件 5 秒合并；验证码/OTP 邮件立即推送；普通邮件 `allowForeground=false`，测试和摘要 `allowForeground=true`。
+- 单封 payload 带 `messageId`，点击后前端打开收件箱中的该邮件并标已读；批量/摘要 payload 不带 `messageId`，点击只打开收件箱。
+- 服务端启动后必须暂停已有设备，避免内存 session 丢失后继续向旧 session 发送通知；重新登录且浏览器权限仍允许时由前端恢复订阅。
+
+### 4. Validation & Error Matrix
+- `device_id` 为空 -> `400`。
+- `subscription.endpoint/p256dh/auth` 任一为空 -> `400`。
+- 重命名 `device_name` 为空 -> `400`。
+- 测试通知设备不存在 -> API 错误响应，不应静默成功。
+- `PEBBLE_VAPID_PRIVATE_KEY` 为空或格式非法 -> 进程启动失败。
+- `PEBBLE_VAPID_PUBLIC_KEY` 为空或和私钥不匹配 -> 进程启动失败。
+- Push 服务返回永久端点错误 -> 删除该通知设备，避免持续重试坏订阅。
+
+### 5. Good/Base/Bad Cases
+- Good: 用户在 Settings → General 点击开启，浏览器权限弹窗出现，后端保存当前设备订阅；页面关闭后新收件箱未读邮件触发系统通知。
+- Base: 旧本地偏好为 true 但浏览器权限还不是 granted，页面加载时不弹权限请求，状态回到关闭，等待用户手动点击。
+- Bad: 在 `mail:new` SSE 发出前或规则执行前推送通知，会把已经被规则归档/移动的邮件误通知给用户。
+- Bad: 只设置 `PEBBLE_VAPID_PUBLIC_KEY` 但没有匹配私钥，会导致订阅看似成功、实际推送全部失败。
+
+### 6. Tests Required
+- Rust store 测试：设备 upsert/暂停、未读收件箱摘要只统计 inbox 未读未删除邮件。
+- Rust push 测试：OTP 启发式必须同时有验证码关键词和 code-like token。
+- Rust migration 测试：旧版本迁移到 `CURRENT_VERSION` 后 `notification_devices` 表存在。
+- 前端 store 测试：新设备通知默认关闭；通知点击遇到 dirty compose 时会保留草稿保护，确认后再打开 pending 邮件，取消后清空 pending 邮件。
+- 前端构建测试：`src/lib/web-push.ts` 的 `applicationServerKey` 类型必须通过 `tsc`。
+- 手动浏览器验证：HTTPS/localhost 下测试通知、普通通知前台抑制、单封点击标已读、批量点击只打开收件箱。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```typescript
+// 页面加载时主动请求权限，会被浏览器拦截，也违背“用户点击才请求”。
+await Notification.requestPermission();
+```
+
+#### Correct
+```typescript
+// 只有用户点击 Settings 开关后才请求权限。
+await enableCurrentDeviceNotifications();
+```
+
+#### Wrong
+```rust
+// 规则执行前就通知，可能误报已经被规则归档的邮件。
+state.push_notifications.queue_mail(store, candidate).await;
+```
+
+#### Correct
+```rust
+// 规则处理后，用最终 folder_ids 判断是否仍在 inbox。
+notify_new_message_after_rules(state, store, &message, &folder_ids, stored.notify, deferred).await;
+```

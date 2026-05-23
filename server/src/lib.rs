@@ -10,6 +10,7 @@ pub mod events;
 pub mod gmail_realtime;
 pub mod mail_latency;
 pub mod middleware;
+pub mod push_notifications;
 pub mod realtime;
 pub mod rpc;
 pub mod session;

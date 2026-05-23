@@ -727,6 +727,74 @@ export function setNotificationsEnabled(enabled: boolean) {
   return apiPut<void>(`${BASE}/preferences/notifications`, { enabled });
 }
 
+// ── Browser Push Notifications ────────────────────────────────────────
+
+export interface BrowserPushKeys {
+  p256dh: string;
+  auth: string;
+}
+
+export interface BrowserPushSubscriptionPayload {
+  endpoint: string;
+  keys: BrowserPushKeys;
+}
+
+export type NotificationDeviceStatus = "active" | "paused";
+
+export interface NotificationDevice {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  device_name: string;
+  user_agent?: string | null;
+  status: NotificationDeviceStatus;
+  session_id?: string | null;
+  session_expires_at?: number | null;
+  last_active_at: number;
+  summary_sent_at?: number | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export function getWebPushPublicKey() {
+  return apiGet<{ public_key: string }>(`${BASE}/notifications/vapid-public-key`);
+}
+
+export function listNotificationDevices() {
+  return apiGet<{ devices: NotificationDevice[] }>(`${BASE}/notifications/devices`);
+}
+
+export function upsertWebPushSubscription(params: {
+  deviceId: string;
+  deviceName?: string;
+  subscription: BrowserPushSubscriptionPayload;
+}) {
+  return apiPost<{ device: NotificationDevice }>(`${BASE}/notifications/subscriptions`, {
+    device_id: params.deviceId,
+    device_name: params.deviceName,
+    subscription: params.subscription,
+  });
+}
+
+export function deleteWebPushSubscription(deviceId: string) {
+  return apiDelete<void>(`${BASE}/notifications/subscriptions/${encodeURIComponent(deviceId)}`);
+}
+
+export function renameNotificationDevice(deviceId: string, deviceName: string) {
+  return apiPatch<NotificationDevice>(`${BASE}/notifications/devices/${encodeURIComponent(deviceId)}`, {
+    device_name: deviceName,
+  });
+}
+
+export function deleteNotificationDevice(deviceId: string) {
+  return apiDelete<void>(`${BASE}/notifications/devices/${encodeURIComponent(deviceId)}`);
+}
+
+export function sendTestNotification(deviceId: string) {
+  return apiPost<void>(`${BASE}/notifications/test`, { device_id: deviceId });
+}
+
 // ── Accounts management ────────────────────────────────────────────────
 
 export function addAccount(request: unknown) {

@@ -32,6 +32,10 @@ axum-extra = { version = "0.9", features = ["cookie"] }
 cookie = { version = "0.18" }
 bcrypt = "0.16"
 uuid = { workspace = true }
+web-push = { workspace = true }
+p256 = { workspace = true }
+http02 = { workspace = true }
+openssl = { version = "0.10", features = ["vendored"] }
 
 [dev-dependencies]
 tempfile = "3"

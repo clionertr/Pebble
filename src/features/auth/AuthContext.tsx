@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { getAuthStatus, login as apiLogin, logout as apiLogout } from "@/lib/api-client";
 import type { AuthStatus } from "@/lib/api-client";
+import { disableCurrentDeviceNotifications } from "@/lib/web-push";
 
 type AuthState = "loading" | "authenticated" | "unauthenticated";
 
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    await disableCurrentDeviceNotifications().catch(() => {});
     await apiLogout().catch(() => {});
     setAuthState("unauthenticated");
   }, []);

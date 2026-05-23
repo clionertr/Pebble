@@ -1,4 +1,5 @@
 use crate::mail_latency::MailLatencyHint;
+use crate::push_notifications::PushNotificationService;
 use crate::realtime::SyncTrigger;
 use crate::rpc::imap_pool::ImapConnectionPool;
 use crate::session::SessionStore;
@@ -39,6 +40,7 @@ pub struct AppState {
     pub snooze_stop_tx: std::sync::mpsc::Sender<()>,
     pub attachments_dir: PathBuf,
     pub notifications_enabled: Arc<AtomicBool>,
+    pub push_notifications: Arc<PushNotificationService>,
     pub tx: broadcast::Sender<EventPayload>,
     pub imap_pool: ImapConnectionPool,
     pub rpc_semaphore: Arc<Semaphore>,
@@ -54,6 +56,8 @@ impl AppState {
         attachments_dir: PathBuf,
         password_hash: String,
     ) -> Self {
+        let push_notifications = PushNotificationService::new(&store)
+            .expect("failed to initialize browser push notifications");
         let (tx, _rx) = broadcast::channel(100);
         Self {
             store: Arc::new(store),
@@ -66,6 +70,7 @@ impl AppState {
             snooze_stop_tx,
             attachments_dir,
             notifications_enabled: Arc::new(AtomicBool::new(true)),
+            push_notifications: Arc::new(push_notifications),
             tx,
             imap_pool: ImapConnectionPool::new(),
             rpc_semaphore: Arc::new(Semaphore::new(64)),

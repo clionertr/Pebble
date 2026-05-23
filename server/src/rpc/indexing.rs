@@ -193,16 +193,22 @@ pub async fn index_new_messages(
 
         state.emit("mail:new", new_mail_event_payload(state, &stored).await);
 
+        let mut notification_deferred_by_remote_rule = false;
         if let Some(ref engine) = engine {
             let actions = engine.evaluate(&stored.message);
             for action in actions {
-                if let Err(e) = apply_rule_action(
+                match apply_rule_action(
                     store,
                     &stored.message.account_id,
                     &stored.message.id,
                     &action,
                 ) {
-                    warn!("Rule action failed for message {}: {e}", stored.message.id);
+                    Ok(deferred) => {
+                        notification_deferred_by_remote_rule |= deferred;
+                    }
+                    Err(e) => {
+                        warn!("Rule action failed for message {}: {e}", stored.message.id);
+                    }
                 }
             }
         }
@@ -240,9 +246,21 @@ pub async fn index_new_messages(
                         );
                         continue;
                     }
-                } else if let Err(e) = search.index_message(&message, &folder_ids) {
-                    warn!("Failed to index message {}: {}", message_id, e);
-                    continue;
+                } else {
+                    crate::rpc::notifications::notify_new_message_after_rules(
+                        state,
+                        store,
+                        &message,
+                        &folder_ids,
+                        stored.notify,
+                        notification_deferred_by_remote_rule,
+                    )
+                    .await;
+
+                    if let Err(e) = search.index_message(&message, &folder_ids) {
+                        warn!("Failed to index message {}: {}", message_id, e);
+                        continue;
+                    }
                 }
             }
             Some(_) | None => {
@@ -279,13 +297,13 @@ fn apply_rule_action(
     account_id: &str,
     message_id: &str,
     action: &pebble_rules::types::RuleAction,
-) -> pebble_core::Result<()> {
+) -> pebble_core::Result<bool> {
     use pebble_rules::types::RuleAction;
     match action {
         RuleAction::MarkRead => {
             if queue_remote_rule_action(store, account_id, message_id, action)? {
                 info!("Rule: queued remote mark-read for message {}", message_id);
-                return Ok(());
+                return Ok(true);
             }
             store.update_message_flags(message_id, Some(true), None)?;
             info!("Rule: marked message {} as read", message_id);
@@ -293,7 +311,7 @@ fn apply_rule_action(
         RuleAction::Archive => {
             if queue_remote_rule_action(store, account_id, message_id, action)? {
                 info!("Rule: queued remote archive for message {}", message_id);
-                return Ok(());
+                return Ok(true);
             }
             if let Some(archive_folder) =
                 store.find_folder_by_role(account_id, pebble_core::FolderRole::Archive)?
@@ -321,7 +339,7 @@ fn apply_rule_action(
                     "Rule: queued remote move for message {} to folder '{}'",
                     message_id, folder_name
                 );
-                return Ok(());
+                return Ok(true);
             }
             if let Some(target_folder) = store.find_folder_by_name(account_id, folder_name)? {
                 store.move_message_to_folder(message_id, &target_folder.id)?;
@@ -352,7 +370,7 @@ fn apply_rule_action(
             );
         }
     }
-    Ok(())
+    Ok(false)
 }
 
 fn queue_remote_rule_action(

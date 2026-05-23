@@ -9,7 +9,7 @@ use pebble::{api, auth, gmail_realtime, middleware, rpc, snooze_watcher, state::
 use std::convert::Infallible;
 use std::io::Read;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::BroadcastStream;
@@ -45,6 +45,88 @@ fn init_logging(data_dir: &std::path::Path) -> Option<tracing_appender::non_bloc
             .with(stdout_layer)
             .init();
         None
+    }
+}
+
+fn parse_dotenv_line(line: &str) -> Option<(String, String)> {
+    let line = line.trim();
+    if line.is_empty() || line.starts_with('#') {
+        return None;
+    }
+
+    let (key, value) = line.split_once('=')?;
+    let key = key.trim();
+    if key.is_empty() || key.starts_with('#') {
+        return None;
+    }
+
+    let value = value.trim();
+    let value = if value.len() >= 2
+        && ((value.starts_with('"') && value.ends_with('"'))
+            || (value.starts_with('\'') && value.ends_with('\'')))
+    {
+        &value[1..value.len() - 1]
+    } else {
+        value
+    };
+
+    Some((key.to_string(), value.to_string()))
+}
+
+fn load_dotenv_if_present(path: &Path) {
+    let Ok(contents) = std::fs::read_to_string(path) else {
+        return;
+    };
+
+    for line in contents.lines() {
+        let Some((key, value)) = parse_dotenv_line(line) else {
+            continue;
+        };
+        if std::env::var_os(&key).is_none() {
+            std::env::set_var(key, value);
+        }
+    }
+}
+
+fn password_hash_from_env_or_exit() -> String {
+    let password_hash = match std::env::var("PEBBLE_PASSWORD_HASH") {
+        Ok(value) if !value.trim().is_empty() => value,
+        _ => {
+            eprintln!("PEBBLE_PASSWORD_HASH must be set to a bcrypt password hash.");
+            eprintln!("Create one with: printf '%s' 'your-password' | pebble hash-password");
+            eprintln!("For source runs, put it in .env or export it in the shell.");
+            std::process::exit(2);
+        }
+    };
+
+    if bcrypt::verify("", &password_hash).is_err() {
+        eprintln!("PEBBLE_PASSWORD_HASH is not a valid bcrypt hash.");
+        eprintln!("Create one with: printf '%s' 'your-password' | pebble hash-password");
+        eprintln!(
+            "Direct source runs use single $ characters; Docker Compose .env files use $$ escaping."
+        );
+        std::process::exit(2);
+    }
+
+    password_hash
+}
+
+fn open_search_or_exit(index_path: &Path) -> pebble_search::TantivySearch {
+    match pebble_search::TantivySearch::open(index_path) {
+        Ok(search) => search,
+        Err(error) => {
+            let message = error.to_string();
+            eprintln!(
+                "Failed to open search index at {}: {message}",
+                index_path.display()
+            );
+            if message.contains("LockBusy") || message.contains("index lock") {
+                eprintln!("Another Pebble process is probably using this data directory.");
+                eprintln!("Stop the old backend before starting a new one, then retry.");
+                eprintln!("If no Pebble process is running, reboot the server or remove the stale search index lock file under data/index after backing up data.");
+            }
+            std::process::exit(1);
+        }
     }
 }
 
@@ -187,6 +269,8 @@ async fn main() {
         return;
     }
 
+    load_dotenv_if_present(Path::new(".env"));
+
     // Use a local ./data directory for VPS deployment
     let data_dir = PathBuf::from("./data");
     std::fs::create_dir_all(&data_dir).unwrap();
@@ -194,9 +278,12 @@ async fn main() {
 
     let db_path = data_dir.join("pebble.db");
     let store = pebble_store::Store::open(&db_path).unwrap();
+    if let Err(error) = store.pause_all_notification_devices() {
+        tracing::warn!("Failed to pause notification devices after restart: {error}");
+    }
 
     let index_path = data_dir.join("index");
-    let search = pebble_search::TantivySearch::open(&index_path).unwrap();
+    let search = open_search_or_exit(&index_path);
 
     let key_path = data_dir.join("pebble.key");
     let crypto = pebble_crypto::CryptoService::init(&key_path).unwrap();
@@ -205,8 +292,7 @@ async fn main() {
     std::fs::create_dir_all(&attachments_dir).unwrap();
 
     let (snooze_stop_tx, snooze_stop_rx) = std::sync::mpsc::channel::<()>();
-    let password_hash = std::env::var("PEBBLE_PASSWORD_HASH")
-        .expect("PEBBLE_PASSWORD_HASH must be set to a bcrypt password hash");
+    let password_hash = password_hash_from_env_or_exit();
     let state = Arc::new(AppState::new(
         store,
         search,
@@ -264,7 +350,20 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::hash_password_from_args;
+    use super::{hash_password_from_args, parse_dotenv_line};
+
+    #[test]
+    fn parse_dotenv_line_reads_plain_and_quoted_values() {
+        assert_eq!(
+            parse_dotenv_line("PEBBLE_PASSWORD_HASH='$2b$12$abc'"),
+            Some(("PEBBLE_PASSWORD_HASH".to_string(), "$2b$12$abc".to_string()))
+        );
+        assert_eq!(
+            parse_dotenv_line(" PEBBLE_HOST = 0.0.0.0 "),
+            Some(("PEBBLE_HOST".to_string(), "0.0.0.0".to_string()))
+        );
+        assert_eq!(parse_dotenv_line("# PEBBLE_PORT=3000"), None);
+    }
 
     #[test]
     fn hash_password_from_argument_verifies_with_bcrypt() {

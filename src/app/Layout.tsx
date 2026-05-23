@@ -22,6 +22,8 @@ import LoginView from "../features/auth/LoginView";
 import { scheduleIdleWork, scheduleLazyViewPreload } from "./lazyViewPreload";
 import { useRealtimePreferenceSync } from "./useRealtimePreferenceSync";
 import { useRealtimeSyncTriggers } from "./useRealtimeSyncTriggers";
+import { useNotificationClickRouting } from "./useNotificationClickRouting";
+import { useWebPushRegistration } from "./useWebPushRegistration";
 
 const loadSettingsView = () => import("../features/settings/SettingsView");
 const loadComposeView = () => import("../features/compose/ComposeView");
@@ -106,6 +108,8 @@ function AuthenticatedLayout() {
   useNetworkStatus();
   useRealtimePreferenceSync();
   useRealtimeSyncTriggers();
+  useWebPushRegistration();
+  useNotificationClickRouting();
 
   // Re-register commands when language changes
   useEffect(() => {

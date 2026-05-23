@@ -27,7 +27,7 @@ function readRealtimePreference(): RealtimePreference {
 
 export function readNotificationsEnabledPreference(): boolean {
   const stored = localStorage.getItem(NOTIFICATIONS_KEY);
-  return stored === null ? true : stored === "true";
+  return stored === "true";
 }
 
 export function realtimePreferenceToPollInterval(mode: RealtimePreference): number {
