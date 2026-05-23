@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/pebble/backend/index.md", "reason": "Main webmail backend guideline index"}
+{"file": ".trellis/spec/pebble/backend/directory-structure.md", "reason": "REST API and frontend/backend organization contracts"}
+{"file": ".trellis/spec/pebble/backend/webmail-api-contracts.md", "reason": "SSE/auth/API cache contract relevant to notifications"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Feature crosses frontend API backend database and service worker"}
+{"file": ".trellis/tasks/05-22-browser-push-notifications/research/web-push-implementation.md", "reason": "Web Push technical research"}

@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/pebble/backend/webmail-api-contracts.md", "reason": "Check REST/SSE/auth/deployment contracts"}
+{"file": ".trellis/spec/pebble/backend/quality-guidelines.md", "reason": "Project quality gate commands"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Check cross-layer data contracts"}
+{"file": ".trellis/tasks/05-22-browser-push-notifications/research/web-push-implementation.md", "reason": "Check Web Push implementation assumptions"}
