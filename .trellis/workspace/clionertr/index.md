@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 8
-- **Last Active**: 2026-05-19
+- **Total Sessions**: 9
+- **Last Active**: 2026-05-23
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~349 | Active |
+| `journal-1.md` | ~384 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 9 | 2026-05-23 | Browser Push Notifications implementation + source-run DX improvements | `86c7888`, `e9803c3`, `d00359c` | `master` |
 | 8 | 2026-05-19 | 同步上游 Webmail 安全补丁 | `7f209bc` | `master` |
 | 7 | 2026-05-18 | Standard Webmail API Migration — 从桌面 JSON-RPC 到 REST Webmail | `80d23e1` → `f2c8da0` (26 total) | `001-improve-experience` |
 | 6 | 2026-05-16 | Pebble 性能与UX全面优化 — P0/P1/P2 15个任务全部完成 | `5f9a8c9`, `25fc972`, `08ef8c0`, `1dbf154`, `3d968e2`, `7753af4`, `98aa840` | `001-improve-experience` |

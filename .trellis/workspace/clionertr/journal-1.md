@@ -347,3 +347,38 @@ P2: RPC超时+并发, 线程虚拟化, N+1 JOIN优化, 搜索框移除, 延迟�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: Browser Push Notifications implementation + source-run DX improvements
+
+**Date**: 2026-05-23
+**Task**: Browser Push Notifications implementation + source-run DX improvements
+**Branch**: `master`
+
+### Summary
+
+Implemented Web Push browser notifications (backend push service, notification device storage, REST API, Service Worker, frontend subscription lifecycle, settings UI), ran full quality gate (cargo fmt/clippy/test, pnpm test/build), fixed migration test version assertions, updated README with dev-vs-production sections and LockBusy troubleshooting, added auto .env loading and actionable startup errors, created systemd service template. User confirmed end-to-end browser test passed.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `86c7888` | (see git log) |
+| `e9803c3` | (see git log) |
+| `d00359c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
