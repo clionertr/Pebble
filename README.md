@@ -93,6 +93,7 @@ pnpm dev:frontend
 ```
 
 Open `http://localhost:1420`. The dev server proxies API calls to the backend at port 3000.
+If you access Vite through a reverse proxy or remote dev domain, set comma-separated hostnames in `PEBBLE_VITE_ALLOWED_HOSTS`, for example `PEBBLE_VITE_ALLOWED_HOSTS=pebble.example.com,dev.example.com`.
 
 Important dev rule: run only one backend process against the same `./data` directory. If a release binary, `cargo run`, or a systemd service is already running, the search index will be locked and the next backend start will fail.
 

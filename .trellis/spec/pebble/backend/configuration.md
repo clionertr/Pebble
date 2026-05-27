@@ -15,10 +15,12 @@
 | `GMAIL_WEBHOOK_SECRET` | Gmail webhook query secret。 | 可选 |
 | `PEBBLE_VAPID_PRIVATE_KEY` | 浏览器 Web Push 使用的 base64url VAPID 私钥；缺省时自动生成并保存。 | 自动生成 |
 | `PEBBLE_VAPID_PUBLIC_KEY` | 可选 VAPID 公钥；若设置必须和私钥匹配，否则启动失败。 | 从私钥推导 |
+| `PEBBLE_VITE_ALLOWED_HOSTS` | Vite 开发服务器额外允许的 Host，逗号分隔；仅用于反向代理或远程开发域名访问本地 Vite。 | 空 |
 
 ### Binding Strategy
 
 - **本地开发**：保持默认 `127.0.0.1:3000`，通过 Vite dev server 代理访问。
+- **远程开发域名**：如果通过反向代理访问 Vite dev server，使用 `PEBBLE_VITE_ALLOWED_HOSTS=dev.example.com,pebble.example.com` 显式放行 Host，不要把个人域名硬编码进 `vite.config.ts`。
 - **源码直接运行**：后端启动时会读取当前工作目录的 `.env`，但已经存在的进程环境变量优先；systemd 部署必须设置正确的 `WorkingDirectory` 和 `EnvironmentFile`。
 - **Docker 部署**：Compose 必须设置 `PEBBLE_HOST=0.0.0.0`，否则 frontend 容器无法通过容器网络访问 backend。
 - **公网部署**：推荐只暴露前端 nginx 端口，后端只在容器网络或本机回环地址内可达。

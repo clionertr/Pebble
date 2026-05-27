@@ -6,6 +6,7 @@ use pebble_store::notification_devices::{NotificationDevice, UnreadInboxSummary}
 use pebble_store::Store;
 use reqwest::header::{HeaderName, HeaderValue};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use web_push::{
@@ -20,6 +21,9 @@ const VAPID_STORE_KEY: &str = "web_push_vapid_private_key";
 const ORDINARY_BATCH_SECS: u64 = 5;
 const ORDINARY_TTL_SECS: u32 = 24 * 60 * 60;
 const OTP_TTL_SECS: u32 = 15 * 60;
+const RECENTLY_NOTIFIED_TTL_SECS: i64 = 60 * 60;
+const RECENTLY_NOTIFIED_MAX: usize = 4096;
+const OTP_CODE_NEAR_KEYWORD_BYTES: usize = 80;
 pub const NOTIFICATION_SESSION_TTL_SECS: i64 = 7 * 24 * 3600;
 
 #[derive(Default)]
@@ -34,7 +38,26 @@ pub struct MailPushCandidate {
     pub subject: String,
     pub sender: String,
     pub account_email: String,
-    pub is_otp: bool,
+    pub kind: MailPushKind,
+}
+
+#[derive(Clone, Debug)]
+pub enum MailPushKind {
+    Mail,
+    Otp { code: Option<String> },
+}
+
+impl MailPushKind {
+    fn is_otp(&self) -> bool {
+        matches!(self, Self::Otp { .. })
+    }
+
+    fn otp_code(&self) -> Option<&str> {
+        match self {
+            Self::Otp { code } => code.as_deref(),
+            Self::Mail => None,
+        }
+    }
 }
 
 #[derive(Clone, Serialize)]
@@ -56,6 +79,7 @@ pub struct PushNotificationService {
     vapid: PartialVapidSignatureBuilder,
     client: reqwest::Client,
     ordinary_batch: Mutex<OrdinaryBatch>,
+    recently_notified: Mutex<HashMap<String, i64>>,
 }
 
 impl PushNotificationService {
@@ -88,6 +112,7 @@ impl PushNotificationService {
             vapid,
             client,
             ordinary_batch: Mutex::new(OrdinaryBatch::default()),
+            recently_notified: Mutex::new(HashMap::new()),
         })
     }
 
@@ -96,8 +121,19 @@ impl PushNotificationService {
     }
 
     pub async fn queue_mail(self: &Arc<Self>, store: Arc<Store>, candidate: MailPushCandidate) {
-        if candidate.is_otp {
-            let payload = single_mail_payload(&candidate, true);
+        {
+            let mut seen = self.recently_notified.lock().await;
+            if !mark_recently_notified(
+                &mut seen,
+                &candidate.message_id,
+                pebble_core::now_timestamp(),
+            ) {
+                return;
+            }
+        }
+
+        if candidate.kind.is_otp() {
+            let payload = single_mail_payload(&candidate);
             self.send_payload_to_active_devices(&store, &payload, OTP_TTL_SECS, Urgency::High)
                 .await;
             return;
@@ -174,7 +210,7 @@ impl PushNotificationService {
         }
 
         let payload = if items.len() == 1 {
-            single_mail_payload(&items[0], false)
+            single_mail_payload(&items[0])
         } else {
             batch_payload(&items)
         };
@@ -264,62 +300,263 @@ impl PushNotificationService {
 }
 
 pub fn candidate_from_message(message: &Message, account_email: String) -> MailPushCandidate {
+    let kind = if looks_like_otp_message(message) {
+        MailPushKind::Otp {
+            code: extract_otp_code(message),
+        }
+    } else {
+        MailPushKind::Mail
+    };
     MailPushCandidate {
         message_id: message.id.clone(),
         subject: message.subject.clone(),
         sender: sender_display(message),
         account_email,
-        is_otp: looks_like_otp_message(message),
+        kind,
     }
 }
 
 pub fn looks_like_otp_message(message: &Message) -> bool {
-    let text = format!(
+    let text = message_search_text(message);
+    let lower = text.to_ascii_lowercase();
+    if keyword_matches(&lower, STRONG_OTP_KEYWORDS)
+        .into_iter()
+        .chain(keyword_matches(&lower, STRONG_OTP_WORDS))
+        .next()
+        .is_some()
+    {
+        return true;
+    }
+    keyword_matches(&lower, WEAK_OTP_WORDS)
+        .into_iter()
+        .next()
+        .is_some()
+        && first_code_token(&text).is_some()
+}
+
+pub fn extract_otp_code(message: &Message) -> Option<String> {
+    extract_otp_code_inner(message)
+}
+
+fn extract_otp_code_inner(message: &Message) -> Option<String> {
+    if !looks_like_otp_message(message) {
+        return None;
+    }
+
+    let text = message_search_text(message);
+    code_token_near_keyword(&text).or_else(|| first_code_token(&text))
+}
+
+const STRONG_OTP_KEYWORDS: &[&str] = &[
+    "verification code",
+    "two-factor",
+    "one-time",
+    "验证码",
+    "驗證碼",
+    "校验码",
+    "認證碼",
+];
+
+const STRONG_OTP_WORDS: &[&str] = &["otp", "2fa"];
+const WEAK_OTP_WORDS: &[&str] = &["code", "verification", "verify"];
+
+#[derive(Clone, Copy)]
+struct TextSpan {
+    start: usize,
+    end: usize,
+}
+
+fn message_search_text(message: &Message) -> String {
+    format!(
         "{}\n{}\n{}",
         message.subject, message.snippet, message.body_text
     )
-    .to_lowercase();
-    let has_keyword = [
-        "code",
-        "verification",
-        "verify",
-        "otp",
-        "2fa",
-        "two-factor",
-        "one-time",
-        "验证码",
-        "驗證碼",
-        "校验码",
-        "認證碼",
-    ]
-    .iter()
-    .any(|keyword| text.contains(keyword));
-    if !has_keyword {
-        return false;
-    }
-
-    text.split(|c: char| !c.is_ascii_alphanumeric())
-        .any(|part| part.len() >= 4 && part.len() <= 8 && part.chars().any(|c| c.is_ascii_digit()))
 }
 
-fn single_mail_payload(candidate: &MailPushCandidate, otp: bool) -> PushPayload {
+fn keyword_matches(lower_text: &str, keywords: &[&str]) -> Vec<TextSpan> {
+    let mut matches = Vec::new();
+    for keyword in keywords {
+        for (start, _) in lower_text.match_indices(keyword) {
+            let end = start + keyword.len();
+            if ascii_word_boundaries_match(lower_text, start, end) {
+                matches.push(TextSpan { start, end });
+            }
+        }
+    }
+    matches
+}
+
+fn ascii_word_boundaries_match(text: &str, start: usize, end: usize) -> bool {
+    let before = text[..start].chars().next_back();
+    let after = text[end..].chars().next();
+    !before.is_some_and(|c| c.is_ascii_alphanumeric())
+        && !after.is_some_and(|c| c.is_ascii_alphanumeric())
+}
+
+fn all_keyword_spans(text: &str) -> Vec<TextSpan> {
+    let lower = text.to_ascii_lowercase();
+    let mut matches = keyword_matches(&lower, STRONG_OTP_KEYWORDS);
+    matches.extend(keyword_matches(&lower, STRONG_OTP_WORDS));
+    matches.extend(keyword_matches(&lower, WEAK_OTP_WORDS));
+    matches
+}
+
+fn code_token_near_keyword(text: &str) -> Option<String> {
+    let keywords = all_keyword_spans(text);
+    if keywords.is_empty() {
+        return None;
+    }
+    code_tokens(text)
+        .into_iter()
+        .filter_map(|token| {
+            let distance = keywords
+                .iter()
+                .map(|keyword| span_distance(token.span, *keyword))
+                .min()?;
+            (distance <= OTP_CODE_NEAR_KEYWORD_BYTES).then_some((distance, token.value))
+        })
+        .min_by_key(|(distance, _)| *distance)
+        .map(|(_, code)| code)
+}
+
+fn first_code_token(text: &str) -> Option<String> {
+    code_tokens(text)
+        .into_iter()
+        .next()
+        .map(|token| token.value)
+}
+
+struct CodeToken {
+    span: TextSpan,
+    value: String,
+}
+
+fn code_tokens(text: &str) -> Vec<CodeToken> {
+    let mut tokens = Vec::new();
+    let mut start = None;
+    for (idx, ch) in text.char_indices() {
+        if ch.is_ascii_alphanumeric() {
+            if start.is_none() {
+                start = Some(idx);
+            }
+        } else if let Some(token_start) = start.take() {
+            push_code_token(text, token_start, idx, &mut tokens);
+        }
+    }
+    if let Some(token_start) = start {
+        push_code_token(text, token_start, text.len(), &mut tokens);
+    }
+    tokens
+}
+
+fn push_code_token(text: &str, start: usize, end: usize, tokens: &mut Vec<CodeToken>) {
+    let value = &text[start..end];
+    if is_code_candidate(value) && !looks_like_year_or_date(value) {
+        tokens.push(CodeToken {
+            span: TextSpan { start, end },
+            value: value.to_string(),
+        });
+    }
+}
+
+fn is_code_candidate(token: &str) -> bool {
+    (4..=8).contains(&token.len())
+        && token.chars().all(|c| c.is_ascii_alphanumeric())
+        && token.chars().any(|c| c.is_ascii_digit())
+}
+
+fn looks_like_year_or_date(token: &str) -> bool {
+    if !token.chars().all(|c| c.is_ascii_digit()) {
+        return false;
+    }
+    match token.len() {
+        4 => {
+            let value = token.parse::<u32>().unwrap_or_default();
+            (1900..=2099).contains(&value) || valid_month_day(token)
+        }
+        8 => valid_year_month_day(token),
+        _ => false,
+    }
+}
+
+fn valid_month_day(token: &str) -> bool {
+    let month = token[0..2].parse::<u32>().unwrap_or_default();
+    let day = token[2..4].parse::<u32>().unwrap_or_default();
+    (1..=12).contains(&month) && (1..=31).contains(&day)
+}
+
+fn valid_year_month_day(token: &str) -> bool {
+    let year = token[0..4].parse::<u32>().unwrap_or_default();
+    (1900..=2099).contains(&year) && valid_month_day(&token[4..8])
+}
+
+fn span_distance(left: TextSpan, right: TextSpan) -> usize {
+    if left.end <= right.start {
+        right.start - left.end
+    } else {
+        left.start.saturating_sub(right.end)
+    }
+}
+
+fn mark_recently_notified(
+    recently_notified: &mut HashMap<String, i64>,
+    message_id: &str,
+    now: i64,
+) -> bool {
+    prune_recently_notified(recently_notified, now);
+    if recently_notified.contains_key(message_id) {
+        return false;
+    }
+    recently_notified.insert(message_id.to_string(), now);
+    trim_recently_notified(recently_notified);
+    true
+}
+
+fn prune_recently_notified(recently_notified: &mut HashMap<String, i64>, now: i64) {
+    recently_notified
+        .retain(|_, notified_at| now.saturating_sub(*notified_at) < RECENTLY_NOTIFIED_TTL_SECS);
+}
+
+fn trim_recently_notified(recently_notified: &mut HashMap<String, i64>) {
+    while recently_notified.len() > RECENTLY_NOTIFIED_MAX {
+        let Some(oldest_id) = recently_notified
+            .iter()
+            .min_by_key(|(_, notified_at)| *notified_at)
+            .map(|(message_id, _)| message_id.clone())
+        else {
+            break;
+        };
+        recently_notified.remove(&oldest_id);
+    }
+}
+
+fn single_mail_payload(candidate: &MailPushCandidate) -> PushPayload {
     let subject = if candidate.subject.trim().is_empty() {
         "(no subject)"
     } else {
         candidate.subject.trim()
     };
+    let body = if let Some(code) = candidate.kind.otp_code() {
+        format!(
+            "{code} · {} · {}",
+            candidate.sender, candidate.account_email
+        )
+    } else {
+        format!("{} · {}", candidate.sender, candidate.account_email)
+    };
     PushPayload {
-        kind: if otp { "otp" } else { "mail" }.to_string(),
-        title: if otp {
-            format!("Verification code · {subject}")
+        kind: if candidate.kind.is_otp() {
+            "otp"
         } else {
-            subject.to_string()
-        },
-        body: format!("{} · {}", candidate.sender, candidate.account_email),
+            "mail"
+        }
+        .to_string(),
+        title: subject.to_string(),
+        body,
         url: format!("/?messageId={}", candidate.message_id),
         tag: format!("pebble-mail-{}", candidate.message_id),
         timestamp: pebble_core::now_timestamp(),
-        allow_foreground: otp,
+        allow_foreground: candidate.kind.is_otp(),
         message_id: Some(candidate.message_id.clone()),
     }
 }
@@ -445,16 +682,110 @@ mod tests {
     }
 
     #[test]
-    fn otp_detection_requires_keyword_and_code_like_token() {
+    fn otp_detection_triggers_for_strong_keyword_without_display_code() {
+        let candidate = candidate_from_message(
+            &message(
+                "Your verification code",
+                "Open the app to finish signing in",
+                "",
+            ),
+            "account@example.com".to_string(),
+        );
         assert!(looks_like_otp_message(&message(
             "Your verification code",
-            "Use 123456 to sign in",
+            "Open the app to finish signing in",
             ""
         )));
+        assert_eq!(
+            extract_otp_code(&message(
+                "Your verification code",
+                "Open the app to finish signing in",
+                ""
+            )),
+            None
+        );
+        let payload = single_mail_payload(&candidate);
+        assert_eq!(payload.kind, "otp");
+        assert!(payload.allow_foreground);
+        assert_eq!(payload.body, "Sender · account@example.com");
+    }
+
+    #[test]
+    fn weak_otp_keywords_require_code_like_token() {
+        assert!(!looks_like_otp_message(&message(
+            "Please verify your billing address",
+            "Open settings to review the change",
+            ""
+        )));
+        assert!(looks_like_otp_message(&message(
+            "Please verify your sign-in",
+            "Use 123456 to continue",
+            ""
+        )));
+    }
+
+    #[test]
+    fn otp_code_extraction_preserves_original_case() {
+        assert_eq!(
+            extract_otp_code(&message(
+                "Your verification code",
+                "Use Ab12C to sign in",
+                ""
+            )),
+            Some("Ab12C".to_string())
+        );
+    }
+
+    #[test]
+    fn otp_code_extraction_filters_years_and_dates_before_fallback() {
+        assert_eq!(
+            extract_otp_code(&message(
+                "Your verification code",
+                "Expires on 2026-05-27. Use 123456 to sign in",
+                ""
+            )),
+            Some("123456".to_string())
+        );
         assert!(!looks_like_otp_message(&message(
             "Weekly report",
             "There were 123456 events",
             ""
         )));
+    }
+
+    #[test]
+    fn recent_notification_cache_expires_and_caps_entries() {
+        let mut recently_notified = HashMap::new();
+        assert!(mark_recently_notified(
+            &mut recently_notified,
+            "message-1",
+            100
+        ));
+        assert!(!mark_recently_notified(
+            &mut recently_notified,
+            "message-1",
+            101
+        ));
+        assert!(mark_recently_notified(
+            &mut recently_notified,
+            "message-1",
+            100 + RECENTLY_NOTIFIED_TTL_SECS
+        ));
+
+        let mut recently_notified = HashMap::new();
+        assert!(mark_recently_notified(
+            &mut recently_notified,
+            "message-0",
+            99,
+        ));
+        for index in 1..=RECENTLY_NOTIFIED_MAX {
+            assert!(mark_recently_notified(
+                &mut recently_notified,
+                &format!("message-{index}"),
+                100,
+            ));
+        }
+        assert_eq!(recently_notified.len(), RECENTLY_NOTIFIED_MAX);
+        assert!(!recently_notified.contains_key("message-0"));
     }
 }

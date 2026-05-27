@@ -193,6 +193,10 @@ queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] })
 - `PEBBLE_VAPID_PUBLIC_KEY` 可选；若设置，必须和私钥推导出的公钥一致，否则启动失败。
 - 规则处理后最终仍在收件箱、未读、未删除且 `StoredMessage.notify=true` 的新邮件才进入 Web Push 队列。
 - 普通邮件 5 秒合并；验证码/OTP 邮件立即推送；普通邮件 `allowForeground=false`，测试和摘要 `allowForeground=true`。
+- OTP 判断和验证码展示是两层逻辑：强关键词（如 `verification code`、`OTP`、`验证码`、`one-time`）可直接触发 OTP 即时推送；弱关键词（如单独的 `code`、`verify`、`verification`）必须同时出现 4-8 位含数字 token 才触发。
+- OTP payload 即使没有可展示验证码也必须保持 `kind="otp"` 和 `allowForeground=true`；验证码展示只使用可信提取结果，优先关键词附近 token，再全文兜底，并保留原文大小写。
+- OTP code 全文兜底时要过滤明显年份和日期 token（如 `2026`、`0527`、`20260527`），避免把过期时间误展示成验证码。
+- 新邮件通知去重是内存级近期窗口：同一 `message_id` 在 1 小时内只通知一次，最多保留 4096 条，超出时清理最旧记录。
 - 单封 payload 带 `messageId`，点击后前端打开收件箱中的该邮件并标已读；批量/摘要 payload 不带 `messageId`，点击只打开收件箱。
 - 服务端启动后必须暂停已有设备，避免内存 session 丢失后继续向旧 session 发送通知；重新登录且浏览器权限仍允许时由前端恢复订阅。
 
@@ -213,7 +217,7 @@ queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] })
 
 ### 6. Tests Required
 - Rust store 测试：设备 upsert/暂停、未读收件箱摘要只统计 inbox 未读未删除邮件。
-- Rust push 测试：OTP 启发式必须同时有验证码关键词和 code-like token。
+- Rust push 测试：强 OTP 关键词无 code 也触发即时推送但不展示 code；弱关键词必须搭配 code-like token；提取出的字母数字验证码必须保留原文大小写；年份/日期 token 不得抢占真正 code；通知去重必须覆盖 1 小时 TTL 和 4096 容量兜底。
 - Rust migration 测试：旧版本迁移到 `CURRENT_VERSION` 后 `notification_devices` 表存在。
 - 前端 store 测试：新设备通知默认关闭；通知点击遇到 dirty compose 时会保留草稿保护，确认后再打开 pending 邮件，取消后清空 pending 邮件。
 - 前端构建测试：`src/lib/web-push.ts` 的 `applicationServerKey` 类型必须通过 `tsc`。

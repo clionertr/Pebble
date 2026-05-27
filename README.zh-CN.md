@@ -95,6 +95,7 @@ pnpm dev:frontend
 ```
 
 打开 `http://localhost:1420`。Vite 开发服务器会自动把 API 请求转发到后端的 3000 端口。
+如果你通过反向代理或远程开发域名访问 Vite，在 `.env` 或启动环境里设置逗号分隔的 `PEBBLE_VITE_ALLOWED_HOSTS`，例如 `PEBBLE_VITE_ALLOWED_HOSTS=pebble.example.com,dev.example.com`。
 
 开发时的重要规则：同一个 `./data` 目录只能被一个后端进程使用。如果发布版二进制、`cargo run` 或 systemd 服务已经在运行，搜索索引会被锁住，新的后端启动会失败。
 
