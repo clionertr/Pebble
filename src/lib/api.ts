@@ -89,6 +89,10 @@ export async function healthCheck(): Promise<string> {
   return client.healthCheck();
 }
 
+export async function getShell(): Promise<client.ShellData> {
+  return client.getShell();
+}
+
 export async function readAppLog(maxBytes: number): Promise<AppLogSnapshot> {
   return client.readAppLog(maxBytes) as Promise<AppLogSnapshot>;
 }

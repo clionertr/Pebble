@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useRealtimeSyncTriggers } from "../../src/app/useRealtimeSyncTriggers";
 import { wakeSync } from "../../src/lib/api";
@@ -37,6 +39,12 @@ vi.mock("../../src/hooks/queries", () => ({
   useAccountsQuery: () => ({ data: mocks.accounts }),
 }));
 
+function createWrapper(queryClient = new QueryClient()) {
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
 describe("useRealtimeSyncTriggers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -48,7 +56,7 @@ describe("useRealtimeSyncTriggers", () => {
   });
 
   it("wakes every account with ensure-running when the window regains focus", async () => {
-    renderHook(() => useRealtimeSyncTriggers());
+    renderHook(() => useRealtimeSyncTriggers(), { wrapper: createWrapper() });
 
     act(() => {
       window.dispatchEvent(new Event("focus"));
@@ -63,7 +71,7 @@ describe("useRealtimeSyncTriggers", () => {
   });
 
   it("notifies the backend once for every account when the window loses focus", () => {
-    renderHook(() => useRealtimeSyncTriggers());
+    renderHook(() => useRealtimeSyncTriggers(), { wrapper: createWrapper() });
 
     act(() => {
       window.dispatchEvent(new Event("blur"));
@@ -78,14 +86,18 @@ describe("useRealtimeSyncTriggers", () => {
   });
 
   it("does not trigger network recovery sync on initial online mount", () => {
-    renderHook(() => useRealtimeSyncTriggers());
+    renderHook(() => useRealtimeSyncTriggers(), { wrapper: createWrapper() });
 
     expect(wakeSync).not.toHaveBeenCalled();
   });
 
   it("wakes every account with ensure-running when the app transitions from offline to online", async () => {
+    const queryClient = new QueryClient();
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
     mocks.networkStatus = "offline";
-    const { rerender } = renderHook(() => useRealtimeSyncTriggers());
+    const { rerender } = renderHook(() => useRealtimeSyncTriggers(), {
+      wrapper: createWrapper(queryClient),
+    });
 
     mocks.networkStatus = "online";
     rerender();
@@ -96,12 +108,17 @@ describe("useRealtimeSyncTriggers", () => {
       ensureRunning: true,
       pollIntervalSecs: 3,
     }));
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["shell"] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["messages"] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["threads"] });
+    });
   });
 
   it("does not wake sync from passive focus events in manual mode", () => {
     mocks.realtimeMode = "manual";
     mocks.pollInterval = 0;
-    renderHook(() => useRealtimeSyncTriggers());
+    renderHook(() => useRealtimeSyncTriggers(), { wrapper: createWrapper() });
 
     act(() => {
       window.dispatchEvent(new Event("focus"));

@@ -1,18 +1,22 @@
 // GET /api/shell：一次返回账号、各账号文件夹和未读计数，减少首屏请求数。
 
 use axum::{extract::State, response::Json, routing::get, Router};
+use pebble_core::ProviderType;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::warn;
 
 use crate::state::AppState;
 
 #[derive(Serialize)]
-pub struct ShellResponse {
+struct ShellResponse {
     pub accounts: Vec<pebble_core::Account>,
     pub folders: HashMap<String, Vec<pebble_core::Folder>>,
     #[serde(rename = "unreadCounts")]
     pub unread_counts: HashMap<String, HashMap<String, u32>>,
+    #[serde(rename = "gmailRealtime")]
+    pub gmail_realtime: HashMap<String, crate::gmail_realtime::GmailRealtimeConfig>,
 }
 
 pub fn shell_routes() -> Router<Arc<AppState>> {
@@ -26,6 +30,8 @@ async fn shell_handler(
 
     let mut folders: HashMap<String, Vec<pebble_core::Folder>> = HashMap::new();
     let mut unread_counts: HashMap<String, HashMap<String, u32>> = HashMap::new();
+    let mut gmail_realtime: HashMap<String, crate::gmail_realtime::GmailRealtimeConfig> =
+        HashMap::new();
 
     for account in &accounts {
         let account_folders = crate::rpc::folders::list_folders(
@@ -44,11 +50,26 @@ async fn shell_handler(
 
         folders.insert(account.id.clone(), account_folders);
         unread_counts.insert(account.id.clone(), counts);
+
+        if account.provider == ProviderType::Gmail {
+            match crate::gmail_realtime::get_gmail_realtime_config_raw(&state, &account.id) {
+                Ok(config) => {
+                    gmail_realtime.insert(account.id.clone(), config);
+                }
+                Err(error) => {
+                    warn!(
+                        "Failed to include Gmail realtime config in shell for {}: {}",
+                        account.id, error
+                    );
+                }
+            }
+        }
     }
 
     Ok(Json(ShellResponse {
         accounts,
         folders,
         unread_counts,
+        gmail_realtime,
     }))
 }

@@ -235,6 +235,77 @@ await wakeSync({
 });
 ```
 
+## Scenario: Webmail 启动快照与元数据缓存
+
+### 1. Scope / Trigger
+- Trigger: 多账号 Webmail 首屏和设置页需要 accounts、folders、未读数、Gmail realtime 配置；前端不得因账号数量线性发起 N+1 元数据请求。
+- 范围：`server/src/api/shell.rs`、`src/lib/api-client.ts`、`src/lib/api.ts`、`src/hooks/queries/useShellQuery.ts`、`src/hooks/queries/useAccountsQuery.ts`、`src/hooks/queries/useFoldersQuery.ts`、`src/hooks/queries/useFolderUnreadCounts.ts`、`src/features/settings/AccountsTab.tsx`、`src/components/StatusBar.tsx`。
+
+### 2. Signatures
+- 启动快照：`GET /api/shell`。
+- 响应 body：
+  - `accounts: Account[]`
+  - `folders: Record<accountId, Folder[]>`
+  - `unreadCounts: Record<accountId, Record<folderId, number>>`
+  - `gmailRealtime: Record<accountId, GmailRealtimeConfig>`
+- 前端 shell cache key：`["shell"]`。
+- 派生缓存 key：
+  - `["accounts"]`
+  - `["folders", accountId]`
+  - `["folder-unread-counts", accountId]`
+  - `["gmail-realtime", accountId]`
+
+### 3. Contracts
+- `GET /api/shell` 是账号元数据首次加载的权威入口；前端元数据 hooks 应通过 shell 快照填充派生 React Query 缓存。
+- `accounts`、`folders`、`unreadCounts`、`gmailRealtime` 必须在一次 shell 响应中返回；缺少某类数据时返回空数组/空对象，不省略字段。
+- `gmailRealtime` 只包含 Gmail 账号；非 Gmail 账号不得返回伪配置。
+- 底层单资源接口仍保留作局部 fallback：`GET /api/accounts`、`GET /api/accounts/:id/folders`、`GET /api/accounts/:id/gmail-realtime`。
+- `fetchShellSnapshot(queryClient)` 必须通过 `["shell"]` 去重并 hydrate 派生缓存，避免同一首屏中多个 hooks 并发打出多次 `/api/shell`。
+- `StatusBar.refreshMailQueries()` 和网络恢复流程必须在“确有变化”的事件上 invalidate `["shell"]`，再刷新 messages/threads 等视图缓存，避免 shell 派生元数据长期陈旧。
+- `mail:sync-progress(status="completed", phase="poll")` 是周期性同步心跳，不代表数据变化；前端只更新同步状态，不得 invalidate `["shell"]`、`["messages"]` 或 `["threads"]`，否则会把低延迟轮询变成每几秒全量重拉。
+- 首屏不拉取全部历史邮件或正文；messages/threads 仍按当前文件夹分页获取。
+
+### 4. Validation & Error Matrix
+- 无账号 -> `accounts=[]`、`folders={}`、`unreadCounts={}`、`gmailRealtime={}`。
+- 某账号 folders/unreadCounts 加载失败 -> shell 对该账号返回空集合并继续返回其他账号数据。
+- 某 Gmail realtime 配置加载失败 -> 记录 warning，`gmailRealtime` 跳过该账号，shell 仍成功。
+- SSE `mail:new` / pending ops changed / `mail:sync-complete` worker 退出 / 非 `poll` 阶段完成 -> invalidate `["shell"]`、`["messages"]`、`["threads"]`，并按账号精准刷新 folders/unreadCounts 派生 key。
+- SSE `mail:sync-progress(status="completed", phase="poll")` -> 只把状态置为 idle，不发起 shell/messages/threads refetch。
+- 网络从 offline 恢复 online -> `wakeSync(reason="network_online", ensureRunning=true)` 后 invalidate `["shell"]`、`["messages"]`、`["threads"]`。
+
+### 5. Good/Base/Bad Cases
+- Good: 两个账号进入收件箱时，`useAccountsQuery()` 和 `useFoldersForAccountsQuery(["a","b"])` 只产生一次 `/api/shell` 网络请求，并填充账号与文件夹缓存。
+- Base: 进入 Settings → Accounts 时，账号行直接使用 shell 中的 Gmail realtime 配置展示状态。
+- Bad: `AccountsTab` 对每个 Gmail 账号循环调用 `getGmailRealtimeConfig(accountId)`，账号越多请求越多。
+- Bad: 收到新邮件后只 invalidate `["folders", accountId]`，但 shell cache 仍新鲜，下一次派生查询继续读旧 shell。
+
+### 6. Tests Required
+- Rust API 测试：`/api/shell` 响应必须包含 `accounts`、`folders`、`unreadCounts`、`gmailRealtime`。
+- 前端 hook 测试：`useAccountsQuery` + `useFoldersForAccountsQuery` 并发时只请求一次 `/api/shell`，并返回派生数据。
+- 前端设置页测试：账号行使用 shell 中的 Gmail realtime 配置，不调用 N 次 `getGmailRealtimeConfig`。
+- 前端网络恢复测试：offline→online 时调用 `wakeSync`，并 invalidate `["shell"]`、`["messages"]`、`["threads"]`。
+- 前端构建测试：`ShellData`、`GmailRealtimeConfig` 类型通过 `tsc`。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```typescript
+const accounts = await listAccounts();
+for (const account of accounts) {
+  await listFolders(account.id);
+  if (account.provider === "gmail") {
+    await getGmailRealtimeConfig(account.id);
+  }
+}
+```
+
+#### Correct
+```typescript
+const shell = await fetchShellSnapshot(queryClient);
+const folders = shell.folders[accountId] ?? [];
+const gmailRealtime = shell.gmailRealtime[accountId];
+```
+
 ## Scenario: 浏览器 Web Push 通知契约
 
 ### 1. Scope / Trigger

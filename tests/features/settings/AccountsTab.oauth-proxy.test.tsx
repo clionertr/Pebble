@@ -12,6 +12,25 @@ import {
   updateOAuthAccountProxySetting,
 } from "../../../src/lib/api";
 
+const mocks = vi.hoisted(() => ({
+  shell: {
+    gmailRealtime: {
+      "account-1": {
+        accountId: "account-1",
+        enabled: false,
+        status: "not_enabled" as const,
+        configMissing: false,
+        topicName: null,
+        expirationMs: null,
+        lastWatchHistoryId: null,
+        lastWatchAt: null,
+        lastError: null,
+        fallbackIntervalMinutes: 15,
+      },
+    },
+  },
+}));
+
 vi.mock("react-i18next", () => ({
   initReactI18next: {
     type: "3rdParty",
@@ -30,6 +49,7 @@ vi.mock("@tanstack/react-query", () => ({
 
 vi.mock("../../../src/hooks/queries", () => ({
   accountsQueryKey: ["accounts"],
+  shellQueryKey: ["shell"],
   useAccountsQuery: () => ({
     data: [
       {
@@ -42,6 +62,9 @@ vi.mock("../../../src/hooks/queries", () => ({
         updated_at: 1,
       },
     ],
+  }),
+  useShellQuery: () => ({
+    data: mocks.shell,
   }),
 }));
 
@@ -152,6 +175,7 @@ describe("AccountsTab OAuth proxy", () => {
     render(<AccountsTab />);
 
     const enableButton = await screen.findByRole("button", { name: "Enable realtime Gmail" });
+    expect(getGmailRealtimeConfig).not.toHaveBeenCalled();
     fireEvent.click(enableButton);
 
     await waitFor(() => {

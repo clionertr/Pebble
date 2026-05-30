@@ -17,7 +17,7 @@ import {
   updateOAuthAccountProxySetting,
 } from "@/lib/api";
 import type { Account, AccountProxyMode, ConnectionSecurity, GmailRealtimeConfig } from "@/lib/api";
-import { useAccountsQuery, accountsQueryKey } from "@/hooks/queries";
+import { useAccountsQuery, accountsQueryKey, shellQueryKey, useShellQuery } from "@/hooks/queries";
 import { useMailStore } from "@/stores/mail.store";
 import { useSyncStore, type RealtimeStatus } from "@/stores/sync.store";
 import { useToastStore } from "@/stores/toast.store";
@@ -31,6 +31,7 @@ export default function AccountsTab() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: accounts = [] } = useAccountsQuery();
+  const { data: shell } = useShellQuery();
   const accountColorsById = useMemo(() => assignAccountColors(accounts), [accounts]);
   const realtimeStatusByAccount = useSyncStore((state) => state.realtimeStatusByAccount);
   const realtimeMode = useSyncStore((state) => state.realtimeMode);
@@ -48,36 +49,22 @@ export default function AccountsTab() {
   const gmailAccountIdsKey = gmailAccountIds.join("|");
 
   useEffect(() => {
-    let cancelled = false;
-    if (gmailAccountIds.length === 0) {
+    const accountIds = gmailAccountIdsKey ? gmailAccountIdsKey.split("|") : [];
+    if (accountIds.length === 0) {
       setGmailRealtimeByAccount({});
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
+    if (!shell) return;
 
-    Promise.all(
-      gmailAccountIds.map((accountId) =>
-        getGmailRealtimeConfig(accountId).catch((err) => {
-          console.warn("Failed to load Gmail realtime config:", err);
-          return null;
-        }),
-      ),
-    ).then((configs) => {
-      if (cancelled) return;
-      setGmailRealtimeByAccount(() => {
-        const next: Record<string, GmailRealtimeConfig> = {};
-        for (const config of configs) {
-          if (config) next[config.accountId] = config;
-        }
-        return next;
-      });
+    setGmailRealtimeByAccount(() => {
+      const next: Record<string, GmailRealtimeConfig> = {};
+      for (const accountId of accountIds) {
+        const config = shell.gmailRealtime[accountId];
+        if (config) next[accountId] = config;
+      }
+      return next;
     });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [gmailAccountIdsKey]);
+  }, [gmailAccountIdsKey, shell]);
 
   async function doTestConnection(accountId: string) {
     setTestingId(accountId);
@@ -99,6 +86,7 @@ export default function AccountsTab() {
       if (useMailStore.getState().activeAccountId === accountId) {
         useMailStore.getState().setActiveAccountId(null);
       }
+      await queryClient.invalidateQueries({ queryKey: shellQueryKey });
       await queryClient.invalidateQueries({ queryKey: accountsQueryKey });
       useToastStore.getState().addToast({
         message: t("settings.deleteAccountSuccess", "Account removed"),
@@ -492,6 +480,7 @@ export default function AccountsTab() {
           onClose={() => setEditingAccount(null)}
           onSaved={async () => {
             setEditingAccount(null);
+            await queryClient.invalidateQueries({ queryKey: shellQueryKey });
             await queryClient.invalidateQueries({ queryKey: accountsQueryKey });
           }}
           initialGmailRealtimeConfig={gmailRealtimeByAccount[editingAccount.id]}
@@ -643,6 +632,11 @@ function EditAccountModal({ account, initialColor, onClose, onSaved, initialGmai
 
   useEffect(() => {
     if (!isGmail) return;
+    if (initialGmailRealtimeConfig) {
+      setGmailRealtimeConfig(initialGmailRealtimeConfig);
+      setFallbackIntervalMinutes(String(initialGmailRealtimeConfig.fallbackIntervalMinutes));
+      return;
+    }
     let cancelled = false;
     getGmailRealtimeConfig(account.id)
       .then((config) => {
@@ -656,7 +650,7 @@ function EditAccountModal({ account, initialColor, onClose, onSaved, initialGmai
     return () => {
       cancelled = true;
     };
-  }, [account.id, isGmail]);
+  }, [account.id, initialGmailRealtimeConfig, isGmail]);
 
   useEffect(() => {
     const previousFocus =

@@ -2,6 +2,8 @@
 // Each function wraps a standard fetch() call to the /api endpoints.
 // In Phase 3+, this expands to cover all read/mutation endpoints.
 
+import type { Account, Folder, GmailRealtimeConfig } from "./api-types";
+
 const BASE = '/api';
 
 export class ApiError extends Error {
@@ -261,9 +263,10 @@ export function healthCheck(): Promise<string> {
 // ── Shell (composite) ─────────────────────────────────────────────────
 
 export interface ShellData {
-  accounts: unknown[];
-  folders: Record<string, unknown[]>;
+  accounts: Account[];
+  folders: Record<string, Folder[]>;
   unreadCounts: Record<string, Record<string, number>>;
+  gmailRealtime: Record<string, GmailRealtimeConfig>;
 }
 
 export function getShell(): Promise<ShellData> {

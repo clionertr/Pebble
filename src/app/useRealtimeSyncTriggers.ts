@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAccountsQuery } from "@/hooks/queries";
+import { shellQueryKey } from "@/hooks/queries/useShellQuery";
 import { wakeSync } from "@/lib/api";
 import { useMailStore } from "@/stores/mail.store";
 import { useSyncStore } from "@/stores/sync.store";
@@ -17,6 +19,7 @@ export function useRealtimeSyncTriggers() {
   const realtimeMode = useSyncStore((s) => s.realtimeMode);
   const { data: accounts = EMPTY_ACCOUNTS } = useAccountsQuery();
   const previousNetworkStatus = useRef(networkStatus);
+  const queryClient = useQueryClient();
   const accountIds = useMemo(() => {
     const ids = accounts.map((account) => account.id).filter(Boolean);
     if (activeAccountId && !ids.includes(activeAccountId)) {
@@ -69,6 +72,10 @@ export function useRealtimeSyncTriggers() {
       reason: "network_online",
       ensureRunning: true,
       pollIntervalSecs: pollInterval,
+    }).finally(() => {
+      queryClient.invalidateQueries({ queryKey: shellQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      queryClient.invalidateQueries({ queryKey: ["threads"] });
     }).catch(() => {});
-  }, [accountIds, networkStatus, pollInterval, realtimeMode]);
+  }, [accountIds, networkStatus, pollInterval, queryClient, realtimeMode]);
 }

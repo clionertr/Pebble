@@ -85,7 +85,7 @@ async fn shell_returns_expected_structure() {
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    // Response shape: { accounts, folders, unreadCounts }
+    // Response shape: { accounts, folders, unreadCounts, gmailRealtime }
     assert!(
         json["accounts"].is_array(),
         "accounts should be array: {json}"
@@ -97,5 +97,9 @@ async fn shell_returns_expected_structure() {
     assert!(
         json["unreadCounts"].is_object(),
         "unreadCounts should be object: {json}"
+    );
+    assert!(
+        json["gmailRealtime"].is_object(),
+        "gmailRealtime should be object: {json}"
     );
 }

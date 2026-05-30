@@ -1,4 +1,11 @@
 export { useAccountsQuery, accountsQueryKey } from "./useAccountsQuery";
+export {
+  fetchShellSnapshot,
+  gmailRealtimeQueryKey,
+  hydrateShellQueryData,
+  shellQueryKey,
+  useShellQuery,
+} from "./useShellQuery";
 export { useFoldersForAccountsQuery, useFoldersQuery, foldersQueryKey } from "./useFoldersQuery";
 export {
   useMessagesQuery,

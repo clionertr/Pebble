@@ -12,6 +12,7 @@ import { rememberMailNewLatencyEvent } from "@/lib/mailLatencyLogging";
 import { useSyncMutation } from "@/hooks/mutations/useSyncMutation";
 import {
   pendingMailOpsSummaryQueryKey,
+  shellQueryKey,
   usePendingMailOpsSummary,
 } from "@/hooks/queries";
 import { useDelayedIdleReady } from "@/hooks/useDelayedIdleReady";
@@ -111,6 +112,7 @@ export default function StatusBar() {
   }, [setLastMailError]);
 
   function refreshMailQueries(accountId?: string | null) {
+    queryClient.invalidateQueries({ queryKey: shellQueryKey });
     if (accountId) {
       queryClient.invalidateQueries({ queryKey: ["folders", accountId] });
       queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] });
@@ -148,7 +150,11 @@ export default function StatusBar() {
         updateSyncStatus("syncing");
       } else if (status === "completed") {
         updateSyncStatus("idle");
-        refreshMailQueries(account_id);
+        // 常规 poll 可能每几秒完成一次；列表刷新应由 mail:new / pending ops /
+        // 网络恢复等“有实际变化”的事件驱动，避免把轮询完成变成全量重拉。
+        if (event.payload.phase && event.payload.phase !== "poll") {
+          refreshMailQueries(account_id);
+        }
       } else if (status === "error") {
         updateSyncStatus("error");
         if (message) {

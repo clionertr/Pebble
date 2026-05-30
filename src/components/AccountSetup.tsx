@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { addAccount, startOAuthLogin, testImapConnection, wakeSync } from "@/lib/api";
 import type { AddAccountRequest } from "@/lib/api";
-import { accountsQueryKey } from "@/hooks/queries";
+import { accountsQueryKey, shellQueryKey } from "@/hooks/queries";
 import { extractErrorMessage } from "@/lib/extractErrorMessage";
 import { realtimePreferenceToPollInterval, useSyncStore } from "@/stores/sync.store";
 import { useToastStore } from "@/stores/toast.store";
@@ -228,6 +228,7 @@ export default function AccountSetup({ onClose }: Props) {
     try {
       const account = await addAccount(form);
       // Invalidate accounts immediately so UI reflects the new account
+      await queryClient.invalidateQueries({ queryKey: shellQueryKey });
       await queryClient.invalidateQueries({ queryKey: accountsQueryKey });
       onClose();
       useToastStore.getState().addToast({

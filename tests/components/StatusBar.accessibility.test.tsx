@@ -95,6 +95,7 @@ vi.mock("../../src/hooks/mutations/useSyncMutation", () => ({
 
 vi.mock("../../src/hooks/queries", () => ({
   pendingMailOpsSummaryQueryKey: (accountId: string | null) => ["pending-mail-ops-summary", accountId],
+  shellQueryKey: ["shell"],
   usePendingMailOpsSummary: () => ({
     data: mocks.pendingOpsSummary,
   }),

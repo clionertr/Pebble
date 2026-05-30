@@ -80,6 +80,7 @@ vi.mock("../../src/hooks/mutations/useSyncMutation", () => ({
 
 vi.mock("../../src/hooks/queries", () => ({
   pendingMailOpsSummaryQueryKey: (accountId: string | null) => ["pendingMailOps", accountId],
+  shellQueryKey: ["shell"],
   usePendingMailOpsSummary: () => ({
     data: mocks.pendingOpsSummary,
   }),
@@ -161,7 +162,7 @@ describe("StatusBar realtime mail events", () => {
     expect(mocks.uiState.setSyncStatus).not.toHaveBeenCalledWith("idle");
   });
 
-  it("returns to idle and refreshes data when a sync pass completes", async () => {
+  it("returns to idle without refetching mail data when a routine sync pass completes", async () => {
     render(<StatusBar />);
 
     await waitFor(() => expect(mocks.listeners.has("mail:sync-progress")).toBe(true));
@@ -175,10 +176,11 @@ describe("StatusBar realtime mail events", () => {
     });
 
     expect(mocks.uiState.setSyncStatus).toHaveBeenCalledWith("idle");
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["folders", "account-1"] });
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["messages"] });
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["threads"] });
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["folder-unread-counts", "account-1"] });
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["shell"] });
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["folders", "account-1"] });
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["messages"] });
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["threads"] });
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["folder-unread-counts", "account-1"] });
   });
 
   it("ignores sync progress from another account", async () => {
