@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Added Webmail developer docs for the shell snapshot, paginated inbox reads, sync wake, and SSE cache-refresh contract.
 - Re-architected Pebble from a Tauri desktop application to a self-hosted web service using an Axum backend and a React SPA.
 - Added a `/rpc/batch` endpoint in the Axum backend to queue and batch JSON-RPC requests, minimizing HTTP overhead in high-latency environments.
 - Implemented Server-Sent Events (SSE) at the `/events` endpoint to push real-time updates (new mail, sync status) to the web frontend, replacing Tauri events.
@@ -16,17 +17,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- Hydrated Webmail account metadata, folders, unread counts, and Gmail realtime settings from the `/api/shell` startup snapshot to avoid multi-account metadata request fan-out.
 - Replaced Tauri IPC `invoke` calls with standard HTTP `fetch` to the JSON-RPC backend.
 - Migrated local data storage (SQLite database, Tantivy index, attachments) to a VPS-friendly `./data/` directory.
 - Switched credential encryption from the platform-native keyring to a file-based key (`./data/pebble.key`).
 
 ### Fixed
 
+- Stopped routine `mail:sync-progress` poll completions from refetching `/api/shell` and `/api/inbox` every few seconds; list refreshes are now driven by actual change events.
 - Fixed a bug where adding a new Gmail account via OAuth would cause the frontend to not display emails by optimizing the initial sync and token refresh mechanics.
 - Fixed an issue where Gmail remote writebacks (e.g., marking as read/unread) would get stuck pending after receiving a 401 Unauthorized error by ensuring the access token is refreshed and the operation retried correctly.
 
 ### Documentation
 
+- Added `docs/architecture.md` and `docs/integration-guide.md` for Webmail data flow, API/SSE boundaries, and cache refresh behavior.
 - Updated `README.md` and `README.zh-CN.md` to reflect the new client-server webmail architecture, self-hosted deployment instructions, and API endpoint references.
 
 ## [0.0.4] - 2026-05-01

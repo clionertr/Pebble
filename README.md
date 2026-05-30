@@ -346,6 +346,8 @@ Rust HTTP Server (Axum, port 3000)
         └── pebble-privacy  HTML sanitizing & tracker protection
 ```
 
+For a deeper developer view, see [`docs/architecture.md`](docs/architecture.md) and [`docs/integration-guide.md`](docs/integration-guide.md).
+
 ### Authentication
 
 Pebble uses **cookie-based session auth**:
@@ -358,6 +360,10 @@ Pebble uses **cookie-based session auth**:
 ### Real-time Updates
 
 The frontend connects to `GET /events` via **Server-Sent Events** (SSE). The server pushes notifications for new mail, sync progress, and snooze wakeups. The SSE connection uses the same session cookie for auth.
+
+On startup, the web app fetches `GET /api/shell` once for account metadata, folders, unread counts, and Gmail real-time configuration. Message and thread lists stay paginated through `/api/inbox` and `/api/threads`; Pebble does not load all historical mail into the startup snapshot.
+
+Routine sync poll completions update the status bar only. The frontend refreshes shell/list caches on actual change signals such as `mail:new`, pending remote-write changes, network recovery, or one-shot sync completion.
 
 Browser push notifications use **Web Push + Service Worker** so notifications can arrive after the Pebble tab is closed. Production browsers require HTTPS or another secure context; localhost works for development.
 

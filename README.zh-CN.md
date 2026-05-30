@@ -348,6 +348,8 @@ Rust HTTP 服务器 (Axum, 端口 3000)
         └── pebble-privacy  HTML 清理与追踪保护
 ```
 
+更深入的开发者视角见 [`docs/architecture.md`](docs/architecture.md) 和 [`docs/integration-guide.md`](docs/integration-guide.md)。
+
 ### 认证机制
 
 Pebble 使用 **Cookie 会话认证**：
@@ -360,6 +362,10 @@ Pebble 使用 **Cookie 会话认证**：
 ### 实时推送
 
 前端通过 **Server-Sent Events**（SSE）连接 `GET /events`。服务器会实时推送新邮件通知、同步进度、稍后提醒等事件。SSE 连接使用同一个会话 cookie 认证。
+
+启动时，Web 应用会通过 `GET /api/shell` 一次读取账号元数据、文件夹、未读数和 Gmail 实时配置。邮件列表和线程列表仍通过 `/api/inbox` 与 `/api/threads` 分页读取；Pebble 不会把所有历史邮件塞进启动快照。
+
+常规同步轮询完成只更新状态栏。前端只在 `mail:new`、待写回远端操作变化、网络恢复、one-shot 同步完成等确有变化的信号上刷新 shell 和列表缓存。
 
 浏览器系统通知使用 **Web Push + Service Worker**，所以 Pebble 页面关闭后也能收到通知。生产浏览器要求 HTTPS 或其他安全上下文；localhost 开发环境可以直接使用。
 

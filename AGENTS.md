@@ -19,3 +19,9 @@ If you're using Codex or another agent-capable tool, additional project-scoped h
 Managed by Trellis. Edits outside this block are preserved; edits inside may be overwritten by a future `trellis update`.
 
 <!-- TRELLIS:END -->
+
+## 项目知识入口
+
+- 面向使用者和部署者：优先读 `README.md` / `README.zh-CN.md`。
+- 面向接手开发者：Webmail 数据流和 API/SSE 边界见 `docs/architecture.md` 与 `docs/integration-guide.md`。
+- 面向 AI 实现：具体可执行契约仍以 `.trellis/spec/` 为准，尤其是 `.trellis/spec/pebble/backend/webmail-api-contracts.md`。
