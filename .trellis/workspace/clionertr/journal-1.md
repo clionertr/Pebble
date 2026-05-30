@@ -382,3 +382,36 @@ Implemented Web Push browser notifications (backend push service, notification d
 ### Next Steps
 
 - None - task complete
+
+
+## Session 10: Webmail shell metadata cache
+
+**Date**: 2026-05-30
+**Task**: Webmail shell metadata cache
+**Branch**: `master`
+
+### Summary
+
+扩展 /api/shell 返回账号、文件夹、未读数和 Gmail realtime 配置；前端用 shell hydrate React Query 元数据缓存，减少 accounts/folders/gmail-realtime N+1 请求；网络恢复时 wake sync 并刷新必要缓存；修复周期性 poll 完成误触发 shell/inbox 重拉的问题，改为由 mail:new、pending ops、网络恢复等实际变化事件驱动。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8dac36f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 9
-- **Last Active**: 2026-05-23
+- **Total Sessions**: 10
+- **Last Active**: 2026-05-30
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~384 | Active |
+| `journal-1.md` | ~417 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 10 | 2026-05-30 | Webmail shell metadata cache | `8dac36f` | `master` |
 | 9 | 2026-05-23 | Browser Push Notifications implementation + source-run DX improvements | `86c7888`, `e9803c3`, `d00359c` | `master` |
 | 8 | 2026-05-19 | 同步上游 Webmail 安全补丁 | `7f209bc` | `master` |
 | 7 | 2026-05-18 | Standard Webmail API Migration — 从桌面 JSON-RPC 到 REST Webmail | `80d23e1` → `f2c8da0` (26 total) | `001-improve-experience` |
