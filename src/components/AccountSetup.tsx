@@ -4,7 +4,7 @@ import { useConfirmStore } from "@/stores/confirm.store";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { addAccount, startOAuthLogin, startSync, testImapConnection } from "@/lib/api";
+import { addAccount, startOAuthLogin, testImapConnection, wakeSync } from "@/lib/api";
 import type { AddAccountRequest } from "@/lib/api";
 import { accountsQueryKey } from "@/hooks/queries";
 import { extractErrorMessage } from "@/lib/extractErrorMessage";
@@ -234,8 +234,13 @@ export default function AccountSetup({ onClose }: Props) {
         message: t("accountSetup.accountAdded", "Account added successfully"),
         type: "success",
       });
-      // Start sync in background; poll folders until they appear
-      startSync(account.id, syncPollInterval).catch((err) =>
+      // 后台唤醒初始同步；随后短轮询文件夹，让侧边栏无需手动刷新。
+      wakeSync({
+        accountIds: [account.id],
+        reason: "startup",
+        ensureRunning: true,
+        pollIntervalSecs: syncPollInterval,
+      }).catch((err) =>
         console.warn("Initial sync failed (will retry later):", err),
       );
       // Poll for folders a few times so sidebar updates without manual refresh

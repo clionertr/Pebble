@@ -168,6 +168,73 @@ queryClient.invalidateQueries({ queryKey: ["folders", accountId] });
 queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] });
 ```
 
+## Scenario: 多账号同步唤醒入口
+
+### 1. Scope / Trigger
+- Trigger: Webmail 有多个邮箱账号时，窗口 focus、blur、网络恢复和手动同步都会触发同步；前端不能为每个账号串行调用 `startSync` 再 `triggerSync`。
+- 范围：`server/src/api/sync.rs`、`server/src/rpc/sync_cmd.rs`、`src/lib/api-client.ts`、`src/lib/api.ts`、`src/app/useRealtimeSyncTriggers.ts`、`src/hooks/mutations/useSyncMutation.ts`。
+
+### 2. Signatures
+- 聚合入口：`POST /api/sync/wake`。
+- 请求 body：
+  - `account_ids?: string[]`，省略表示全部账号；显式空数组表示不唤醒任何账号。
+  - `reason: string`，复用 `SyncTrigger::from_reason`：`manual`、`window_focus`、`window_blur`、`network_online`、`provider_push`、`startup`、`timer` 等。
+  - `ensure_running?: boolean`，为 `true` 时先确保账号 worker 已启动。
+  - `poll_interval_secs?: number`，仅在 `ensure_running=true` 时作为启动配置传入。
+- 响应 body：`SyncWakeResult`，字段为 `account_count`、`ensured_count`、`triggered_count`、`one_shot_count`、`skipped_count`、`failures[]`。
+- 旧底层入口保留：`POST /api/accounts/:id/sync/start`、`POST /api/accounts/:id/sync/trigger`、`POST /api/accounts/:id/sync/stop`。
+
+### 3. Contracts
+- 每个账号仍保持独立 sync worker、stop channel、trigger channel、backoff 和 provider 状态；不要合并成全局 worker。
+- 前端被动实时事件（窗口 focus、blur、网络从 offline 恢复 online）必须调用一次 `wakeSync({ accountIds, reason, ... })`，不要按账号循环 `startSync + triggerSync`。
+- `window_focus` 和 `network_online` 使用 `ensureRunning=true`，并传当前 `pollIntervalSecs`。
+- `window_blur` 使用 `ensureRunning=false`，只通知已存在 worker 更新运行态；缺失 worker 时不得启动一轮同步。
+- `manual` 手动同步使用 `ensureRunning=false`；若 worker 不存在，后端允许启动一次 `poll_interval_secs=0` 的 one-shot 同步。
+- `manual` 偏好下，focus/blur/network 这类被动事件不得调用 `wakeSync`；只有用户点击“立即同步”或新增账号初始同步才允许 one-shot。
+- `src/lib/api.ts` 的 `wakeSync` 必须在 `failures.length > 0` 时抛出错误，让手动同步和新增账号能看到失败；忽略型被动事件可在调用点 `.catch(() => {})`。
+
+### 4. Validation & Error Matrix
+- `account_ids` 中含空字符串 -> `400`/validation error。
+- `account_ids` 重复 -> 后端按出现顺序去重。
+- `account_ids` 省略且当前无账号 -> `200`，`account_count=0`。
+- `ensure_running=true` 且某账号启动失败 -> 响应 `failures[]` 记录该账号；其他账号继续处理。
+- `ensure_running=false` + `window_blur` + worker 不存在 -> 不启动 worker，`skipped_count` 增加。
+- `ensure_running=false` + `manual` + worker 不存在 -> 启动 one-shot，`one_shot_count` 增加。
+
+### 5. Good/Base/Bad Cases
+- Good: 用户回到页面时，前端只发一次 `/api/sync/wake`，后端为所有账号确保 worker 运行并发送 `window_focus` trigger。
+- Base: 用户在 Manual only 模式切回页面，不发请求；点击状态栏同步按钮时，单账号通过 `manual` wake 运行一轮。
+- Bad: 前端对 5 个账号分别调用 `/sync/start` 和 `/sync/trigger`，会产生 10 个请求，并把 worker 生命周期细节泄漏到 UI。
+- Bad: `window_blur` 在没有 worker 时启动 one-shot，会让用户只是切走页面也触发同步。
+
+### 6. Tests Required
+- 前端 hook 测试：focus/network online 只调用一次 `wakeSync`，body 包含全部账号、`ensureRunning=true` 和 `pollIntervalSecs`。
+- 前端 hook 测试：blur 只调用一次 `wakeSync`，`ensureRunning=false`。
+- 前端 hook 测试：Manual only 下被动 focus 不调用 `wakeSync`。
+- 前端 API 测试：`wakeSync` 序列化为 `/api/sync/wake` 和 snake_case body；`failures[]` 非空时抛错。
+- Rust 服务测试：`account_ids` 去重并拒绝空 ID；passive trigger 不启动缺失 worker，manual trigger 可 one-shot。
+- Rust/OpenAPI 检查：`/api/sync/wake` 在 docs 中登记，并且 `/api/*` 仍走 session 鉴权。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```typescript
+for (const accountId of accountIds) {
+  await startSync(accountId, pollInterval);
+  await triggerSync(accountId, "window_focus");
+}
+```
+
+#### Correct
+```typescript
+await wakeSync({
+  accountIds,
+  reason: "window_focus",
+  ensureRunning: true,
+  pollIntervalSecs: pollInterval,
+});
+```
+
 ## Scenario: 浏览器 Web Push 通知契约
 
 ### 1. Scope / Trigger

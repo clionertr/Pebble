@@ -12,6 +12,7 @@ use pebble_mail::{
     SyncConfig, SyncRuntimeStatus, SyncWorker,
 };
 use pebble_store::Store;
+use serde::Serialize;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -387,6 +388,109 @@ impl RealtimePreferenceStartSummary {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct SyncWakeRequest {
+    pub account_ids: Option<Vec<String>>,
+    pub reason: String,
+    pub ensure_running: bool,
+    pub poll_interval_secs: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SyncWakeFailure {
+    pub account_id: String,
+    pub error: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct SyncWakeResult {
+    pub account_count: usize,
+    pub ensured_count: usize,
+    pub triggered_count: usize,
+    pub one_shot_count: usize,
+    pub skipped_count: usize,
+    pub failures: Vec<SyncWakeFailure>,
+}
+
+impl SyncWakeResult {
+    fn new(account_count: usize) -> Self {
+        Self {
+            account_count,
+            ..Self::default()
+        }
+    }
+
+    fn record_dispatch(&mut self, outcome: TriggerDispatchOutcome) {
+        match outcome {
+            TriggerDispatchOutcome::Sent => {
+                self.triggered_count += 1;
+            }
+            TriggerDispatchOutcome::StartedOneShot => {
+                self.triggered_count += 1;
+                self.one_shot_count += 1;
+            }
+            TriggerDispatchOutcome::SkippedNoWorker => {
+                self.skipped_count += 1;
+            }
+        }
+    }
+
+    fn record_failure(&mut self, account_id: &str, error: &PebbleError) {
+        self.failures.push(SyncWakeFailure {
+            account_id: account_id.to_string(),
+            error: error.to_string(),
+        });
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TriggerDispatchOutcome {
+    Sent,
+    StartedOneShot,
+    SkippedNoWorker,
+}
+
+fn normalize_explicit_account_ids(
+    account_ids: Vec<String>,
+) -> std::result::Result<Vec<String>, PebbleError> {
+    let mut seen = HashSet::new();
+    let mut normalized = Vec::new();
+    for account_id in account_ids {
+        let account_id = account_id.trim();
+        if account_id.is_empty() {
+            return Err(PebbleError::Validation(
+                "account_ids cannot contain empty account IDs".to_string(),
+            ));
+        }
+        if seen.insert(account_id.to_string()) {
+            normalized.push(account_id.to_string());
+        }
+    }
+    Ok(normalized)
+}
+
+fn all_account_ids(store: &Store) -> std::result::Result<Vec<String>, PebbleError> {
+    Ok(store
+        .list_accounts()?
+        .into_iter()
+        .map(|account| account.id)
+        .collect())
+}
+
+fn should_start_missing_worker_for_wake(ensure_running: bool, trigger: SyncTrigger) -> bool {
+    !ensure_running && trigger.should_sync_now()
+}
+
+fn log_sync_trigger_requested(account_id: &str, reason: &str) {
+    crate::mail_latency::log_mail_latency(
+        "sync_trigger_requested",
+        Some(account_id),
+        None,
+        Some(reason),
+        || format!("reason={reason}"),
+    );
+}
+
 /// Build and spawn the provider-specific sync task.
 ///
 /// Extracted so that any `?` propagation (token decode, config parse, etc.)
@@ -663,13 +767,17 @@ pub async fn trigger_sync(
     reason: String,
 ) -> std::result::Result<(), PebbleError> {
     let trigger = SyncTrigger::from_reason(&reason);
-    crate::mail_latency::log_mail_latency(
-        "sync_trigger_requested",
-        Some(&account_id),
-        None,
-        Some(&reason),
-        || format!("reason={reason}"),
-    );
+    log_sync_trigger_requested(&account_id, &reason);
+    dispatch_sync_trigger(state.0.clone(), account_id, trigger, true).await?;
+    Ok(())
+}
+
+async fn dispatch_sync_trigger(
+    state: Arc<AppState>,
+    account_id: String,
+    trigger: SyncTrigger,
+    start_if_missing: bool,
+) -> std::result::Result<TriggerDispatchOutcome, PebbleError> {
     let should_start_one_shot = {
         let mut handles = state.sync_handles.lock().await;
         match handles.get(&account_id) {
@@ -692,10 +800,68 @@ pub async fn trigger_sync(
         }
     };
 
-    if should_start_one_shot {
-        start_sync_inner(state.0.clone(), account_id, Some(0)).await?;
+    if !should_start_one_shot {
+        return Ok(TriggerDispatchOutcome::Sent);
     }
-    Ok(())
+
+    if !start_if_missing {
+        return Ok(TriggerDispatchOutcome::SkippedNoWorker);
+    }
+
+    start_sync_inner(state, account_id, Some(0)).await?;
+    Ok(TriggerDispatchOutcome::StartedOneShot)
+}
+
+pub async fn wake_sync(
+    state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
+    request: SyncWakeRequest,
+) -> std::result::Result<SyncWakeResult, PebbleError> {
+    let trigger = SyncTrigger::from_reason(&request.reason);
+    let account_ids = match request.account_ids {
+        Some(account_ids) => normalize_explicit_account_ids(account_ids)?,
+        None => all_account_ids(&state.store)?,
+    };
+    let mut result = SyncWakeResult::new(account_ids.len());
+    let start_if_missing = should_start_missing_worker_for_wake(request.ensure_running, trigger);
+
+    for account_id in account_ids {
+        if request.ensure_running {
+            match start_sync_inner(
+                state.0.clone(),
+                account_id.clone(),
+                request.poll_interval_secs,
+            )
+            .await
+            {
+                Ok(()) => {
+                    result.ensured_count += 1;
+                }
+                Err(e) => {
+                    warn!("Failed to ensure sync is running for account {account_id}: {e}");
+                    result.record_failure(&account_id, &e);
+                    continue;
+                }
+            }
+        }
+
+        log_sync_trigger_requested(&account_id, &request.reason);
+        match dispatch_sync_trigger(
+            state.0.clone(),
+            account_id.clone(),
+            trigger,
+            start_if_missing,
+        )
+        .await
+        {
+            Ok(outcome) => result.record_dispatch(outcome),
+            Err(e) => {
+                warn!("Failed to wake sync for account {account_id}: {e}");
+                result.record_failure(&account_id, &e);
+            }
+        }
+    }
+
+    Ok(result)
 }
 
 pub async fn stop_sync(
@@ -886,6 +1052,35 @@ mod trigger_tests {
             .expect_err("partial realtime preference failures should be visible to the UI");
         assert!(err.to_string().contains("bad-account"));
         assert!(err.to_string().contains("1 account(s) started"));
+    }
+
+    #[test]
+    fn wake_account_ids_are_deduped_and_validated() {
+        let ids = normalize_explicit_account_ids(vec![
+            " account-1 ".to_string(),
+            "account-2".to_string(),
+            "account-1".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(ids, vec!["account-1", "account-2"]);
+        assert!(normalize_explicit_account_ids(vec![" ".to_string()]).is_err());
+    }
+
+    #[test]
+    fn passive_wake_does_not_start_missing_worker() {
+        assert!(!should_start_missing_worker_for_wake(
+            false,
+            SyncTrigger::WindowBlur
+        ));
+        assert!(should_start_missing_worker_for_wake(
+            false,
+            SyncTrigger::Manual
+        ));
+        assert!(!should_start_missing_worker_for_wake(
+            true,
+            SyncTrigger::Manual
+        ));
     }
 
     #[tokio::test]

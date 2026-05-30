@@ -845,6 +845,22 @@ export function triggerSync(accountId: string, reason: string) {
   return apiPost<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/sync/trigger`, { reason });
 }
 
+export interface WakeSyncRequest {
+  accountIds?: string[];
+  reason: string;
+  ensureRunning?: boolean;
+  pollIntervalSecs?: number;
+}
+
+export function wakeSync(request: WakeSyncRequest) {
+  return apiPost<unknown>(`${BASE}/sync/wake`, {
+    account_ids: request.accountIds,
+    reason: request.reason,
+    ensure_running: request.ensureRunning,
+    poll_interval_secs: request.pollIntervalSecs,
+  });
+}
+
 export function stopSync(accountId: string) {
   return apiPost<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/sync/stop`);
 }

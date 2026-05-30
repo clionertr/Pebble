@@ -10,6 +10,7 @@ import {
   updateGmailRealtimeConfig,
   updateGlobalProxy,
   updateOAuthAccountProxy,
+  wakeSync,
 } from "../../src/lib/api";
 
 function jsonResponse(value: unknown) {
@@ -166,5 +167,42 @@ describe("useAccountsQuery", () => {
     expect(request.url.pathname).toBe("/api/accounts/account-1/gmail-realtime");
     expect(request.init.method).toBe("PUT");
     expect(JSON.parse(String(request.init.body))).toEqual({ fallback_interval_minutes: 45 });
+  });
+
+  it("wakeSync sends one batched snake_case sync wake request", async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse({ failures: [] }));
+
+    await wakeSync({
+      accountIds: ["account-1", "account-2"],
+      reason: "window_focus",
+      ensureRunning: true,
+      pollIntervalSecs: 15,
+    });
+
+    const request = lastRequest();
+    expect(request.url.pathname).toBe("/api/sync/wake");
+    expect(request.init.method).toBe("POST");
+    expect(JSON.parse(String(request.init.body))).toEqual({
+      account_ids: ["account-1", "account-2"],
+      reason: "window_focus",
+      ensure_running: true,
+      poll_interval_secs: 15,
+    });
+  });
+
+  it("wakeSync rejects when the backend reports account failures", async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse({
+      account_count: 1,
+      ensured_count: 0,
+      triggered_count: 0,
+      one_shot_count: 0,
+      skipped_count: 0,
+      failures: [{ account_id: "account-1", error: "auth failed" }],
+    }));
+
+    await expect(wakeSync({
+      accountIds: ["account-1"],
+      reason: "manual",
+    })).rejects.toThrow("Sync wake failed for 1 account");
   });
 });

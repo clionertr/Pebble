@@ -2,12 +2,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { startSync, triggerSync } from "../../src/lib/api";
+import { startSync, triggerSync, wakeSync } from "../../src/lib/api";
 import { useSyncMutation } from "../../src/hooks/mutations/useSyncMutation";
 
 vi.mock("../../src/lib/api", () => ({
   startSync: vi.fn(() => Promise.resolve("started")),
   triggerSync: vi.fn(() => Promise.resolve()),
+  wakeSync: vi.fn(() => Promise.resolve({ failures: [] })),
 }));
 
 vi.mock("../../src/stores/ui.store", () => ({
@@ -43,7 +44,11 @@ describe("useSyncMutation", () => {
       await result.current.mutateAsync("account-1");
     });
 
-    expect(triggerSync).toHaveBeenCalledWith("account-1", "manual");
+    expect(wakeSync).toHaveBeenCalledWith({
+      accountIds: ["account-1"],
+      reason: "manual",
+    });
+    expect(triggerSync).not.toHaveBeenCalled();
     expect(startSync).not.toHaveBeenCalled();
   });
 });

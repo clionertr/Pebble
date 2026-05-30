@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useRealtimeSyncTriggers } from "../../src/app/useRealtimeSyncTriggers";
-import { startSync, triggerSync } from "../../src/lib/api";
+import { wakeSync } from "../../src/lib/api";
 
 const mocks = vi.hoisted(() => ({
   activeAccountId: "account-1" as string | null,
@@ -12,8 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../src/lib/api", () => ({
-  startSync: vi.fn(() => Promise.resolve("started")),
-  triggerSync: vi.fn(() => Promise.resolve()),
+  wakeSync: vi.fn(() => Promise.resolve({ failures: [] })),
 }));
 
 vi.mock("../../src/stores/mail.store", () => ({
@@ -48,51 +47,58 @@ describe("useRealtimeSyncTriggers", () => {
     mocks.realtimeMode = "realtime";
   });
 
-  it("ensures sync is running and triggers every account when the window regains focus", async () => {
+  it("wakes every account with ensure-running when the window regains focus", async () => {
     renderHook(() => useRealtimeSyncTriggers());
 
     act(() => {
       window.dispatchEvent(new Event("focus"));
     });
 
-    expect(startSync).toHaveBeenCalledWith("account-1", 3);
-    expect(startSync).toHaveBeenCalledWith("account-2", 3);
-    await waitFor(() => expect(triggerSync).toHaveBeenCalledWith("account-1", "window_focus"));
-    expect(triggerSync).toHaveBeenCalledWith("account-2", "window_focus");
+    await waitFor(() => expect(wakeSync).toHaveBeenCalledWith({
+      accountIds: ["account-1", "account-2"],
+      reason: "window_focus",
+      ensureRunning: true,
+      pollIntervalSecs: 3,
+    }));
   });
 
-  it("notifies the backend for every account when the window loses focus", () => {
+  it("notifies the backend once for every account when the window loses focus", () => {
     renderHook(() => useRealtimeSyncTriggers());
 
     act(() => {
       window.dispatchEvent(new Event("blur"));
     });
 
-    expect(startSync).not.toHaveBeenCalled();
-    expect(triggerSync).toHaveBeenCalledWith("account-1", "window_blur");
-    expect(triggerSync).toHaveBeenCalledWith("account-2", "window_blur");
+    expect(wakeSync).toHaveBeenCalledWith({
+      accountIds: ["account-1", "account-2"],
+      reason: "window_blur",
+      ensureRunning: false,
+      pollIntervalSecs: undefined,
+    });
   });
 
   it("does not trigger network recovery sync on initial online mount", () => {
     renderHook(() => useRealtimeSyncTriggers());
 
-    expect(triggerSync).not.toHaveBeenCalledWith("account-1", "network_online");
+    expect(wakeSync).not.toHaveBeenCalled();
   });
 
-  it("ensures sync is running and triggers every account when the app transitions from offline to online", async () => {
+  it("wakes every account with ensure-running when the app transitions from offline to online", async () => {
     mocks.networkStatus = "offline";
     const { rerender } = renderHook(() => useRealtimeSyncTriggers());
 
     mocks.networkStatus = "online";
     rerender();
 
-    expect(startSync).toHaveBeenCalledWith("account-1", 3);
-    expect(startSync).toHaveBeenCalledWith("account-2", 3);
-    await waitFor(() => expect(triggerSync).toHaveBeenCalledWith("account-1", "network_online"));
-    expect(triggerSync).toHaveBeenCalledWith("account-2", "network_online");
+    await waitFor(() => expect(wakeSync).toHaveBeenCalledWith({
+      accountIds: ["account-1", "account-2"],
+      reason: "network_online",
+      ensureRunning: true,
+      pollIntervalSecs: 3,
+    }));
   });
 
-  it("does not start background sync from focus in manual mode", () => {
+  it("does not wake sync from passive focus events in manual mode", () => {
     mocks.realtimeMode = "manual";
     mocks.pollInterval = 0;
     renderHook(() => useRealtimeSyncTriggers());
@@ -101,8 +107,6 @@ describe("useRealtimeSyncTriggers", () => {
       window.dispatchEvent(new Event("focus"));
     });
 
-    expect(startSync).not.toHaveBeenCalled();
-    expect(triggerSync).toHaveBeenCalledWith("account-1", "window_focus");
-    expect(triggerSync).toHaveBeenCalledWith("account-2", "window_focus");
+    expect(wakeSync).not.toHaveBeenCalled();
   });
 });

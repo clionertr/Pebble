@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useAccountsQuery } from "@/hooks/queries";
-import { startSync, triggerSync } from "@/lib/api";
+import { wakeSync } from "@/lib/api";
 import { useMailStore } from "@/stores/mail.store";
 import { useSyncStore } from "@/stores/sync.store";
 
@@ -27,31 +27,22 @@ export function useRealtimeSyncTriggers() {
 
   useEffect(() => {
     if (accountIds.length === 0) return;
+    if (realtimeMode === "manual") return;
 
-    const triggerAccount = (accountId: string, reason: string, ensureRunning: boolean) => {
-      const trigger = () => {
-        triggerSync(accountId, reason).catch(() => {});
-      };
-
-      if (ensureRunning && realtimeMode !== "manual") {
-        startSync(accountId, pollInterval)
-          .catch(() => {})
-          .finally(trigger);
-        return;
-      }
-
-      trigger();
+    const wakeAccounts = (reason: string, ensureRunning: boolean) => {
+      wakeSync({
+        accountIds,
+        reason,
+        ensureRunning,
+        pollIntervalSecs: ensureRunning ? pollInterval : undefined,
+      }).catch(() => {});
     };
 
     const onFocus = () => {
-      for (const accountId of accountIds) {
-        triggerAccount(accountId, "window_focus", true);
-      }
+      wakeAccounts("window_focus", true);
     };
     const onBlur = () => {
-      for (const accountId of accountIds) {
-        triggerAccount(accountId, "window_blur", false);
-      }
+      wakeAccounts("window_blur", false);
     };
 
     window.addEventListener("focus", onFocus);
@@ -66,17 +57,18 @@ export function useRealtimeSyncTriggers() {
     const previous = previousNetworkStatus.current;
     previousNetworkStatus.current = networkStatus;
 
-    if (accountIds.length === 0 || previous !== "offline" || networkStatus !== "online") return;
-    for (const accountId of accountIds) {
-      if (realtimeMode === "manual") {
-        triggerSync(accountId, "network_online").catch(() => {});
-      } else {
-        startSync(accountId, pollInterval)
-          .catch(() => {})
-          .finally(() => {
-            triggerSync(accountId, "network_online").catch(() => {});
-          });
-      }
-    }
+    if (
+      accountIds.length === 0
+      || previous !== "offline"
+      || networkStatus !== "online"
+      || realtimeMode === "manual"
+    ) return;
+
+    wakeSync({
+      accountIds,
+      reason: "network_online",
+      ensureRunning: true,
+      pollIntervalSecs: pollInterval,
+    }).catch(() => {});
   }, [accountIds, networkStatus, pollInterval, realtimeMode]);
 }

@@ -434,6 +434,42 @@ export async function triggerSync(accountId: string, reason: string): Promise<vo
   return client.triggerSync(accountId, reason);
 }
 
+export interface SyncWakeRequest {
+  accountIds?: string[];
+  reason: string;
+  ensureRunning?: boolean;
+  pollIntervalSecs?: number;
+}
+
+export interface SyncWakeFailure {
+  account_id: string;
+  error: string;
+}
+
+export interface SyncWakeResult {
+  account_count: number;
+  ensured_count: number;
+  triggered_count: number;
+  one_shot_count: number;
+  skipped_count: number;
+  failures: SyncWakeFailure[];
+}
+
+export class SyncWakeError extends Error {
+  constructor(public result: SyncWakeResult) {
+    super(`Sync wake failed for ${result.failures.length} account(s)`);
+    this.name = "SyncWakeError";
+  }
+}
+
+export async function wakeSync(request: SyncWakeRequest): Promise<SyncWakeResult> {
+  const result = await client.wakeSync(request) as SyncWakeResult;
+  if (result.failures.length > 0) {
+    throw new SyncWakeError(result);
+  }
+  return result;
+}
+
 export type RealtimePreference = "realtime" | "balanced" | "battery" | "manual";
 
 export async function setRealtimePreference(mode: RealtimePreference): Promise<void> {

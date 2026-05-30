@@ -23,8 +23,8 @@ vi.mock("react-i18next", () => ({
 vi.mock("../../src/lib/api", () => ({
   addAccount: vi.fn(),
   startOAuthLogin: vi.fn(),
-  startSync: vi.fn(),
   testImapConnection: vi.fn(),
+  wakeSync: vi.fn(),
 }));
 
 describe("AccountSetup OAuth", () => {

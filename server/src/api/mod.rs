@@ -9,6 +9,7 @@ pub mod messages;
 pub mod notifications;
 pub mod resources;
 pub mod shell;
+pub mod sync;
 pub mod threads;
 
 use crate::state::AppState;
@@ -27,6 +28,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .merge(notifications::notification_routes())
         .merge(resources::resource_routes())
         .merge(shell::shell_routes())
+        .merge(sync::sync_routes())
         .merge(threads::thread_routes())
 }
 

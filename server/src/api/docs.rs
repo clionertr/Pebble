@@ -392,6 +392,15 @@ fn build_spec() -> Value {
         }),
     );
     paths.insert(
+        "/api/sync/wake".into(),
+        json!({
+            "post": {
+                "summary": "唤醒一个或多个账号的同步",
+                "description": "按需确保选中账号的同步 worker 正在运行，然后为每个账号发送一次实时触发。省略 account_ids 表示全部账号。"
+            }
+        }),
+    );
+    paths.insert(
         "/api/accounts/{id}/sync/stop".into(),
         json!({
             "post": { "summary": "Stop account sync" }
