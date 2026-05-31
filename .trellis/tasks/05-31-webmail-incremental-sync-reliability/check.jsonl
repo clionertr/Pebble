@@ -1,0 +1,2 @@
+{"file":".trellis/spec/pebble/backend/webmail-api-contracts.md","reason":"检查实现是否符合 Webmail 增量同步、SSE、wake 和缓存刷新契约。"}
+{"file":".trellis/tasks/05-31-webmail-incremental-sync-reliability/research/current-pipeline-audit.md","reason":"核对实现是否覆盖审计发现的冲突点和重复请求根因。"}

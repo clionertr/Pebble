@@ -1,0 +1,2 @@
+{"file":".trellis/spec/pebble/backend/webmail-api-contracts.md","reason":"Webmail REST/SSE/sync/cache 跨层契约，覆盖 mail:new、wake、shell、SSE catch-up 和 Gmail History 可靠性要求。"}
+{"file":".trellis/tasks/05-31-webmail-incremental-sync-reliability/research/current-pipeline-audit.md","reason":"当前邮件拉取到前端推送链路审计，说明重复请求、事件语义和断线补偿风险。"}
