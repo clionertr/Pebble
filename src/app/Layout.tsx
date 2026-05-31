@@ -22,6 +22,7 @@ import LoginView from "../features/auth/LoginView";
 import { scheduleIdleWork, scheduleLazyViewPreload } from "./lazyViewPreload";
 import { useRealtimePreferenceSync } from "./useRealtimePreferenceSync";
 import { useRealtimeSyncTriggers } from "./useRealtimeSyncTriggers";
+import { useSseReconnectCatchup } from "./useSseReconnectCatchup";
 import { useNotificationClickRouting } from "./useNotificationClickRouting";
 import { useWebPushRegistration } from "./useWebPushRegistration";
 
@@ -108,6 +109,7 @@ function AuthenticatedLayout() {
   useNetworkStatus();
   useRealtimePreferenceSync();
   useRealtimeSyncTriggers();
+  useSseReconnectCatchup();
   useWebPushRegistration();
   useNotificationClickRouting();
 

@@ -69,7 +69,8 @@ pub fn do_reindex(store: &Store, search: &TantivySearch) -> std::result::Result<
 }
 
 /// Receive newly stored messages from the sync worker and index them for search.
-/// Also emits `mail:new` events to notify the frontend, and applies rule engine actions.
+/// Applies rule engine actions first, then emits `mail:new` with the final
+/// message/folder state so the frontend never refreshes against pre-rule data.
 /// Batches messages and commits periodically for efficiency.
 async fn mail_latency_payload(
     state: &crate::state::AppState,
@@ -102,6 +103,8 @@ async fn mail_latency_payload(
 async fn new_mail_event_payload(
     state: &crate::state::AppState,
     stored: &pebble_mail::StoredMessage,
+    message: &pebble_core::Message,
+    folder_ids: &[String],
 ) -> serde_json::Value {
     let backend_sse_at_ms = mail_latency::now_ms();
     let latency = mail_latency_payload(state, stored, backend_sse_at_ms).await;
@@ -122,21 +125,22 @@ async fn new_mail_event_payload(
         },
     );
 
-    new_mail_event_payload_with_latency(stored, latency)
+    new_mail_event_payload_with_latency(message, folder_ids, latency)
 }
 
 fn new_mail_event_payload_with_latency(
-    stored: &pebble_mail::StoredMessage,
+    message: &pebble_core::Message,
+    folder_ids: &[String],
     latency: MailLatencyPayload,
 ) -> serde_json::Value {
     serde_json::json!({
-        "account_id": stored.message.account_id,
-        "message_id": stored.message.id,
-        "folder_ids": stored.folder_ids,
-        "thread_id": stored.message.thread_id,
-        "subject": stored.message.subject,
-        "from": stored.message.from_address,
-        "received_at": stored.message.date,
+        "account_id": message.account_id,
+        "message_id": message.id,
+        "folder_ids": folder_ids,
+        "thread_id": message.thread_id,
+        "subject": message.subject,
+        "from": message.from_address,
+        "received_at": message.date,
         "latency": latency,
     })
 }
@@ -191,8 +195,6 @@ pub async fn index_new_messages(
             }
         };
 
-        state.emit("mail:new", new_mail_event_payload(state, &stored).await);
-
         let mut notification_deferred_by_remote_rule = false;
         if let Some(ref engine) = engine {
             let actions = engine.evaluate(&stored.message);
@@ -239,6 +241,10 @@ pub async fn index_new_messages(
                 };
 
                 if folder_ids.is_empty() {
+                    state.emit(
+                        crate::events::MAIL_NEW,
+                        new_mail_event_payload(state, &stored, &message, &folder_ids).await,
+                    );
                     if let Err(e) = search.remove_message(&message_id) {
                         warn!(
                             "Failed to remove folderless search document {}: {}",
@@ -247,6 +253,11 @@ pub async fn index_new_messages(
                         continue;
                     }
                 } else {
+                    state.emit(
+                        crate::events::MAIL_NEW,
+                        new_mail_event_payload(state, &stored, &message, &folder_ids).await,
+                    );
+
                     crate::rpc::notifications::notify_new_message_after_rules(
                         state,
                         store,
@@ -263,7 +274,27 @@ pub async fn index_new_messages(
                     }
                 }
             }
-            Some(_) | None => {
+            Some(message) => {
+                let empty_folder_ids = Vec::new();
+                state.emit(
+                    crate::events::MAIL_NEW,
+                    new_mail_event_payload(state, &stored, &message, &empty_folder_ids).await,
+                );
+                if let Err(e) = search.remove_message(&message_id) {
+                    warn!(
+                        "Failed to remove stale search document {}: {}",
+                        message_id, e
+                    );
+                    continue;
+                }
+            }
+            None => {
+                let empty_folder_ids = Vec::new();
+                state.emit(
+                    crate::events::MAIL_NEW,
+                    new_mail_event_payload(state, &stored, &stored.message, &empty_folder_ids)
+                        .await,
+                );
                 if let Err(e) = search.remove_message(&message_id) {
                     warn!(
                         "Failed to remove stale search document {}: {}",
@@ -482,13 +513,19 @@ fn queue_remote_rule_action(
 
 #[cfg(test)]
 mod rule_writeback_tests {
-    use super::{apply_rule_action, new_mail_event_payload_with_latency};
+    use super::{apply_rule_action, index_new_messages, new_mail_event_payload_with_latency};
     use crate::mail_latency::MailLatencyPayload;
+    use crate::state::AppState;
     use pebble_core::*;
+    use pebble_crypto::CryptoService;
     use pebble_rules::types::RuleAction;
+    use pebble_search::TantivySearch;
     use pebble_store::pending_ops::PendingMailOpStatus;
     use pebble_store::Store;
     use serde_json::Value;
+    use std::sync::Arc;
+    use std::time::Duration;
+    use tokio::sync::mpsc;
 
     fn test_account() -> Account {
         let now = now_timestamp();
@@ -533,14 +570,11 @@ mod rule_writeback_tests {
             created_at: 1_700_000_000,
             updated_at: 1_700_000_000,
         };
-        let stored = pebble_mail::StoredMessage {
-            message,
-            folder_ids: vec!["folder-inbox".to_string()],
-            notify: true,
-        };
+        let folder_ids = vec!["folder-inbox".to_string()];
 
         let payload = new_mail_event_payload_with_latency(
-            &stored,
+            &message,
+            &folder_ids,
             MailLatencyPayload {
                 source: "poll_or_manual".to_string(),
                 backend_received_at_ms: None,
@@ -620,6 +654,93 @@ mod rule_writeback_tests {
             created_at: now,
             updated_at: now,
         }
+    }
+
+    fn test_archive_folder(account_id: &str) -> Folder {
+        Folder {
+            id: new_id(),
+            account_id: account_id.to_string(),
+            remote_id: "__local_archive__".to_string(),
+            name: "Archive".to_string(),
+            folder_type: FolderType::Folder,
+            role: Some(FolderRole::Archive),
+            parent_id: None,
+            color: None,
+            is_system: true,
+            sort_order: 1,
+        }
+    }
+
+    fn test_always_archive_rule() -> Rule {
+        let now = now_timestamp();
+        Rule {
+            id: new_id(),
+            name: "Archive matching sender".to_string(),
+            priority: 1,
+            conditions: r#"{"operator":"and","conditions":[{"field":"from","op":"contains","value":"from@example.com"}]}"#.to_string(),
+            actions: r#"[{"type":"Archive"}]"#.to_string(),
+            is_enabled: true,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    fn test_app_state(store: Store) -> (Arc<AppState>, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let search = TantivySearch::open_in_memory().unwrap();
+        let crypto = CryptoService::init(&dir.path().join("test.key")).unwrap();
+        let attachments_dir = dir.path().join("attachments");
+        std::fs::create_dir_all(&attachments_dir).unwrap();
+        let (snooze_stop_tx, _snooze_stop_rx) = std::sync::mpsc::channel::<()>();
+        let state = Arc::new(AppState::new(
+            store,
+            search,
+            crypto,
+            snooze_stop_tx,
+            attachments_dir,
+            "test-password-hash".to_string(),
+        ));
+        (state, dir)
+    }
+
+    #[tokio::test]
+    async fn mail_new_event_uses_folder_ids_after_rules() {
+        let store = Store::open_in_memory().unwrap();
+        let mut account = test_account();
+        account.provider = ProviderType::Imap;
+        store.insert_account(&account).unwrap();
+
+        let inbox = test_folder(&account.id);
+        let archive = test_archive_folder(&account.id);
+        store.insert_folder(&inbox).unwrap();
+        store.insert_folder(&archive).unwrap();
+        store.insert_rule(&test_always_archive_rule()).unwrap();
+
+        let message = test_message(&account.id);
+        store
+            .insert_message(&message, std::slice::from_ref(&inbox.id))
+            .unwrap();
+        let stored = pebble_mail::StoredMessage {
+            message: message.clone(),
+            folder_ids: vec![inbox.id.clone()],
+            notify: true,
+        };
+
+        let (state, _dir) = test_app_state(store);
+        let mut event_rx = state.tx.subscribe();
+        let (message_tx, mut message_rx) = mpsc::unbounded_channel();
+        message_tx.send(stored).unwrap();
+        drop(message_tx);
+
+        index_new_messages(&state, &state.search, &state.store, &mut message_rx).await;
+
+        let event = tokio::time::timeout(Duration::from_secs(1), event_rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(event.event, crate::events::MAIL_NEW);
+        assert_eq!(event.payload["message_id"], message.id);
+        assert_eq!(event.payload["folder_ids"], serde_json::json!([archive.id]));
     }
 
     #[test]

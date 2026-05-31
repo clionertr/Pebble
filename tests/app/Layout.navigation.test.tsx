@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("../../src/lib/sse-client", () => ({
   listen: vi.fn().mockResolvedValue(vi.fn()),
+  onSseReconnect: vi.fn(() => vi.fn()),
 }));
 
 vi.mock("../../src/features/auth/AuthContext", () => ({
@@ -58,6 +59,7 @@ vi.mock("@tanstack/react-query", () => ({
 
 vi.mock("../../src/lib/api", () => ({
   setNotificationsEnabled: mocks.setNotificationsEnabled,
+  wakeSync: vi.fn().mockResolvedValue({ failures: [] }),
 }));
 
 vi.mock("../../src/components/TitleBar", () => ({

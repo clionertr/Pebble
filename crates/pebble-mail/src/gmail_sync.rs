@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use pebble_core::traits::FolderProvider;
 use pebble_core::{new_id, now_timestamp, Folder, FolderRole, PebbleError, Result};
 use pebble_store::Store;
+use reqwest::StatusCode;
 use std::sync::Mutex as StdMutex;
 use tokio::sync::{mpsc, watch};
 use tracing::{debug, error, info, warn};
@@ -135,6 +136,144 @@ where
     }
 
     Ok(all_refs)
+}
+
+#[derive(Debug, Default)]
+struct GmailHistoryBatch {
+    new_ids: Vec<String>,
+    deleted_ids: Vec<String>,
+    labels_added: Vec<(String, Vec<String>)>,
+    labels_removed: Vec<(String, Vec<String>)>,
+    history_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct GmailHistoryList {
+    history: Option<Vec<GmailHistoryEntry>>,
+    #[serde(rename = "nextPageToken")]
+    next_page_token: Option<String>,
+    #[serde(rename = "historyId")]
+    history_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct GmailHistoryEntry {
+    #[serde(rename = "messagesAdded")]
+    messages_added: Option<Vec<GmailHistoryMessage>>,
+    #[serde(rename = "messagesDeleted")]
+    messages_deleted: Option<Vec<GmailHistoryMessage>>,
+    #[serde(rename = "labelsAdded")]
+    labels_added: Option<Vec<GmailHistoryLabelChange>>,
+    #[serde(rename = "labelsRemoved")]
+    labels_removed: Option<Vec<GmailHistoryLabelChange>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct GmailHistoryMessage {
+    message: GmailHistoryMessageRef,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct GmailHistoryLabelChange {
+    message: GmailHistoryMessageRef,
+    #[serde(rename = "labelIds")]
+    label_ids: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct GmailHistoryMessageRef {
+    id: String,
+}
+
+fn append_gmail_history_page(batch: &mut GmailHistoryBatch, page: GmailHistoryList) {
+    if let Some(entries) = page.history {
+        for entry in entries {
+            if let Some(added) = entry.messages_added {
+                batch
+                    .new_ids
+                    .extend(added.into_iter().map(|m| m.message.id));
+            }
+            if let Some(deleted) = entry.messages_deleted {
+                batch
+                    .deleted_ids
+                    .extend(deleted.into_iter().map(|m| m.message.id));
+            }
+            if let Some(added) = entry.labels_added {
+                batch.labels_added.extend(
+                    added
+                        .into_iter()
+                        .map(|change| (change.message.id, change.label_ids)),
+                );
+            }
+            if let Some(removed) = entry.labels_removed {
+                batch.labels_removed.extend(
+                    removed
+                        .into_iter()
+                        .map(|change| (change.message.id, change.label_ids)),
+                );
+            }
+        }
+    }
+
+    if page.history_id.is_some() {
+        batch.history_id = page.history_id;
+    }
+}
+
+async fn collect_paginated_gmail_history<F, Fut>(
+    start_history_id: &str,
+    mut fetch_page: F,
+) -> Result<GmailHistoryBatch>
+where
+    F: FnMut(String, Option<String>) -> Fut,
+    Fut: Future<Output = Result<GmailHistoryList>>,
+{
+    let mut batch = GmailHistoryBatch::default();
+    let mut page_token = None;
+
+    loop {
+        let page = fetch_page(start_history_id.to_string(), page_token.take()).await?;
+        let next_page_token = page.next_page_token.clone();
+        append_gmail_history_page(&mut batch, page);
+
+        match next_page_token {
+            Some(token) if !token.is_empty() => page_token = Some(token),
+            _ => break,
+        }
+    }
+
+    Ok(batch)
+}
+
+fn gmail_history_status_error(status: StatusCode, body: &str) -> PebbleError {
+    let body = body.trim();
+    let detail = if body.is_empty() {
+        format!("Gmail history sync failed (status {status})")
+    } else {
+        format!("Gmail history sync failed (status {status}): {body}")
+    };
+
+    if status == StatusCode::UNAUTHORIZED {
+        PebbleError::Auth(detail)
+    } else if status == StatusCode::NOT_FOUND {
+        PebbleError::Network(format!(
+            "Gmail history expired; full resync required (status {status}): {body}"
+        ))
+    } else {
+        PebbleError::Network(detail)
+    }
+}
+
+async fn parse_gmail_history_response(resp: reqwest::Response) -> Result<GmailHistoryList> {
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(gmail_history_status_error(status, &text));
+    }
+
+    resp.json()
+        .await
+        .map_err(|e| PebbleError::Network(format!("Parse history: {e}")))
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -593,78 +732,29 @@ impl GmailSyncWorker {
             }
         };
 
-        let url = format!(
-            "https://www.googleapis.com/gmail/v1/users/me/history?startHistoryId={history_id}"
-        );
-        let resp = self.provider.get(&url).await?;
-
-        #[derive(serde::Deserialize)]
-        struct HistoryList {
-            history: Option<Vec<HistoryEntry>>,
-            #[serde(rename = "historyId")]
-            history_id: Option<String>,
-        }
-        #[derive(serde::Deserialize)]
-        struct HistoryEntry {
-            #[serde(rename = "messagesAdded")]
-            messages_added: Option<Vec<HistoryMsg>>,
-            #[serde(rename = "messagesDeleted")]
-            messages_deleted: Option<Vec<HistoryMsg>>,
-            #[serde(rename = "labelsAdded")]
-            labels_added: Option<Vec<HistoryLabelChange>>,
-            #[serde(rename = "labelsRemoved")]
-            labels_removed: Option<Vec<HistoryLabelChange>>,
-        }
-        #[derive(serde::Deserialize)]
-        struct HistoryMsg {
-            message: MsgRef,
-        }
-        #[derive(serde::Deserialize)]
-        struct HistoryLabelChange {
-            message: MsgRef,
-            #[serde(rename = "labelIds")]
-            label_ids: Vec<String>,
-        }
-        #[derive(serde::Deserialize)]
-        struct MsgRef {
-            id: String,
-        }
-
-        let history: HistoryList = resp
-            .json()
-            .await
-            .map_err(|e| pebble_core::PebbleError::Network(format!("Parse history: {e}")))?;
-
-        let mut new_ids = Vec::new();
-        let mut deleted_ids = Vec::new();
-        let mut labels_added = Vec::new();
-        let mut labels_removed = Vec::new();
-        let mut failure_count = 0usize;
-
-        if let Some(entries) = &history.history {
-            for entry in entries {
-                if let Some(ref added) = entry.messages_added {
-                    for m in added {
-                        new_ids.push(m.message.id.clone());
-                    }
+        let history = collect_paginated_gmail_history(&history_id, |history_id, page_token| {
+            let provider = Arc::clone(&self.provider);
+            async move {
+                let mut url = format!(
+                    "https://www.googleapis.com/gmail/v1/users/me/history?startHistoryId={history_id}"
+                );
+                if let Some(token) = page_token {
+                    url.push_str(&format!("&pageToken={token}"));
                 }
-                if let Some(ref deleted) = entry.messages_deleted {
-                    for m in deleted {
-                        deleted_ids.push(m.message.id.clone());
-                    }
-                }
-                if let Some(ref added) = entry.labels_added {
-                    for change in added {
-                        labels_added.push((change.message.id.clone(), change.label_ids.clone()));
-                    }
-                }
-                if let Some(ref removed) = entry.labels_removed {
-                    for change in removed {
-                        labels_removed.push((change.message.id.clone(), change.label_ids.clone()));
-                    }
-                }
+                let resp = provider.get(&url).await?;
+                parse_gmail_history_response(resp).await
             }
-        }
+        })
+        .await?;
+
+        let GmailHistoryBatch {
+            new_ids,
+            deleted_ids,
+            labels_added,
+            labels_removed,
+            history_id: next_history_id,
+        } = history;
+        let mut failure_count = 0usize;
 
         let folders_by_remote: HashMap<String, String> = self
             .base
@@ -867,7 +957,7 @@ impl GmailSyncWorker {
         }
 
         // Update cursor
-        if let Some(new_hid) = history.history_id {
+        if let Some(new_hid) = next_history_id {
             if can_advance_gmail_cursor(failure_count) {
                 let _ = self
                     .base
@@ -1196,6 +1286,85 @@ mod tests {
                 ("INBOX".to_string(), 2, None),
                 ("INBOX".to_string(), 1, Some("page-2".to_string())),
             ]
+        );
+    }
+
+    #[tokio::test]
+    async fn collect_paginated_gmail_history_follows_next_tokens_and_merges_changes() {
+        let mut pages = VecDeque::from([
+            GmailHistoryList {
+                history: Some(vec![GmailHistoryEntry {
+                    messages_added: Some(vec![GmailHistoryMessage {
+                        message: GmailHistoryMessageRef {
+                            id: "added-1".to_string(),
+                        },
+                    }]),
+                    messages_deleted: None,
+                    labels_added: None,
+                    labels_removed: None,
+                }]),
+                next_page_token: Some("page-2".to_string()),
+                history_id: Some("history-1".to_string()),
+            },
+            GmailHistoryList {
+                history: Some(vec![GmailHistoryEntry {
+                    messages_added: None,
+                    messages_deleted: Some(vec![GmailHistoryMessage {
+                        message: GmailHistoryMessageRef {
+                            id: "deleted-1".to_string(),
+                        },
+                    }]),
+                    labels_added: Some(vec![GmailHistoryLabelChange {
+                        message: GmailHistoryMessageRef {
+                            id: "labeled-1".to_string(),
+                        },
+                        label_ids: vec!["INBOX".to_string()],
+                    }]),
+                    labels_removed: None,
+                }]),
+                next_page_token: None,
+                history_id: Some("history-2".to_string()),
+            },
+        ]);
+        let mut requested_tokens = Vec::new();
+
+        let batch = collect_paginated_gmail_history("cursor-0", |history_id, page_token| {
+            requested_tokens.push((history_id, page_token));
+            let page = pages.pop_front().expect("expected a history page");
+            async move { Ok(page) }
+        })
+        .await
+        .unwrap();
+
+        assert_eq!(batch.new_ids, vec!["added-1".to_string()]);
+        assert_eq!(batch.deleted_ids, vec!["deleted-1".to_string()]);
+        assert_eq!(
+            batch.labels_added,
+            vec![("labeled-1".to_string(), vec!["INBOX".to_string()])]
+        );
+        assert_eq!(batch.history_id, Some("history-2".to_string()));
+        assert_eq!(
+            requested_tokens,
+            vec![
+                ("cursor-0".to_string(), None),
+                ("cursor-0".to_string(), Some("page-2".to_string())),
+            ]
+        );
+    }
+
+    #[test]
+    fn gmail_history_status_error_maps_unauthorized_to_auth() {
+        let error = gmail_history_status_error(reqwest::StatusCode::UNAUTHORIZED, "bad token");
+
+        assert!(matches!(error, PebbleError::Auth(message) if message.contains("401")));
+    }
+
+    #[test]
+    fn gmail_history_status_error_keeps_expired_cursor_visible() {
+        let error = gmail_history_status_error(reqwest::StatusCode::NOT_FOUND, "history expired");
+
+        assert!(
+            matches!(error, PebbleError::Network(message) if message.contains("history expired") && message.contains("404"))
         );
     }
 }

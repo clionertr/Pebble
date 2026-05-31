@@ -132,13 +132,21 @@ return client.getRenderedHtml(messageId, privacyModeQueryParam(privacyMode));
 - 搜索缓存键：`["search", query, filters]`。
 
 ### 3. Contracts
+- 后端必须在规则处理、消息重载、最终 folder_ids 确定之后再发送 `mail:new`；不要在刚写入 provider 原始 folder_ids 后提前发送。
+- `mail:new.folder_ids` 必须是规则处理后的最终文件夹集合；如果规则让消息无文件夹或消息已不可见，也要发送空数组事件，前端据此刷新列表，后端同时移除对应搜索文档。
 - `mail:new.account_id` 是“事件来源账号”，不是消息/线程查询的 React Query key。
 - 收到 `mail:new` 后，前端必须用 `["messages"]` 和 `["threads"]` 前缀失效列表缓存；不能用 `["messages", account_id]` 或 `["threads", account_id]`。
 - 文件夹和未读数仍按账号精准失效：`["folders", account_id]`、`["folder-unread-counts", account_id]`。
+- 快速连续收到多个 `mail:new` 时，前端必须合并刷新；当前约定是 500ms 窗口内只做一次 `["shell"]`、`["messages"]`、`["threads"]` 和账号级 folders/unread-counts 失效。
 - 搜索索引由后端批量提交；前端收到 `mail:new` 后应延迟一次 `["search"]` 失效，避免立即查询到旧索引。
+- `mail:sync-progress(status="completed", phase="poll")` 是同步心跳，不是数据变化事件；不得借它刷新 `["shell"]`、`["messages"]` 或 `["threads"]`。
 
 ### 4. Validation & Error Matrix
+- 规则把新邮件归档/移动 -> `mail:new.folder_ids` 必须包含归档/目标文件夹，不能仍是原始 inbox。
+- 规则删除或移除所有文件夹 -> 发送 `folder_ids=[]` 事件，并删除搜索索引中的旧文档。
 - 新邮件进入 SQLite 但当前收件箱不刷新 -> 检查是否只失效了 `["messages", account_id]`。
+- 批量同步 50 封新邮件 -> 前端 500ms 合并窗口内只触发一次列表/线程/shell 失效，避免每封邮件一轮 `/api/shell` + `/api/inbox`。
+- 周期性 poll completed 没有数据变化 -> 只更新状态栏同步状态，不发起列表或 shell refetch。
 - 切换账号/文件夹后邮件才出现 -> 说明换 key 触发了重新拉取，实时失效范围不足。
 - 正文搜索第一次无结果、稍后切换视图才命中 -> 检查搜索缓存是否在索引提交后再次失效。
 
@@ -146,10 +154,13 @@ return client.getRenderedHtml(messageId, privacyModeQueryParam(privacyMode));
 - Good: 多账号“全部邮箱”模式下，任一账号收到 `mail:new` 都会失效 `["messages"]` 和 `["threads"]`，当前聚合收件箱自动重拉。
 - Base: 单账号视图收到其他账号事件时，全局列表前缀失效可接受；它保证切换过去不会看到 60 秒内的旧缓存。
 - Bad: 用 `account_id` 拼消息列表缓存 key，会漏掉以 `folderId` 为第二段的真实缓存。
+- Bad: 在规则处理前发 `mail:new`，用户会先看到 inbox 新邮件，随后规则又把它移走，造成闪烁和重复请求。
 
 ### 6. Tests Required
+- Rust 测试：规则把消息移动/归档后，`mail:new.folder_ids` 使用规则后的最终 folder ids。
 - 前端测试：模拟 `mail:new`，断言调用 `invalidateQueries({ queryKey: ["messages"] })` 和 `["threads"]`。
 - 前端测试：同一事件下断言文件夹/未读数按 `account_id` 精准失效。
+- 前端测试：快速连续触发多个 `mail:new` 时，合并窗口内 messages/threads/shell 只刷新一次。
 - 前端测试：搜索缓存在索引提交窗口后延迟失效。
 
 ### 7. Wrong vs Correct
@@ -166,6 +177,72 @@ queryClient.invalidateQueries({ queryKey: ["messages"] });
 queryClient.invalidateQueries({ queryKey: ["threads"] });
 queryClient.invalidateQueries({ queryKey: ["folders", accountId] });
 queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] });
+```
+
+#### Wrong
+```rust
+// 规则处理前就把 provider 原始文件夹推给前端。
+state.emit("mail:new", new_mail_event_payload(&stored).await);
+```
+
+#### Correct
+```rust
+// 规则处理和消息重载完成后，用最终 folder_ids 推送。
+state.emit(crate::events::MAIL_NEW, new_mail_event_payload(state, &stored, &message, &folder_ids).await);
+```
+
+## Scenario: SSE 重连后的邮件 catch-up
+
+### 1. Scope / Trigger
+- Trigger: 浏览器到 `/events` 的 SSE 连接断开期间可能丢失 `mail:new`、pending ops 或同步完成事件；重连成功后必须补一次状态。
+- 范围：`src/lib/sse-client.ts`、`src/app/useSseReconnectCatchup.ts`、`src/app/Layout.tsx`、`src/lib/api.ts`、`server/src/rpc/sync_cmd.rs`。
+
+### 2. Signatures
+- 前端重连订阅：`onSseReconnect(handler: () => void): () => void`。
+- Layout hook：`useSseReconnectCatchup()`，在 authenticated layout 中注册一次。
+- catch-up 后端入口：`wakeSync({ reason: "network_online", ensureRunning: true, pollIntervalSecs })` -> `POST /api/sync/wake`。
+- 必刷缓存键：`["shell"]`、`["messages"]`、`["threads"]`。
+
+### 3. Contracts
+- 首次 SSE `open` 不触发 catch-up；只有“曾经连接成功 -> 断开 -> 重新连接成功”才调用 `onSseReconnect` handlers。
+- 重连 catch-up 必须先 invalidate `["shell"]`、`["messages"]`、`["threads"]`，弥补断线期间丢失的事件。
+- 非 Manual only 模式下，重连 catch-up 必须调用 `wakeSync(reason="network_online", ensureRunning=true, pollIntervalSecs=<当前设置>)`，让后端启动缺失 worker 或唤醒已有 worker。
+- Manual only 模式下，重连 catch-up 只刷新缓存，不调用 `wakeSync`；用户仍需手动同步。
+- `wakeSync` 失败属于后台补偿失败，调用点可以 `.catch(() => {})`，不要阻塞页面恢复。
+
+### 4. Validation & Error Matrix
+- 首次进入页面且 SSE 首次 open -> 不 invalidate、不 wake。
+- SSE 已 open 后网络断开并重连成功 -> invalidate 三类缓存，并在非 manual 模式下 wake。
+- Manual only + SSE 重连 -> invalidate 缓存，但不得启动后台同步。
+- 重连时 `/api/sync/wake` 返回失败 -> 页面不崩溃，后续用户手动同步仍可重试。
+
+### 5. Good/Base/Bad Cases
+- Good: 笔记本睡眠后恢复，SSE 重连成功，前端立即重拉 shell/messages/threads，并唤醒增量同步追回期间变化。
+- Base: 用户设置 Manual only，恢复网络后前端只丢弃陈旧缓存，不偷偷联网同步。
+- Bad: 只依赖 EventSource 自动重连但不做 catch-up；断线期间的新邮件事件丢失后，列表要等下一次用户操作或定时刷新才变新。
+
+### 6. Tests Required
+- 前端单元测试：`onSseReconnect` 首次 open 不触发，断线重连成功才触发。
+- 前端 hook 测试：重连后 invalidate `["shell"]`、`["messages"]`、`["threads"]`，并调用 `wakeSync(network_online, ensureRunning=true)`。
+- 前端 hook 测试：Manual only 模式重连只 invalidate，不调用 `wakeSync`。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```typescript
+source.onopen = () => {
+  queryClient.invalidateQueries({ queryKey: ["messages"] });
+};
+```
+
+#### Correct
+```typescript
+onSseReconnect(() => {
+  queryClient.invalidateQueries({ queryKey: ["shell"] });
+  queryClient.invalidateQueries({ queryKey: ["messages"] });
+  queryClient.invalidateQueries({ queryKey: ["threads"] });
+  wakeSync({ reason: "network_online", ensureRunning: true, pollIntervalSecs });
+});
 ```
 
 ## Scenario: 多账号同步唤醒入口
@@ -188,8 +265,11 @@ queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] })
 - 每个账号仍保持独立 sync worker、stop channel、trigger channel、backoff 和 provider 状态；不要合并成全局 worker。
 - 前端被动实时事件（窗口 focus、blur、网络从 offline 恢复 online）必须调用一次 `wakeSync({ accountIds, reason, ... })`，不要按账号循环 `startSync + triggerSync`。
 - `window_focus` 和 `network_online` 使用 `ensureRunning=true`，并传当前 `pollIntervalSecs`。
+- `/api/sync/wake` 在 `ensureRunning=true` 且某账号 worker 是本次刚启动时，不得再给同一账号立刻投递同一个 trigger；启动后的首轮同步已经覆盖这次唤醒。
+- `/api/sync/wake` 在 `ensureRunning=true` 但 worker 已存在时，仍必须投递 trigger，用于打断等待、更新运行态或刷新 backoff。
 - `window_blur` 使用 `ensureRunning=false`，只通知已存在 worker 更新运行态；缺失 worker 时不得启动一轮同步。
 - `manual` 手动同步使用 `ensureRunning=false`；若 worker 不存在，后端允许启动一次 `poll_interval_secs=0` 的 one-shot 同步。
+- 旧底层入口 `POST /api/accounts/:id/sync/trigger` 只能在 `SyncTrigger::should_sync_now()` 为 true 时启动缺失 worker；`manual`/`provider_push` 可以 one-shot，`window_blur`/`timer` 等 passive reason 不得启动。
 - `manual` 偏好下，focus/blur/network 这类被动事件不得调用 `wakeSync`；只有用户点击“立即同步”或新增账号初始同步才允许 one-shot。
 - `src/lib/api.ts` 的 `wakeSync` 必须在 `failures.length > 0` 时抛出错误，让手动同步和新增账号能看到失败；忽略型被动事件可在调用点 `.catch(() => {})`。
 
@@ -198,14 +278,19 @@ queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] })
 - `account_ids` 重复 -> 后端按出现顺序去重。
 - `account_ids` 省略且当前无账号 -> `200`，`account_count=0`。
 - `ensure_running=true` 且某账号启动失败 -> 响应 `failures[]` 记录该账号；其他账号继续处理。
+- `ensure_running=true` 且 worker 本次刚启动 -> `ensured_count` 增加，`triggered_count` 不因同一 trigger 增加。
+- `ensure_running=true` 且 worker 已存在 -> `ensured_count` 增加，并继续投递 trigger，`triggered_count` 增加。
 - `ensure_running=false` + `window_blur` + worker 不存在 -> 不启动 worker，`skipped_count` 增加。
 - `ensure_running=false` + `manual` + worker 不存在 -> 启动 one-shot，`one_shot_count` 增加。
+- 旧 `/api/accounts/:id/sync/trigger` + `window_blur` + worker 不存在 -> 不启动 one-shot。
 
 ### 5. Good/Base/Bad Cases
 - Good: 用户回到页面时，前端只发一次 `/api/sync/wake`，后端为所有账号确保 worker 运行并发送 `window_focus` trigger。
+- Good: 应用冷启动后 `network_online` wake 新建 worker，只跑 worker 启动自带的首轮同步，不再紧接着重复 poll 一次。
 - Base: 用户在 Manual only 模式切回页面，不发请求；点击状态栏同步按钮时，单账号通过 `manual` wake 运行一轮。
 - Bad: 前端对 5 个账号分别调用 `/sync/start` 和 `/sync/trigger`，会产生 10 个请求，并把 worker 生命周期细节泄漏到 UI。
 - Bad: `window_blur` 在没有 worker 时启动 one-shot，会让用户只是切走页面也触发同步。
+- Bad: `ensureRunning=true` 新建 worker 后仍立即投递 `window_focus`，会形成“启动首轮 poll + trigger poll”双拉取。
 
 ### 6. Tests Required
 - 前端 hook 测试：focus/network online 只调用一次 `wakeSync`，body 包含全部账号、`ensureRunning=true` 和 `pollIntervalSecs`。
@@ -213,6 +298,8 @@ queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] })
 - 前端 hook 测试：Manual only 下被动 focus 不调用 `wakeSync`。
 - 前端 API 测试：`wakeSync` 序列化为 `/api/sync/wake` 和 snake_case body；`failures[]` 非空时抛错。
 - Rust 服务测试：`account_ids` 去重并拒绝空 ID；passive trigger 不启动缺失 worker，manual trigger 可 one-shot。
+- Rust 服务测试：`wakeSync(ensureRunning=true)` 新启动 worker 时不重复 trigger，worker 已存在时仍 trigger。
+- Rust 服务测试：旧 trigger 入口对 passive reason 不启动缺失 worker，manual/provider_push 仍可启动。
 - Rust/OpenAPI 检查：`/api/sync/wake` 在 docs 中登记，并且 `/api/*` 仍走 session 鉴权。
 
 ### 7. Wrong vs Correct
@@ -233,6 +320,21 @@ await wakeSync({
   ensureRunning: true,
   pollIntervalSecs: pollInterval,
 });
+```
+
+#### Wrong
+```rust
+// ensureRunning 已经启动 worker 后，又立刻 dispatch 同一个 trigger。
+start_sync_inner(state.clone(), account_id.clone(), poll_interval).await?;
+dispatch_sync_trigger(state, account_id, trigger, true).await?;
+```
+
+#### Correct
+```rust
+let outcome = start_sync_inner(state.clone(), account_id.clone(), poll_interval).await?;
+if outcome == SyncStartOutcome::AlreadyRunning {
+    dispatch_sync_trigger(state, account_id, trigger, false).await?;
+}
 ```
 
 ## Scenario: Webmail 启动快照与元数据缓存
@@ -304,6 +406,62 @@ for (const account of accounts) {
 const shell = await fetchShellSnapshot(queryClient);
 const folders = shell.folders[accountId] ?? [];
 const gmailRealtime = shell.gmailRealtime[accountId];
+```
+
+## Scenario: Gmail History 增量游标可靠性
+
+### 1. Scope / Trigger
+- Trigger: Gmail 增量同步依赖 History API；HTTP 错误、分页遗漏或过早推进 cursor 都会导致邮件永久漏同步。
+- 范围：`crates/pebble-mail/src/gmail_sync.rs`、`crates/pebble-mail/src/provider/gmail.rs`、`pebble-store` 中账号同步状态持久化。
+
+### 2. Signatures
+- Gmail History 请求：`GET https://www.googleapis.com/gmail/v1/users/me/history?startHistoryId=<history_id>[&pageToken=<token>]`。
+- 响应字段：`history[]`、`nextPageToken?: string`、`historyId?: string`。
+- 本地收集结果：`new_ids`、`deleted_ids`、`labels_added`、`labels_removed`、`history_id`。
+- 错误映射：`401 -> PebbleError::Auth`，`404 -> PebbleError::Network("Gmail history expired; full resync required ...")`，其他非 2xx -> `PebbleError::Network`。
+
+### 3. Contracts
+- 调用 `resp.json()` 前必须先检查 HTTP status；非 2xx 不得当作空 history 静默成功。
+- `nextPageToken` 非空时必须继续请求下一页，并把所有页的 added/deleted/label changes 合并后再进入本地处理。
+- `historyId` cursor 只能在所有分页拉取成功、所有本地 message/label/delete 处理完成且 `failure_count == 0` 后推进。
+- `401` 表示授权失效，必须作为 Auth 错误暴露给上层，不得重试成普通网络抖动。
+- `404` 表示 Gmail history cursor 过期；当前契约是显式返回“需要 full resync”的 Network 错误，不能推进旧 cursor，也不能吞掉错误。
+- 单页无 `history` 但有 `historyId` 是合法空增量；仍按 cursor 推进规则处理。
+
+### 4. Validation & Error Matrix
+- History response `200` + `nextPageToken="p2"` -> 必须继续请求 `pageToken=p2`。
+- 第二页处理失败 -> 不推进 cursor，下一轮从旧 `startHistoryId` 重试。
+- History response `401` -> 返回 `PebbleError::Auth`，等待重新授权。
+- History response `404` -> 返回包含 `full resync required` 的 Network 错误，保留旧 cursor。
+- History response `500` 或非法 JSON -> 返回 Network 错误，保留旧 cursor。
+- 所有分页成功但某封新邮件 fetch/store 失败 -> `failure_count > 0`，不推进 cursor。
+
+### 5. Good/Base/Bad Cases
+- Good: Gmail 一次返回两页 history，Pebble 合并两页的新增、删除和 label 变化，再统一处理并在全部成功后推进到最新 `historyId`。
+- Base: 没有变化时 Gmail 返回空 history 和新 `historyId`，Pebble 可以推进 cursor，避免重复查询同一区间。
+- Bad: 忽略 `nextPageToken` 只处理第一页，第二页新邮件永远不会进入本地库。
+- Bad: `404` 时仍把响应解析成空 history 并推进 cursor，会把过期区间内的所有变化永久跳过。
+
+### 6. Tests Required
+- Rust 单元测试：分页收集函数跟随 `nextPageToken`，合并新增、删除、label added/removed。
+- Rust 单元测试：`401` 映射为 Auth，`404` 错误消息保留“full resync required”。
+- Rust 同步测试：本地处理有失败时 `can_advance_gmail_cursor(false)` 路径不推进 cursor。
+- 回归测试：非法/非 2xx History response 不会被当成空增量成功。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```rust
+let history: HistoryList = resp.json().await?;
+advance_cursor(history.history_id);
+```
+
+#### Correct
+```rust
+let history = collect_paginated_gmail_history(&history_id, fetch_page).await?;
+if failure_count == 0 {
+    advance_cursor(history.history_id);
+}
 ```
 
 ## Scenario: 浏览器 Web Push 通知契约

@@ -18,6 +18,7 @@ import {
 import { useDelayedIdleReady } from "@/hooks/useDelayedIdleReady";
 
 const SEARCH_INDEX_REFRESH_DELAY_MS = 2500;
+const MAIL_QUERY_REFRESH_DEBOUNCE_MS = 500;
 
 interface MailErrorPayload {
   error_type: string;
@@ -71,6 +72,8 @@ export default function StatusBar() {
   const { data: pendingOpsSummary } = usePendingMailOpsSummary(activeAccountId, statusDataReady);
   const syncStatusRef = useRef(syncStatus);
   const searchRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mailRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingMailRefreshAccountIdsRef = useRef<Set<string | null>>(new Set());
 
   useEffect(() => {
     syncStatusRef.current = syncStatus;
@@ -91,10 +94,43 @@ export default function StatusBar() {
     }, SEARCH_INDEX_REFRESH_DELAY_MS);
   }
 
+  function flushPendingMailRefreshes() {
+    const accountIds = Array.from(pendingMailRefreshAccountIdsRef.current);
+    pendingMailRefreshAccountIdsRef.current.clear();
+    mailRefreshTimerRef.current = null;
+
+    queryClient.invalidateQueries({ queryKey: shellQueryKey });
+    const shouldRefreshAllAccounts = accountIds.length === 0 || accountIds.some((id) => !id);
+    if (shouldRefreshAllAccounts) {
+      queryClient.invalidateQueries({ queryKey: ["folders"] });
+      queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
+    } else {
+      for (const accountId of accountIds) {
+        queryClient.invalidateQueries({ queryKey: ["folders", accountId] });
+        queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] });
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ["messages"] });
+    queryClient.invalidateQueries({ queryKey: ["threads"] });
+  }
+
+  function scheduleMailQueriesRefresh(accountId?: string | null) {
+    pendingMailRefreshAccountIdsRef.current.add(accountId ?? null);
+    if (mailRefreshTimerRef.current) return;
+
+    mailRefreshTimerRef.current = setTimeout(
+      flushPendingMailRefreshes,
+      MAIL_QUERY_REFRESH_DEBOUNCE_MS,
+    );
+  }
+
   useEffect(() => {
     return () => {
       if (searchRefreshTimerRef.current) {
         clearTimeout(searchRefreshTimerRef.current);
+      }
+      if (mailRefreshTimerRef.current) {
+        clearTimeout(mailRefreshTimerRef.current);
       }
     };
   }, []);
@@ -170,7 +206,7 @@ export default function StatusBar() {
     const unlisten = listen<MailNewPayload>("mail:new", (event) => {
       rememberMailNewLatencyEvent(event.payload);
       const aid = event.payload.account_id;
-      refreshMailQueries(aid);
+      scheduleMailQueriesRefresh(aid);
       scheduleSearchRefresh();
     });
     return () => { unlisten.then((fn) => fn()); };

@@ -35,7 +35,7 @@ pub async fn start_sync(
     account_id: String,
     poll_interval_secs: Option<u64>,
 ) -> std::result::Result<String, PebbleError> {
-    start_sync_inner(state.0.clone(), account_id.clone(), poll_interval_secs).await?;
+    let _ = start_sync_inner(state.0.clone(), account_id.clone(), poll_interval_secs).await?;
     Ok(format!("Sync started for account {account_id}"))
 }
 
@@ -62,7 +62,7 @@ async fn start_sync_inner(
     state: std::sync::Arc<AppState>,
     account_id: String,
     poll_interval_secs: Option<u64>,
-) -> std::result::Result<(), PebbleError> {
+) -> std::result::Result<SyncStartOutcome, PebbleError> {
     // Atomically check and reserve the slot to prevent two sync workers
     // for the same account from starting concurrently.
     // If an old task has finished, remove its stale entry so a new one can start.
@@ -70,7 +70,7 @@ async fn start_sync_inner(
         let mut handles = state.sync_handles.lock().await;
         if let Some(existing) = handles.get(&account_id) {
             if !existing.task.is_finished() {
-                return Ok(());
+                return Ok(SyncStartOutcome::AlreadyRunning);
             }
             handles.remove(&account_id);
         }
@@ -237,7 +237,7 @@ async fn start_sync_inner(
         }
     }
 
-    Ok(())
+    Ok(SyncStartOutcome::Started)
 }
 
 fn provider_slug(provider: &ProviderType) -> &'static str {
@@ -360,10 +360,11 @@ impl RealtimePreferenceStartSummary {
     fn record_start_result(
         &mut self,
         account_id: &str,
-        result: std::result::Result<(), PebbleError>,
+        result: std::result::Result<SyncStartOutcome, PebbleError>,
     ) {
         match result {
-            Ok(()) => self.started_count += 1,
+            Ok(SyncStartOutcome::Started) => self.started_count += 1,
+            Ok(SyncStartOutcome::AlreadyRunning) => {}
             Err(e) => self.failures.push((account_id.to_string(), e.to_string())),
         }
     }
@@ -450,6 +451,12 @@ enum TriggerDispatchOutcome {
     SkippedNoWorker,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SyncStartOutcome {
+    Started,
+    AlreadyRunning,
+}
+
 fn normalize_explicit_account_ids(
     account_ids: Vec<String>,
 ) -> std::result::Result<Vec<String>, PebbleError> {
@@ -479,6 +486,17 @@ fn all_account_ids(store: &Store) -> std::result::Result<Vec<String>, PebbleErro
 
 fn should_start_missing_worker_for_wake(ensure_running: bool, trigger: SyncTrigger) -> bool {
     !ensure_running && trigger.should_sync_now()
+}
+
+fn should_start_missing_worker_for_trigger_route(trigger: SyncTrigger) -> bool {
+    trigger.should_sync_now()
+}
+
+fn should_dispatch_wake_trigger_after_ensure(
+    _trigger: SyncTrigger,
+    start_outcome: SyncStartOutcome,
+) -> bool {
+    !matches!(start_outcome, SyncStartOutcome::Started)
 }
 
 fn log_sync_trigger_requested(account_id: &str, reason: &str) {
@@ -768,7 +786,13 @@ pub async fn trigger_sync(
 ) -> std::result::Result<(), PebbleError> {
     let trigger = SyncTrigger::from_reason(&reason);
     log_sync_trigger_requested(&account_id, &reason);
-    dispatch_sync_trigger(state.0.clone(), account_id, trigger, true).await?;
+    dispatch_sync_trigger(
+        state.0.clone(),
+        account_id,
+        trigger,
+        should_start_missing_worker_for_trigger_route(trigger),
+    )
+    .await?;
     Ok(())
 }
 
@@ -808,7 +832,7 @@ async fn dispatch_sync_trigger(
         return Ok(TriggerDispatchOutcome::SkippedNoWorker);
     }
 
-    start_sync_inner(state, account_id, Some(0)).await?;
+    let _ = start_sync_inner(state, account_id, Some(0)).await?;
     Ok(TriggerDispatchOutcome::StartedOneShot)
 }
 
@@ -825,6 +849,7 @@ pub async fn wake_sync(
     let start_if_missing = should_start_missing_worker_for_wake(request.ensure_running, trigger);
 
     for account_id in account_ids {
+        let mut ensure_outcome = None;
         if request.ensure_running {
             match start_sync_inner(
                 state.0.clone(),
@@ -833,14 +858,21 @@ pub async fn wake_sync(
             )
             .await
             {
-                Ok(()) => {
+                Ok(outcome) => {
                     result.ensured_count += 1;
+                    ensure_outcome = Some(outcome);
                 }
                 Err(e) => {
                     warn!("Failed to ensure sync is running for account {account_id}: {e}");
                     result.record_failure(&account_id, &e);
                     continue;
                 }
+            }
+        }
+
+        if let Some(outcome) = ensure_outcome {
+            if !should_dispatch_wake_trigger_after_ensure(trigger, outcome) {
+                continue;
             }
         }
 
@@ -1043,7 +1075,7 @@ mod trigger_tests {
             "bad-account",
             Err(PebbleError::Internal("No auth data".to_string())),
         );
-        summary.record_start_result("good-account", Ok(()));
+        summary.record_start_result("good-account", Ok(SyncStartOutcome::Started));
 
         assert_eq!(summary.started_count, 1);
         assert_eq!(summary.failures.len(), 1);
@@ -1080,6 +1112,34 @@ mod trigger_tests {
         assert!(!should_start_missing_worker_for_wake(
             true,
             SyncTrigger::Manual
+        ));
+    }
+
+    #[test]
+    fn wake_does_not_retrigger_worker_started_by_ensure_running() {
+        assert!(!should_dispatch_wake_trigger_after_ensure(
+            SyncTrigger::WindowFocus,
+            SyncStartOutcome::Started,
+        ));
+        assert!(should_dispatch_wake_trigger_after_ensure(
+            SyncTrigger::WindowFocus,
+            SyncStartOutcome::AlreadyRunning,
+        ));
+    }
+
+    #[test]
+    fn legacy_trigger_route_does_not_start_missing_worker_for_passive_reason() {
+        assert!(!should_start_missing_worker_for_trigger_route(
+            SyncTrigger::WindowBlur
+        ));
+        assert!(!should_start_missing_worker_for_trigger_route(
+            SyncTrigger::Timer
+        ));
+        assert!(should_start_missing_worker_for_trigger_route(
+            SyncTrigger::Manual
+        ));
+        assert!(should_start_missing_worker_for_trigger_route(
+            SyncTrigger::ProviderPush
         ));
     }
 

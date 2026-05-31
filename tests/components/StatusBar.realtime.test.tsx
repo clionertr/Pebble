@@ -104,7 +104,7 @@ describe("StatusBar realtime mail events", () => {
     vi.useRealTimers();
   });
 
-  it("invalidates message, thread, and account folder queries for new mail", async () => {
+  it("coalesces rapid new mail events before invalidating mail queries", async () => {
     render(<StatusBar />);
 
     await waitFor(() => expect(mocks.listeners.has("mail:new")).toBe(true));
@@ -121,6 +121,22 @@ describe("StatusBar realtime mail events", () => {
         received_at: 1_700_000_000,
       },
     });
+    mocks.listeners.get("mail:new")?.({
+      payload: {
+        account_id: "account-1",
+        message_id: "message-2",
+        folder_ids: ["folder-inbox"],
+        thread_id: "thread-2",
+        subject: "Hello again",
+        from: "sender@example.com",
+        received_at: 1_700_000_001,
+      },
+    });
+
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["messages"] });
+    expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["threads"] });
+
+    await vi.advanceTimersByTimeAsync(500);
 
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["messages"] });
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["threads"] });
@@ -129,8 +145,10 @@ describe("StatusBar realtime mail events", () => {
     expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["folders"] });
     expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["messages", "account-1"] });
     expect(mocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["search"] });
+    expect(mocks.invalidateQueries.mock.calls.filter(([arg]) => arg.queryKey[0] === "messages")).toHaveLength(1);
+    expect(mocks.invalidateQueries.mock.calls.filter(([arg]) => arg.queryKey[0] === "threads")).toHaveLength(1);
 
-    await vi.advanceTimersByTimeAsync(2500);
+    await vi.advanceTimersByTimeAsync(2000);
 
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["search"] });
   });

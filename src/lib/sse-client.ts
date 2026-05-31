@@ -9,10 +9,13 @@ export interface Event<T> {
 class SseClient {
   private source: EventSource | null = null;
   private listeners: Map<string, Set<(event: Event<any>) => void>> = new Map();
+  private reconnectListeners: Set<() => void> = new Set();
   private reconnectAttempt = 0;
   private maxReconnectAttempts = 10;
   private baseReconnectDelayMs = 1000;
   private maxReconnectDelayMs = 30000;
+  private hasOpened = false;
+  private reconnectingAfterOpen = false;
 
   private computeReconnectDelay(): number {
     const delay = this.baseReconnectDelayMs * Math.pow(2, this.reconnectAttempt);
@@ -38,10 +41,17 @@ class SseClient {
 
     this.source.onopen = () => {
       this.reconnectAttempt = 0;
+      const shouldNotifyReconnect = this.reconnectingAfterOpen;
+      this.hasOpened = true;
+      this.reconnectingAfterOpen = false;
+      if (shouldNotifyReconnect) {
+        this.reconnectListeners.forEach((listener) => listener());
+      }
     };
 
     this.source.onerror = () => {
       if (this.source?.readyState === EventSource.CLOSED) {
+        this.reconnectingAfterOpen = this.hasOpened;
         this.reconnectAttempt++;
         if (this.reconnectAttempt > this.maxReconnectAttempts) {
           console.error('[SSE] Max reconnect attempts reached, giving up');
@@ -84,6 +94,14 @@ class SseClient {
       }
     };
   }
+
+  onReconnect(handler: () => void): () => void {
+    if (!this.source) this.connect();
+    this.reconnectListeners.add(handler);
+    return () => {
+      this.reconnectListeners.delete(handler);
+    };
+  }
 }
 
 const sseClient = new SseClient();
@@ -93,4 +111,8 @@ export const listen = async <T>(
   handler: (event: Event<T>) => void
 ): Promise<() => void> => {
   return sseClient.listen(event, handler);
+};
+
+export const onSseReconnect = (handler: () => void): (() => void) => {
+  return sseClient.onReconnect(handler);
 };
