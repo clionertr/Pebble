@@ -19,11 +19,17 @@ dist/
 src-tauri/gen/
 
 # IDE
+.codex/
+.gemini/
+.agent/
+.agents/
+.antigravitycli/
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
+
 
 # OS
 .DS_Store
