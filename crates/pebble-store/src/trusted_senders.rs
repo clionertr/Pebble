@@ -60,9 +60,26 @@ impl Store {
         self.with_read(|conn| {
             let mut stmt = conn.prepare(
                 "SELECT account_id, email, trust_type, created_at
-                     FROM trusted_senders WHERE account_id = ?1",
+                     FROM trusted_senders WHERE account_id = ?1
+                     ORDER BY created_at DESC, email ASC",
             )?;
             let rows = stmt.query_map(params![account_id], row_to_trusted_sender)?;
+            let mut senders = Vec::new();
+            for row in rows {
+                senders.push(row?);
+            }
+            Ok(senders)
+        })
+    }
+
+    pub fn list_all_trusted_senders(&self) -> Result<Vec<TrustedSender>> {
+        self.with_read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT account_id, email, trust_type, created_at
+                     FROM trusted_senders
+                     ORDER BY created_at DESC, account_id ASC, email ASC",
+            )?;
+            let rows = stmt.query_map([], row_to_trusted_sender)?;
             let mut senders = Vec::new();
             for row in rows {
                 senders.push(row?);
@@ -146,5 +163,57 @@ mod tests {
             .unwrap();
         let senders = store.list_trusted_senders(&account.id).unwrap();
         assert_eq!(senders.len(), 0);
+    }
+
+    #[test]
+    fn test_list_all_trusted_senders_spans_accounts() {
+        let store = Store::open_in_memory().unwrap();
+        let now = pebble_core::now_timestamp();
+        let account1 = pebble_core::Account {
+            id: pebble_core::new_id(),
+            email: "me@example.com".to_string(),
+            display_name: "Me".to_string(),
+            color: None,
+            provider: pebble_core::ProviderType::Imap,
+            created_at: now,
+            updated_at: now,
+        };
+        let account2 = pebble_core::Account {
+            id: pebble_core::new_id(),
+            email: "work@example.com".to_string(),
+            display_name: "Work".to_string(),
+            color: None,
+            provider: pebble_core::ProviderType::Imap,
+            created_at: now,
+            updated_at: now,
+        };
+        store.insert_account(&account1).unwrap();
+        store.insert_account(&account2).unwrap();
+
+        store
+            .trust_sender(&TrustedSender {
+                account_id: account1.id.clone(),
+                email: "trusted@example.com".to_string(),
+                trust_type: TrustType::Images,
+                created_at: now,
+            })
+            .unwrap();
+        store
+            .trust_sender(&TrustedSender {
+                account_id: account2.id.clone(),
+                email: "trusted@example.com".to_string(),
+                trust_type: TrustType::All,
+                created_at: now + 1,
+            })
+            .unwrap();
+
+        let senders = store.list_all_trusted_senders().unwrap();
+        assert_eq!(senders.len(), 2);
+        assert!(senders
+            .iter()
+            .any(|sender| sender.account_id == account1.id));
+        assert!(senders
+            .iter()
+            .any(|sender| sender.account_id == account2.id));
     }
 }

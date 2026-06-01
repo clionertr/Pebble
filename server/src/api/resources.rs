@@ -32,7 +32,9 @@ pub fn resource_routes() -> Router<Arc<AppState>> {
         .route("/api/cloud-sync/webdav/restore", post(webdav_restore))
         .route(
             "/api/trusted-senders",
-            get(list_trusted).post(trust_sender_handler),
+            get(list_trusted)
+                .post(trust_sender_handler)
+                .delete(remove_trusted),
         )
         .route("/api/trusted-senders/check", get(check_trusted))
         .route("/api/templates", get(list_templates).post(save_template))
@@ -274,10 +276,12 @@ async fn list_trusted(
     State(state): State<Arc<AppState>>,
     Query(q): Query<TrustedQuery>,
 ) -> Result<Json<Vec<pebble_core::TrustedSender>>, crate::api::error::ApiError> {
-    let account_id = q.account_id.unwrap_or_default();
     Ok(Json(
-        crate::rpc::trusted_senders::list_trusted_senders(axum::extract::State(state), account_id)
-            .await?,
+        crate::rpc::trusted_senders::list_trusted_senders(
+            axum::extract::State(state),
+            q.account_id,
+        )
+        .await?,
     ))
 }
 
@@ -303,6 +307,26 @@ async fn trust_sender_handler(
         b.account_id,
         b.email,
         trust_type,
+    )
+    .await?;
+    Ok(Json(()))
+}
+
+#[derive(Deserialize)]
+pub struct RemoveTrustedQuery {
+    #[serde(rename = "accountId")]
+    pub account_id: String,
+    pub email: String,
+}
+
+async fn remove_trusted(
+    State(state): State<Arc<AppState>>,
+    Query(q): Query<RemoveTrustedQuery>,
+) -> Result<Json<()>, crate::api::error::ApiError> {
+    crate::rpc::trusted_senders::remove_trusted_sender(
+        axum::extract::State(state),
+        q.account_id,
+        q.email,
     )
     .await?;
     Ok(Json(()))

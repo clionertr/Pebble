@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useMailStore } from "@/stores/mail.store";
 import { useToastStore } from "@/stores/toast.store";
 import { listTrustedSenders, removeTrustedSender } from "@/lib/api";
 import type { TrustedSender } from "@/lib/api";
+import { useAccountsQuery } from "@/hooks/queries/useAccountsQuery";
 import {
   PRIVACY_MODE_KEY,
   readStoredPrivacyMode,
@@ -14,17 +15,18 @@ import { Trash2 } from "lucide-react";
 export default function PrivacyTab() {
   const { t } = useTranslation();
   const activeAccountId = useMailStore((s) => s.activeAccountId);
+  const accountsQuery = useAccountsQuery();
   const [trustedSenders, setTrustedSenders] = useState<TrustedSender[]>([]);
   const [privacyMode, setPrivacyMode] = useState<StoredPrivacyMode>(() =>
     readStoredPrivacyMode(),
   );
 
-  useEffect(() => {
-    if (!activeAccountId) {
-      setTrustedSenders((prev) => prev.length === 0 ? prev : []);
-      return;
-    }
+  const accountsById = useMemo(
+    () => new Map((accountsQuery.data ?? []).map((account) => [account.id, account])),
+    [accountsQuery.data],
+  );
 
+  useEffect(() => {
     let cancelled = false;
     listTrustedSenders(activeAccountId)
       .then((senders) => {
@@ -47,11 +49,17 @@ export default function PrivacyTab() {
     localStorage.setItem(PRIVACY_MODE_KEY, mode);
   }
 
-  async function handleRemoveTrust(email: string) {
-    if (!activeAccountId) return;
+  function accountLabel(accountId: string) {
+    const account = accountsById.get(accountId);
+    return account?.email ?? accountId;
+  }
+
+  async function handleRemoveTrust(sender: TrustedSender) {
     try {
-      await removeTrustedSender(activeAccountId, email);
-      setTrustedSenders((prev) => prev.filter((s) => s.email !== email));
+      await removeTrustedSender(sender.account_id, sender.email);
+      setTrustedSenders((prev) =>
+        prev.filter((s) => s.account_id !== sender.account_id || s.email !== sender.email),
+      );
     } catch (err) {
       console.warn("Failed to remove trusted sender", err);
       useToastStore.getState().addToast({
@@ -154,7 +162,7 @@ export default function PrivacyTab() {
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             {trustedSenders.map((sender) => (
               <div
-                key={sender.email}
+                key={`${sender.account_id}:${sender.email}`}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -167,6 +175,15 @@ export default function PrivacyTab() {
               >
                 <div>
                   <span>{sender.email}</span>
+                  {!activeAccountId && (
+                    <span style={{
+                      marginLeft: "8px",
+                      fontSize: "11px",
+                      color: "var(--color-text-secondary)",
+                    }}>
+                      {accountLabel(sender.account_id)}
+                    </span>
+                  )}
                   <span style={{
                     marginLeft: "8px",
                     fontSize: "11px",
@@ -181,7 +198,7 @@ export default function PrivacyTab() {
                   </span>
                 </div>
                 <button
-                  onClick={() => handleRemoveTrust(sender.email)}
+                  onClick={() => handleRemoveTrust(sender)}
                   title={t("common.delete", "Delete")}
                   style={{
                     background: "none",

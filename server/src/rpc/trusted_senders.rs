@@ -17,9 +17,12 @@ pub async fn trust_sender(
 
 pub async fn list_trusted_senders(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
-    account_id: String,
+    account_id: Option<String>,
 ) -> std::result::Result<Vec<TrustedSender>, PebbleError> {
-    state.store.list_trusted_senders(&account_id)
+    match account_id {
+        Some(account_id) if !account_id.is_empty() => state.store.list_trusted_senders(&account_id),
+        _ => state.store.list_all_trusted_senders(),
+    }
 }
 
 pub async fn remove_trusted_sender(

@@ -5,6 +5,8 @@ mod auth;
 mod health;
 mod messages;
 mod shell;
+mod snooze;
+mod trusted_senders;
 
 use axum::{
     extract::State,
@@ -24,7 +26,8 @@ async fn __state_marker(_: State<Arc<AppState>>) -> &'static str {
 }
 
 /// Creates a fully wired test app Router backed by in-memory SQLite.
-pub async fn test_app() -> (Router, TempDir) {
+/// Returns the Router, TempDir, and the underlying AppState for test setup.
+pub async fn test_app() -> (Router, TempDir, Arc<AppState>) {
     let dir = tempfile::tempdir().unwrap();
 
     let store = pebble_store::Store::open_in_memory().unwrap();
@@ -60,7 +63,7 @@ pub async fn test_app() -> (Router, TempDir) {
             state.clone(),
             middleware::auth_middleware,
         ))
-        .with_state(state);
+        .with_state(state.clone());
 
-    (app, dir)
+    (app, dir, state)
 }

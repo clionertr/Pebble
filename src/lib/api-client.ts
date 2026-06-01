@@ -25,6 +25,7 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
+  signal?: AbortSignal,
 ): Promise<T> {
   const url = new URL(path, window.location.origin);
   const init: RequestInit = {
@@ -34,6 +35,9 @@ async function request<T>(
   };
   if (body !== undefined) {
     init.body = JSON.stringify(body);
+  }
+  if (signal) {
+    init.signal = signal;
   }
   const res = await fetch(url.toString(), init);
   if (!res.ok) {
@@ -222,8 +226,8 @@ export async function readTranslateStream(
   return { translated, segments: [] };
 }
 
-export function apiGet<T>(path: string): Promise<T> {
-  return request<T>('GET', path);
+export function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
+  return request<T>('GET', path, undefined, signal);
 }
 
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {
@@ -366,9 +370,9 @@ export function getRenderedHtml(messageId: string, privacyMode: string) {
   return apiGet<unknown>(`${BASE}/messages/${encodeURIComponent(messageId)}/html?${qs}`);
 }
 
-export function getMessageWithHtml(messageId: string, privacyMode: string) {
+export function getMessageWithHtml(messageId: string, privacyMode: string, signal?: AbortSignal) {
   const qs = new URLSearchParams({ privacyMode });
-  return apiGet<unknown>(`${BASE}/messages/${encodeURIComponent(messageId)}/full?${qs}`);
+  return apiGet<unknown>(`${BASE}/messages/${encodeURIComponent(messageId)}/full?${qs}`, signal);
 }
 
 // ── Messages (mutations) ───────────────────────────────────────────────
@@ -499,8 +503,15 @@ export function listKanbanContextNotes() {
 
 // ── Trusted Senders ────────────────────────────────────────────────────
 
-export function listTrustedSenders(accountId: string) {
-  return apiGet<unknown[]>(`${BASE}/trusted-senders?accountId=${encodeURIComponent(accountId)}`);
+function trustedSendersPath(accountId: string | null) {
+  const qs = new URLSearchParams();
+  if (accountId) qs.set("accountId", accountId);
+  const query = qs.toString();
+  return `${BASE}/trusted-senders${query ? `?${query}` : ""}`;
+}
+
+export function listTrustedSenders(accountId: string | null) {
+  return apiGet<unknown[]>(trustedSendersPath(accountId));
 }
 
 export function trustSender(accountId: string, email: string, trustType: string) {

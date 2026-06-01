@@ -323,10 +323,12 @@ export async function getRenderedHtml(
 export async function getMessageWithHtml(
   messageId: string,
   privacyMode: PrivacyMode,
+  signal?: AbortSignal,
 ): Promise<[Message, RenderedHtml] | null> {
   return client.getMessageWithHtml(
     messageId,
     privacyModeQueryParam(privacyMode),
+    signal,
   ) as Promise<[Message, RenderedHtml] | null>;
 }
 
@@ -396,7 +398,7 @@ export async function deletePendingMailOp(id: string): Promise<void> {
 
 // ─── Trusted Senders API ────────────────────────────────────────────────────
 
-export async function listTrustedSenders(accountId: string): Promise<TrustedSender[]> {
+export async function listTrustedSenders(accountId: string | null): Promise<TrustedSender[]> {
   return client.listTrustedSenders(accountId) as Promise<TrustedSender[]>;
 }
 

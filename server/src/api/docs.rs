@@ -243,7 +243,14 @@ fn build_spec() -> Value {
     paths.insert(
         "/api/snoozed".into(),
         json!({
-            "get": { "summary": "List snoozed messages" }
+            "get": { "summary": "List snoozed messages" },
+            "post": { "summary": "Snooze a message" }
+        }),
+    );
+    paths.insert(
+        "/api/snoozed/{id}".into(),
+        json!({
+            "delete": { "summary": "Unsnooze a message" }
         }),
     );
 
@@ -512,7 +519,8 @@ fn build_spec() -> Value {
         "/api/trusted-senders".into(),
         json!({
             "get": { "summary": "List trusted senders" },
-            "post": { "summary": "Trust a sender" }
+            "post": { "summary": "Trust a sender" },
+            "delete": { "summary": "Remove trusted sender" }
         }),
     );
     paths.insert(
