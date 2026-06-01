@@ -448,3 +448,38 @@ Implemented Web Push browser notifications (backend push service, notification d
 ### Next Steps
 
 - None - task complete
+
+
+## Session 12: 修复受信任发件人 DELETE 路由与全部邮箱聚合 + 补全 Snooze API 路由
+
+**Date**: 2026-06-01
+**Task**: 修复受信任发件人 DELETE 路由与全部邮箱聚合 + 补全 Snooze API 路由
+**Branch**: `master`
+
+### Summary
+
+后端 trusted-senders 和 snooze API 均缺失写操作路由，前端按钮静默失败。补上 trusted-senders DELETE/全量查询、snooze POST/DELETE，修复 PrivacyTab 全部邮箱视图，补 Rust API 集成测试与规格文档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cbd4c04` | (see git log) |
+| `8a0ab6e` | (see git log) |
+| `1c7593b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
