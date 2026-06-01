@@ -116,6 +116,118 @@ return client.getRenderedHtml(messageId, privacyMode as string);
 return client.getRenderedHtml(messageId, privacyModeQueryParam(privacyMode));
 ```
 
+## Scenario: 受信任发件人设置页与聚合账号
+
+### 1. Scope / Trigger
+- Trigger: “受信任的发件人”跨越 SQLite `trusted_senders` 表、store/service、REST API、前端 API wrapper 和设置页；单账号与“全部邮箱”必须使用同一条 `account_id + email` 精确记录。
+- 范围：`crates/pebble-store/src/trusted_senders.rs`、`server/src/rpc/trusted_senders.rs`、`server/src/api/resources.rs`、`src/lib/api-client.ts`、`src/lib/api.ts`、`src/features/settings/PrivacyTab.tsx`。
+
+### 2. Signatures
+- `GET /api/trusted-senders?accountId=<accountId>` -> `TrustedSender[]`：列出单账号受信任发件人。
+- `GET /api/trusted-senders` -> `TrustedSender[]`：列出所有账号受信任发件人，用于“全部邮箱”设置视图。
+- `POST /api/trusted-senders` body `{ accountId: string, email: string, trustType: "images" | "all" }` -> `null`。
+- `DELETE /api/trusted-senders?accountId=<accountId>&email=<sender email>` -> `null`。
+- `GET /api/trusted-senders/check?accountId=<accountId>&email=<sender email>` -> `boolean`。
+- `TrustedSender = { account_id: string, email: string, trust_type: "images" | "all", created_at: number }`。
+
+### 3. Contracts
+- 删除必须由后端 `/api/trusted-senders` 显式挂载 `DELETE`；前端不得改回旧 RPC 或用 `POST` 伪删除。
+- `accountId` 查询参数缺省只对 `GET /api/trusted-senders` 表示“全部账号”；`DELETE` 和 `/check` 必须继续要求明确 `accountId`。
+- “全部邮箱”在前端等价于 `activeAccountId === null`；此时 `listTrustedSenders(null)` 必须省略 `accountId` 查询参数。
+- 设置页在“全部邮箱”下必须展示每条记录所属账号邮箱；同一发件人出现在多个账号时要显示多条记录。
+- 删除按钮必须使用当前行的 `sender.account_id` 和 `sender.email`，不能使用全局 `activeAccountId`；否则“全部邮箱”下会删不到或误删。
+- React 列表 key 必须包含 `account_id + email`，不能只用 `email`。
+
+### 4. Validation & Error Matrix
+- `GET /api/trusted-senders` 缺少 `accountId` -> `200`，返回全部账号记录。
+- `GET /api/trusted-senders?accountId=<id>` -> `200`，只返回该账号记录。
+- `DELETE /api/trusted-senders` 缺少 `accountId` 或 `email` -> `400` query 提取错误。
+- `DELETE /api/trusted-senders?accountId=<id>&email=<email>` -> `200`，即使记录已不存在也应保持幂等成功。
+- 同一 `email` 存在于两个账号 -> 删除其中一个账号的记录后，另一个账号记录仍保留。
+
+### 5. Good/Base/Bad Cases
+- Good: “全部邮箱”设置页显示 `noreply@email.openai.com` 两条记录，并分别标出 `me@example.com`、`work@example.com`，删除第二条只影响工作邮箱。
+- Base: 单账号设置页仍调用 `GET /api/trusted-senders?accountId=<id>`，列表不显示其他账号的信任记录。
+- Bad: 后端只注册 `get(...).post(...)`，前端 `DELETE /api/trusted-senders?...` 返回 405 “无此方法”。
+- Bad: “全部邮箱”下因 `activeAccountId === null` 直接清空列表，用户误以为没有任何受信任发件人。
+
+### 6. Tests Required
+- Rust store 测试：`list_all_trusted_senders` 能跨账号返回记录，且保留 `account_id`。
+- Rust API 测试：`POST` 两个账号同名发件人后，`GET /api/trusted-senders` 返回两条，`DELETE` 单条后另一账号仍存在。
+- 前端 API 测试：`listTrustedSenders(null)` 不带 `accountId`；`removeTrustedSender(accountId, email)` 使用 `DELETE` 并编码两个查询参数。
+- 前端设置测试：“全部邮箱”下显示全部账号记录和对应邮箱；删除使用当前行 `account_id + email`。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```typescript
+if (!activeAccountId) return [];
+```
+
+#### Correct
+```typescript
+const senders = await listTrustedSenders(activeAccountId);
+```
+
+#### Wrong
+```typescript
+await removeTrustedSender(activeAccountId, sender.email);
+```
+
+#### Correct
+```typescript
+await removeTrustedSender(sender.account_id, sender.email);
+```
+
+
+## Scenario: 邮件延迟 (Snooze) REST 边界
+
+### 1. Scope / Trigger
+- Trigger: 前端通过 REST API 执行 snooze/unsnooze；后端 RPC 和 store 层已完整实现但 API 路由曾缺失 POST 和 DELETE。
+- 范围：`server/src/api/threads.rs`、`server/src/rpc/snooze.rs`、`crates/pebble-store/src/snooze.rs`、`src/lib/api-client.ts`。
+
+### 2. Signatures
+- `GET /api/snoozed` -> `SnoozedMessage[]`：列出所有延迟消息。
+- `POST /api/snoozed` body `{ messageId: string, until: number, returnTo: string }` -> `null`。
+- `DELETE /api/snoozed/:messageId` -> `null`：取消延迟，触发 `mail:unsnoozed` SSE 事件。
+
+### 3. Contracts
+- `POST /api/snoozed` 和 `DELETE /api/snoozed/:messageId` 必须显式注册在 `server/src/api/threads.rs` 路由表中。
+- `DELETE` 路径参数名必须与前端 URI 一致（`:messageId`），不能使用 `:id`。
+- `POST` body 必须使用 camelCase（`messageId`、`returnTo`），与前端 `api-client.ts` 发送的字段名一致。
+- 后端 unsnooze 时从 `snoozed_messages` 表中查找 `return_to`，在删除记录前读取，删除后通过 SSE 广播 `mail:unsnoozed` 事件。
+- `snoozed_messages.message_id` 有 FK 到 `messages(id)`；测试必须先通过 store 插入 message，确保 FK 约束满足。
+
+### 4. Validation & Error Matrix
+- `POST /api/snoozed` body 缺失 `messageId` -> `400`。
+- `DELETE /api/snoozed/:messageId` messageId 不存在 -> `200`（幂等，删除不存在的记录不报错）。
+- `GET /api/snoozed` -> `200`，空列表。
+
+### 5. Good/Base/Bad Cases
+- Good: 用户点击 Snooze 按钮 → `POST /api/snoozed` → 消息出现在 Snoozed 视图 → 到期自动或手动 unsnooze → `DELETE /api/snoozed/:messageId` → 消息回到收件箱。
+- Bad: 后端只注册 `GET /api/snoozed`，POST/DELETE 返回 405/404，前端按钮静默失败（错误被 `console.error` 吞掉）。
+- Bad: `DELETE /api/snoozed/:id` 路径参数名不一致导致路由不匹配 404。
+
+### 6. Tests Required
+- Rust API 测试：POST snooze → GET list 包含 → DELETE unsnooze → GET list 为空。
+- Rust store 测试：`snooze_message`、`unsnooze_message`、`list_snoozed_messages` CRUD（已存在）。
+- 前端测试：`SnoozedView` 渲染和 unsnooze 按钮操作（已存在）。
+- 回归测试：全部 27 个 API 集成测试通过。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```rust
+// 只注册 GET，POST 和 DELETE 缺失 → 405 Method Not Allowed
+.route("/api/snoozed", get(list_snoozed))
+```
+
+#### Correct
+```rust
+.route("/api/snoozed", get(list_snoozed).post(snooze_message_handler))
+.route("/api/snoozed/:messageId", delete(unsnooze_message_handler))
+```
+
 ## Scenario: 邮件详情收件人展示语义
 
 ### 1. Scope / Trigger
