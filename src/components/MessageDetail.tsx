@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Clock, Languages } from "lucide-react";
 import { trustSender } from "@/lib/api";
 import { useTranslation } from "react-i18next";
-import type { PrivacyMode, TranslateResult } from "@/lib/api";
+import type { EmailAddress, PrivacyMode, TranslateResult } from "@/lib/api";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { MessageDetailSkeleton } from "./Skeleton";
 import PrivacyBanner from "./PrivacyBanner";
@@ -34,6 +34,18 @@ function formatFullDate(timestamp: number): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatRecipient(recipient: EmailAddress): string {
+  const name = recipient.name?.trim() ?? "";
+  const address = recipient.address.trim();
+
+  if (name && address) return `${name} <${address}>`;
+  return address || name;
+}
+
+function formatRecipientList(recipients: EmailAddress[] | null | undefined): string {
+  return recipients?.map(formatRecipient).filter(Boolean).join(", ") ?? "";
 }
 
 export default function MessageDetail({ messageId, onBack, folderRole }: Props) {
@@ -217,6 +229,9 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
     );
   }
 
+  const toRecipientDisplay =
+    formatRecipientList(message.to_list) || (receivingAccount ? `<${receivingAccount.email}>` : "");
+
   return (
     <div
       style={{
@@ -330,9 +345,9 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
                 &lt;{message.from_address}&gt;
               </span>
             )}
-            {receivingAccount && (
+            {toRecipientDisplay && (
               <span style={{ color: "var(--color-text-secondary)", marginLeft: "6px", fontSize: "12px" }}>
-                to&nbsp;&lt;{receivingAccount.email}&gt;
+                to&nbsp;{toRecipientDisplay}
               </span>
             )}
           </div>

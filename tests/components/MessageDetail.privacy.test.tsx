@@ -74,7 +74,7 @@ vi.mock("../../src/components/ShadowDomEmail", () => ({
   ShadowDomEmail: ({ html }: { html: string }) => <div>{html}</div>,
 }));
 
-function makeMessage(id: string): Message {
+function makeMessage(id: string, overrides: Partial<Message> = {}): Message {
   return {
     id,
     account_id: "account-1",
@@ -102,6 +102,7 @@ function makeMessage(id: string): Message {
     updated_at: 1_700_000_000,
     body_text: "Body",
     body_html_raw: "<p>Body</p>",
+    ...overrides,
   };
 }
 
@@ -150,5 +151,22 @@ describe("MessageDetail privacy mode", () => {
     rerender(<MessageDetail messageId="message-b" onBack={vi.fn()} />);
 
     expect(lastPrivacyMode()).toBe("Strict");
+  });
+
+  it("shows the message To header instead of the receiving account", () => {
+    mocks.useMessageLoader.mockImplementationOnce((messageId: string) => ({
+      message: makeMessage(messageId, {
+        to_list: [{ name: "Original Recipient", address: "original@example.com" }],
+      }),
+      setMessage: vi.fn(),
+      rendered: null,
+      loading: false,
+      error: null,
+    }));
+
+    render(<MessageDetail messageId="forwarded-message" onBack={vi.fn()} />);
+
+    expect(screen.getByText(/to\s+Original Recipient <original@example\.com>/)).toBeTruthy();
+    expect(screen.queryByText(/recipient@example\.com/)).toBeNull();
   });
 });
