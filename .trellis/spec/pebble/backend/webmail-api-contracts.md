@@ -116,6 +116,55 @@ return client.getRenderedHtml(messageId, privacyMode as string);
 return client.getRenderedHtml(messageId, privacyModeQueryParam(privacyMode));
 ```
 
+## Scenario: 邮件详情收件人展示语义
+
+### 1. Scope / Trigger
+- Trigger: 自动转发、别名收信或聚合多账号场景下，邮件“存在哪个账号”和“邮件头写给谁”可能不同；详情页不能把接收账户误当成邮件收件人。
+- 范围：`src/components/MessageDetail.tsx`、`src/lib/api-types.ts`、`crates/pebble-core/src/types.rs`、`crates/pebble-mail/src/parser.rs`、`crates/pebble-mail/src/provider/gmail.rs`、`crates/pebble-mail/src/provider/outlook.rs`。
+
+### 2. Signatures
+- `GET /api/messages/:id/full?privacyMode=<mode>` -> `[Message, RenderedHtml] | null`。
+- `Message.account_id: string`：本地存储/查询所属账号。
+- `Message.to_list: EmailAddress[]`、`cc_list: EmailAddress[]`、`bcc_list: EmailAddress[]`：邮件头或 Provider API 返回的收件人列表。
+- `EmailAddress = { name: string | null, address: string }`。
+
+### 3. Contracts
+- `account_id` 只表示“这封邮件同步到哪个 Pebble 账号”，不得作为 `To`、`Cc` 或 `Bcc` 的展示来源。
+- 邮件详情页展示 `to ...` 时，必须优先使用 `message.to_list`；只有 `to_list` 为空时，才允许回退到账户邮箱作为兼容提示。
+- 展示多个收件人时保持列表顺序，用逗号连接；有 `name` 和 `address` 时展示 `Name <address>`，只有 `address` 时展示邮箱地址。
+- 同步/解析层如果能获得邮件头 `To`，必须写入 `Message.to_list` 并经 Store/API 原样传到前端。
+
+### 4. Validation & Error Matrix
+- `to_list` 非空且不等于接收账户 -> 详情页显示 `to_list`，不能显示接收账户。
+- `to_list` 为空且能找到 `account_id` 对应账户 -> 详情页可显示接收账户作为 fallback。
+- `to_list` 中存在空地址/空名称 -> 展示层跳过空展示项，避免渲染空白 `to` 文案。
+- Provider 未返回原始收件人 -> 属于同步数据缺失；前端不得用 `account_id` 伪装成真实 `To`。
+
+### 5. Good/Base/Bad Cases
+- Good: `to_list=[Original <original@example.com>]` 且接收账户是 `receiver@example.com`，详情页显示 `to Original <original@example.com>`。
+- Base: 老数据 `to_list=[]`，详情页显示 `to <receiver@example.com>`，用户仍能看到邮件属于哪个账号。
+- Bad: 任何非空 `to_list` 场景都固定显示 `to <receiver@example.com>`，自动转发邮件会看起来像原本就发给接收账户。
+
+### 6. Tests Required
+- 前端组件测试：构造 `Message.to_list` 与 `useAccountsQuery()` 返回邮箱不同，断言 `MessageDetail` 显示 `to_list` 中的原始收件人。
+- 前端组件测试：同一场景下断言接收账户邮箱不出现在 `to` 收件人位置。
+- Rust 解析/Provider 测试：已有 IMAP/Gmail/Outlook 收件人解析用例应继续保证 `to_list` 从邮件头/API 字段填充。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```tsx
+const receivingAccount = accounts?.find((a) => a.id === message.account_id);
+return <span>to&nbsp;&lt;{receivingAccount.email}&gt;</span>;
+```
+
+#### Correct
+```tsx
+const toRecipientDisplay =
+  formatRecipientList(message.to_list) || (receivingAccount ? `<${receivingAccount.email}>` : "");
+return toRecipientDisplay ? <span>to&nbsp;{toRecipientDisplay}</span> : null;
+```
+
 ## Scenario: SSE 新邮件事件驱动前端缓存刷新
 
 ### 1. Scope / Trigger
