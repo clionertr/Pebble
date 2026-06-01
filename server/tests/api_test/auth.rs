@@ -5,7 +5,7 @@ use tower::ServiceExt;
 
 #[tokio::test]
 async fn unauthenticated_api_returns_401() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     let response = app
         .oneshot(
@@ -22,7 +22,7 @@ async fn unauthenticated_api_returns_401() {
 
 #[tokio::test]
 async fn authenticated_api_request_returns_200() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     // Step 1: login to get a session cookie
     let login_response = app
@@ -64,7 +64,7 @@ async fn authenticated_api_request_returns_200() {
 
 #[tokio::test]
 async fn invalid_cookie_returns_401() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     let response = app
         .oneshot(
@@ -82,7 +82,7 @@ async fn invalid_cookie_returns_401() {
 
 #[tokio::test]
 async fn login_correct_password_returns_200_and_cookie() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     let response = app
         .oneshot(
@@ -125,7 +125,7 @@ async fn login_correct_password_returns_200_and_cookie() {
 
 #[tokio::test]
 async fn login_wrong_password_returns_401() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     let response = app
         .oneshot(
@@ -145,7 +145,7 @@ async fn login_wrong_password_returns_401() {
 
 #[tokio::test]
 async fn login_missing_password_returns_400() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     let response = app
         .oneshot(
@@ -165,7 +165,7 @@ async fn login_missing_password_returns_400() {
 
 #[tokio::test]
 async fn auth_status_without_cookie_returns_false() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     let response = app
         .oneshot(
@@ -187,7 +187,7 @@ async fn auth_status_without_cookie_returns_false() {
 
 #[tokio::test]
 async fn auth_status_with_valid_cookie_returns_true() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     // Login
     let login_response = app
@@ -232,7 +232,7 @@ async fn auth_status_with_valid_cookie_returns_true() {
 
 #[tokio::test]
 async fn logout_clears_cookie() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     // Login first
     let login_response = app
@@ -297,7 +297,7 @@ async fn logout_clears_cookie() {
 
 #[tokio::test]
 async fn rate_limit_blocks_after_5_failures() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     // First 5 attempts return 401 (wrong password)
     for i in 0..5 {
@@ -340,7 +340,7 @@ async fn rate_limit_blocks_after_5_failures() {
 
 #[tokio::test]
 async fn auth_exempt_routes_are_accessible() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     // /webhook/gmail is exempt from auth (has its own secret verification)
     let response = app
@@ -377,7 +377,7 @@ async fn auth_exempt_routes_are_accessible() {
 
 #[tokio::test]
 async fn events_requires_session_cookie() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     let response = app
         .oneshot(

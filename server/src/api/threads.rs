@@ -61,7 +61,11 @@ pub fn thread_routes() -> Router<Arc<AppState>> {
             "/api/kanban/notes",
             get(list_kanban_notes_handler).patch(merge_kanban_notes_handler),
         )
-        .route("/api/snoozed", get(list_snoozed))
+        .route(
+            "/api/snoozed",
+            get(list_snoozed).post(snooze_message_handler),
+        )
+        .route("/api/snoozed/:messageId", delete(unsnooze_message_handler))
 }
 
 // ── Handlers ─────────────────────────────────────────────────────────
@@ -148,6 +152,37 @@ async fn list_kanban(
         "cards": cards,
         "notes": notes,
     })))
+}
+
+#[derive(Deserialize)]
+pub struct SnoozeMessageBody {
+    #[serde(rename = "messageId")]
+    pub message_id: String,
+    pub until: i64,
+    #[serde(rename = "returnTo")]
+    pub return_to: String,
+}
+
+async fn snooze_message_handler(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<SnoozeMessageBody>,
+) -> Result<Json<()>, crate::api::error::ApiError> {
+    crate::rpc::snooze::snooze_message(
+        axum::extract::State(state),
+        body.message_id,
+        body.until,
+        body.return_to,
+    )
+    .await?;
+    Ok(Json(()))
+}
+
+async fn unsnooze_message_handler(
+    State(state): State<Arc<AppState>>,
+    Path(message_id): Path<String>,
+) -> Result<Json<()>, crate::api::error::ApiError> {
+    crate::rpc::snooze::unsnooze_message(axum::extract::State(state), message_id).await?;
+    Ok(Json(()))
 }
 
 async fn list_snoozed(

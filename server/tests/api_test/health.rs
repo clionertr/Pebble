@@ -29,7 +29,7 @@ async fn login(app: &Router) -> String {
 
 #[tokio::test]
 async fn health_returns_200() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
     let cookie = login(&app).await;
 
     let response = app
@@ -49,7 +49,7 @@ async fn health_returns_200() {
 
 #[tokio::test]
 async fn health_returns_text_ok() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
     let cookie = login(&app).await;
 
     let response = app
@@ -71,7 +71,7 @@ async fn health_returns_text_ok() {
 
 #[tokio::test]
 async fn nonexistent_route_returns_404() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
     let cookie = login(&app).await;
 
     let response = app
@@ -90,7 +90,7 @@ async fn nonexistent_route_returns_404() {
 
 #[tokio::test]
 async fn wrong_method_returns_405() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
     let cookie = login(&app).await;
 
     let response = app
@@ -110,7 +110,7 @@ async fn wrong_method_returns_405() {
 
 #[tokio::test]
 async fn api_error_not_found_json_shape() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
     let cookie = login(&app).await;
 
     let response = app

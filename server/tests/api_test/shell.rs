@@ -29,7 +29,7 @@ async fn login(app: &Router) -> String {
 
 #[tokio::test]
 async fn shell_returns_401_without_auth() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     let response = app
         .oneshot(
@@ -46,7 +46,7 @@ async fn shell_returns_401_without_auth() {
 
 #[tokio::test]
 async fn shell_returns_200_with_auth() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
     let cookie = login(&app).await;
 
     let response = app
@@ -65,7 +65,7 @@ async fn shell_returns_200_with_auth() {
 
 #[tokio::test]
 async fn shell_returns_expected_structure() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
     let cookie = login(&app).await;
 
     let response = app

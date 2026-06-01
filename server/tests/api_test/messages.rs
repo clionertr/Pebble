@@ -28,7 +28,7 @@ async fn login(app: &Router) -> String {
 
 #[tokio::test]
 async fn inbox_returns_401_without_auth() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
 
     let response = app
         .oneshot(
@@ -45,7 +45,7 @@ async fn inbox_returns_401_without_auth() {
 
 #[tokio::test]
 async fn inbox_returns_200_with_auth() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
     let cookie = login(&app).await;
 
     let response = app
@@ -64,7 +64,7 @@ async fn inbox_returns_200_with_auth() {
 
 #[tokio::test]
 async fn inbox_returns_expected_structure() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
     let cookie = login(&app).await;
 
     let response = app
@@ -90,7 +90,7 @@ async fn inbox_returns_expected_structure() {
 
 #[tokio::test]
 async fn starred_returns_200() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
     let cookie = login(&app).await;
 
     let response = app
@@ -110,7 +110,7 @@ async fn starred_returns_200() {
 
 #[tokio::test]
 async fn get_message_returns_404_for_nonexistent() {
-    let (app, _dir) = test_app().await;
+    let (app, _dir, _state) = test_app().await;
     let cookie = login(&app).await;
 
     let response = app
