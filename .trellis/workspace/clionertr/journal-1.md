@@ -415,3 +415,36 @@ Implemented Web Push browser notifications (backend push service, notification d
 ### Next Steps
 
 - None - task complete
+
+
+## Session 11: Fix forwarded mail recipient display
+
+**Date**: 2026-06-01
+**Task**: Fix forwarded mail recipient display
+**Branch**: `master`
+
+### Summary
+
+邮件详情页优先展示 message.to_list，修复转发邮件把接收账户误当收件人的问题。补充回归测试和 spec 契约文档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ffbdb92` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
