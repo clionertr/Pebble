@@ -66,7 +66,7 @@ describe("useMessageLoader", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(getMessageWithHtml).toHaveBeenCalledOnce();
-    expect(getMessageWithHtml).toHaveBeenCalledWith("message-1", "Strict");
+    expect(getMessageWithHtml).toHaveBeenCalledWith("message-1", "Strict", expect.any(AbortSignal));
     expect(getRenderedHtml).not.toHaveBeenCalled();
   });
 

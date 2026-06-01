@@ -36,8 +36,8 @@ describe("privacy mode API parameters", () => {
     await getMessageWithHtml("message-1", "Strict");
     await getMessageWithHtml("message-1", "Off");
 
-    expect(mocks.getMessageWithHtml).toHaveBeenNthCalledWith(1, "message-1", "strict");
-    expect(mocks.getMessageWithHtml).toHaveBeenNthCalledWith(2, "message-1", "off");
+    expect(mocks.getMessageWithHtml).toHaveBeenNthCalledWith(1, "message-1", "strict", undefined);
+    expect(mocks.getMessageWithHtml).toHaveBeenNthCalledWith(2, "message-1", "off", undefined);
   });
 
   it("serializes trusted sender mode without stringifying the object", async () => {

@@ -30,6 +30,7 @@ export function useMessageLoader(messageId: string | null, privacyMode: PrivacyM
       return;
     }
 
+    const controller = new AbortController();
     let cancelled = false;
     const initialPrivacyMode = privacyModeRef.current;
     const initialRenderKey = renderKey(messageId, initialPrivacyMode);
@@ -41,7 +42,7 @@ export function useMessageLoader(messageId: string | null, privacyMode: PrivacyM
 
     async function load() {
       try {
-        const result = await getMessageWithHtml(messageId!, initialPrivacyMode);
+        const result = await getMessageWithHtml(messageId!, initialPrivacyMode, controller.signal);
         if (cancelled || !result) return;
         const [msg, html] = result;
         setMessage(msg);
@@ -52,7 +53,7 @@ export function useMessageLoader(messageId: string | null, privacyMode: PrivacyM
           flagsMutation.mutate({ messageId: messageId!, isRead: true });
         }
       } catch (err) {
-        if (!cancelled) {
+        if (!cancelled && !(err instanceof DOMException && err.name === 'AbortError')) {
           setError(err instanceof Error ? err.message : String(err));
         }
       } finally {
@@ -61,7 +62,7 @@ export function useMessageLoader(messageId: string | null, privacyMode: PrivacyM
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
   }, [messageId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-render HTML when privacy mode changes (without reloading message)
