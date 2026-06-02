@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 12
-- **Last Active**: 2026-06-01
+- **Total Sessions**: 13
+- **Last Active**: 2026-06-02
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~485 | Active |
+| `journal-1.md` | ~518 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 13 | 2026-06-02 | 第1阶段安全与稳定性止血实现 | `5ebbe89` | `master` |
 | 12 | 2026-06-01 | 修复受信任发件人 DELETE 路由与全部邮箱聚合 + 补全 Snooze API 路由 | `cbd4c04`, `8a0ab6e`, `1c7593b` | `master` |
 | 11 | 2026-06-01 | Fix forwarded mail recipient display | `ffbdb92` | `master` |
 | 10 | 2026-05-30 | Webmail shell metadata cache | `8dac36f` | `master` |
