@@ -18,8 +18,8 @@ This directory contains guidelines for backend development. Fill in each file wi
 | [Directory Structure](./directory-structure.md) | Module organization and file layout | Done |
 | [Webmail API Contracts](./webmail-api-contracts.md) | REST/SSE/auth/deploy cross-layer contracts | Done |
 | [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations | To fill |
-| [Error Handling](./error-handling.md) | Error types, handling strategies | To fill |
-| [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
+| [Error Handling](./error-handling.md) | Error types, handling strategies | Done (Phase 1) |
+| [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns, security patterns | Done (Phase 1) |
 | [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | To fill |
 
 ---
