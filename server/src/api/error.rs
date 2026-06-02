@@ -7,6 +7,7 @@ use axum::{
     Json,
 };
 use serde_json::json;
+use tracing::error;
 
 /// Standard API error response body: `{ "error": "message" }`
 #[derive(Debug)]
@@ -64,7 +65,18 @@ impl From<pebble_core::PebbleError> for ApiError {
                 Self::unauthorized(msg)
             }
             pebble_core::PebbleError::Validation(msg) => Self::bad_request(msg),
-            _ => Self::internal(e.to_string()),
+            other => {
+                error!("Internal error: {other}");
+                Self::internal("Internal server error")
+            }
         }
+    }
+}
+
+// serde_json::Error → ApiError：序列化失败属于内部错误，不向客户端暴露细节
+impl From<serde_json::Error> for ApiError {
+    fn from(e: serde_json::Error) -> Self {
+        error!("JSON serialization error: {e}");
+        Self::internal("Internal server error")
     }
 }

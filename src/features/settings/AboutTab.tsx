@@ -5,9 +5,9 @@ import { Copy, RefreshCw, X } from "lucide-react";
 import iconUrl from "@/assets/app-icon.png";
 import { readAppLog, type AppLogSnapshot } from "@/lib/api";
 
-const APP_VERSION = "0.0.4";
+const APP_VERSION = "0.0.10";
 
-const REPO = "QingJ01/Pebble";
+const REPO = "clionertr/Pebble";
 const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
 function openUrl(url: string) {

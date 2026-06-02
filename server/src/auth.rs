@@ -8,6 +8,14 @@ use pebble_oauth::{OAuthManager, OAuthNetworkConfig, PkceState};
 use serde::Deserialize;
 use std::sync::Arc;
 
+fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;")
+}
+
 pub struct OAuthSession {
     pub provider: String,
     pub pkce_state: PkceState,
@@ -45,12 +53,22 @@ pub async fn login_handler(
     let proxy =
         match crate::rpc::network::proxy_config_from_parts(proxy_host, proxy_port, "OAuth proxy") {
             Ok(proxy) => proxy,
-            Err(e) => return Html(format!("<h1>Error</h1><p>{}</p>", e)).into_response(),
+            Err(e) => {
+                return Html(format!(
+                    "<h1>Error</h1><p>{}</p>",
+                    escape_html(&e.to_string())
+                ))
+                .into_response()
+            }
         };
     let config = match crate::rpc::oauth::config_for_provider(&provider) {
         Ok(c) => c,
         Err(e) => {
-            return Html(format!("<h1>Error</h1><p>Invalid provider: {}</p>", e)).into_response()
+            return Html(format!(
+                "<h1>Error</h1><p>Invalid provider: {}</p>",
+                escape_html(&e.to_string())
+            ))
+            .into_response()
         }
     };
 
@@ -60,7 +78,7 @@ pub async fn login_handler(
         Err(e) => {
             return Html(format!(
                 "<h1>Error</h1><p>Failed to start OAuth flow: {}</p>",
-                e
+                escape_html(&e.to_string())
             ))
             .into_response()
         }
@@ -91,7 +109,7 @@ pub async fn callback_handler(
     Query(query): Query<CallbackQuery>,
 ) -> impl IntoResponse {
     if let Some(err) = query.error {
-        return Html(format!("<h1>OAuth Error</h1><p>{}</p>", err)).into_response();
+        return Html(format!("<h1>OAuth Error</h1><p>{}</p>", escape_html(&err))).into_response();
     }
 
     let code = match query.code {
@@ -114,7 +132,13 @@ pub async fn callback_handler(
 
     let config = match crate::rpc::oauth::config_for_provider(&session.provider) {
         Ok(c) => c,
-        Err(e) => return Html(format!("<h1>Error</h1><p>{}</p>", e)).into_response(),
+        Err(e) => {
+            return Html(format!(
+                "<h1>Error</h1><p>{}</p>",
+                escape_html(&e.to_string())
+            ))
+            .into_response()
+        }
     };
 
     let global_proxy =
@@ -129,7 +153,7 @@ pub async fn callback_handler(
         Ok(tp) => tp,
         Err(e) => {
             let message = crate::rpc::oauth::token_exchange_error_message(&session.provider, &e);
-            return Html(format!("<h1>Error</h1><p>{}</p>", message)).into_response();
+            return Html(format!("<h1>Error</h1><p>{}</p>", escape_html(&message))).into_response();
         }
     };
 
@@ -167,7 +191,7 @@ pub async fn callback_handler(
         .into_response(),
         Err(e) => Html(format!(
             "<h1>Error</h1><p>Failed to create account: {}</p>",
-            e
+            escape_html(&e.to_string())
         ))
         .into_response(),
     }
@@ -304,5 +328,23 @@ mod tests {
             account_color_for_existing_oauth_account(&existing, &accounts, "gmail@example.com");
 
         assert_eq!(color, "#22c55e");
+    }
+
+    #[test]
+    fn escape_html_blocks_script_tags() {
+        assert_eq!(
+            escape_html("<script>alert('xss')</script>"),
+            "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;"
+        );
+    }
+
+    #[test]
+    fn escape_html_escapes_all_special_chars() {
+        assert_eq!(escape_html("&<>\"'"), "&amp;&lt;&gt;&quot;&#x27;");
+    }
+
+    #[test]
+    fn escape_html_preserves_plain_text() {
+        assert_eq!(escape_html("access_denied"), "access_denied");
     }
 }

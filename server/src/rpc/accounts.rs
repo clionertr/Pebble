@@ -350,7 +350,12 @@ pub async fn add_account(
         Ok(())
     })() {
         // Rollback: remove the partially created account
-        let _ = state.store.delete_account(&account.id);
+        if let Err(rollback_err) = state.store.delete_account(&account.id) {
+            tracing::warn!(
+                "Failed to rollback partially created account {}: {rollback_err}",
+                account.id
+            );
+        }
         return Err(e);
     }
 

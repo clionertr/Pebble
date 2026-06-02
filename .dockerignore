@@ -4,6 +4,11 @@ dist
 .git
 .trellis
 .agents
+.agent
 .gemini
+.claude
+.codex
+.antigravitycli
 data
+server/data
 .env

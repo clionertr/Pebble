@@ -15,7 +15,7 @@ pub async fn check_for_update(current_version: String) -> Result<UpdateInfo, Str
         .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
 
     let resp = client
-        .get("https://api.github.com/repos/QingJ01/Pebble/releases/latest")
+        .get("https://api.github.com/repos/clionertr/Pebble/releases/latest")
         .header("Accept", "application/vnd.github.v3+json")
         .send()
         .await
@@ -36,7 +36,7 @@ pub async fn check_for_update(current_version: String) -> Result<UpdateInfo, Str
     let latest = tag.trim_start_matches('v').to_string();
     let release_url = data["html_url"]
         .as_str()
-        .unwrap_or("https://github.com/QingJ01/Pebble/releases")
+        .unwrap_or("https://github.com/clionertr/Pebble/releases")
         .to_string();
 
     let has_update = match (Version::parse(&latest), Version::parse(&current_version)) {

@@ -118,7 +118,7 @@ async fn translate_text(
     let result =
         crate::rpc::translate::translate_text(axum::extract::State(state), b.text, b.from, b.to)
             .await?;
-    Ok(Json(serde_json::to_value(result).unwrap()))
+    Ok(Json(serde_json::to_value(result)?))
 }
 
 async fn translate_text_stream(
@@ -208,7 +208,7 @@ async fn search_contacts_handler(
             axum::extract::State(state),
             q.account_id,
             q.q,
-            q.limit.map(|l| l as i64),
+            q.limit.map(|l| (l.min(500)) as i64),
         )
         .await?,
     ))
@@ -248,7 +248,7 @@ async fn webdav_preview(
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
     let result =
         crate::rpc::cloud_sync::preview_webdav_backup(b.url, b.username, b.password).await?;
-    Ok(Json(serde_json::to_value(result).unwrap()))
+    Ok(Json(serde_json::to_value(result)?))
 }
 async fn webdav_restore(
     State(state): State<Arc<AppState>>,
@@ -420,9 +420,11 @@ pub struct LogsQuery {
 async fn read_logs(
     Query(q): Query<LogsQuery>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
-    let snapshot = crate::rpc::diagnostics::read_app_log(q.max_bytes)
-        .map_err(crate::api::error::ApiError::internal)?;
-    Ok(Json(serde_json::to_value(snapshot).unwrap()))
+    let snapshot = crate::rpc::diagnostics::read_app_log(q.max_bytes).map_err(|e| {
+        tracing::error!("Failed to read app log: {e}");
+        crate::api::error::ApiError::internal("Internal server error")
+    })?;
+    Ok(Json(serde_json::to_value(snapshot)?))
 }
 
 async fn record_timing(
@@ -430,8 +432,9 @@ async fn record_timing(
 ) -> Result<Json<()>, crate::api::error::ApiError> {
     let timing: crate::rpc::diagnostics::MailDisplayTiming = serde_json::from_value(timing)
         .map_err(|e| crate::api::error::ApiError::bad_request(e.to_string()))?;
-    crate::rpc::diagnostics::record_mail_display_timing(timing)
-        .map_err(crate::api::error::ApiError::internal)?;
+    crate::rpc::diagnostics::record_mail_display_timing(timing).map_err(|e| {
+        crate::api::error::ApiError::internal(format!("Failed to record timing: {e}"))
+    })?;
     Ok(Json(()))
 }
 
@@ -440,8 +443,11 @@ async fn record_timing(
 async fn get_global_proxy_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Option<pebble_core::HttpProxyConfig>>, crate::api::error::ApiError> {
-    let proxy = crate::rpc::network::get_global_proxy_raw(&state.crypto, &state.store)
-        .map_err(|e| crate::api::error::ApiError::internal(e.to_string()))?;
+    let proxy =
+        crate::rpc::network::get_global_proxy_raw(&state.crypto, &state.store).map_err(|e| {
+            tracing::error!("Failed to get global proxy: {e}");
+            crate::api::error::ApiError::internal("Internal server error")
+        })?;
     Ok(Json(proxy))
 }
 

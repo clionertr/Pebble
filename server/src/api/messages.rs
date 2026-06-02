@@ -11,6 +11,8 @@ use std::sync::Arc;
 use crate::state::AppState;
 use pebble_core::PrivacyMode;
 
+const MAX_PAGE_LIMIT: usize = 500;
+
 #[derive(Deserialize)]
 pub struct InboxQuery {
     #[serde(rename = "accountId")]
@@ -75,11 +77,12 @@ async fn inbox_handler(
     State(state): State<Arc<AppState>>,
     Query(query): Query<InboxQuery>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
+    let limit = query.limit.unwrap_or(50).min(MAX_PAGE_LIMIT) as u32;
     let messages = crate::rpc::messages::query::list_messages(
         axum::extract::State(state),
         query.folder_id.clone(),
         query.folder_ids(),
-        query.limit.unwrap_or(50) as u32,
+        limit,
         query.offset.unwrap_or(0) as u32,
     )
     .await?;
@@ -95,10 +98,11 @@ async fn starred_handler(
     State(state): State<Arc<AppState>>,
     Query(query): Query<StarredQuery>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
+    let limit = query.limit.unwrap_or(50).min(MAX_PAGE_LIMIT) as u32;
     let messages = crate::rpc::messages::query::list_starred_messages(
         axum::extract::State(state),
         query.account_id,
-        query.limit.unwrap_or(50) as u32,
+        limit,
         query.offset.unwrap_or(0) as u32,
     )
     .await?;
@@ -118,7 +122,7 @@ async fn get_message_handler(
         crate::rpc::messages::query::get_message(axum::extract::State(state), message_id).await?;
 
     match msg {
-        Some(m) => Ok(Json(serde_json::to_value(m).unwrap())),
+        Some(m) => Ok(Json(serde_json::to_value(m)?)),
         None => Err(crate::api::error::ApiError::not_found("Message not found")),
     }
 }
@@ -300,7 +304,7 @@ async fn html_handler(
         privacy,
     )
     .await?;
-    Ok(Json(serde_json::to_value(html).unwrap()))
+    Ok(Json(serde_json::to_value(html)?))
 }
 
 async fn full_handler(
@@ -315,7 +319,7 @@ async fn full_handler(
         privacy,
     )
     .await?;
-    Ok(Json(serde_json::to_value(result).unwrap()))
+    Ok(Json(serde_json::to_value(result)?))
 }
 
 #[cfg(test)]
@@ -374,7 +378,7 @@ async fn pending_ops_summary_handler(
         axum::extract::State(state),
         query.account_id,
     )?;
-    Ok(Json(serde_json::to_value(summary).unwrap()))
+    Ok(Json(serde_json::to_value(summary)?))
 }
 
 async fn list_pending_ops_handler(
@@ -384,9 +388,9 @@ async fn list_pending_ops_handler(
     let ops = crate::rpc::pending_mail_ops::list_pending_mail_ops(
         axum::extract::State(state),
         query.account_id,
-        query.limit.map(|n| n as i64),
+        query.limit.map(|n| (n as i64).min(MAX_PAGE_LIMIT as i64)),
     )?;
-    Ok(Json(serde_json::to_value(ops).unwrap()))
+    Ok(Json(serde_json::to_value(ops)?))
 }
 
 async fn cancel_pending_op_handler(

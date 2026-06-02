@@ -3,7 +3,7 @@
 use crate::state::AppState;
 use axum::{
     body::Body,
-    extract::{Multipart, Path, State},
+    extract::{DefaultBodyLimit, Multipart, Path, State},
     http::{header, StatusCode},
     response::IntoResponse,
     routing::{get, post},
@@ -12,13 +12,18 @@ use axum::{
 use std::sync::Arc;
 use tokio_util::io::ReaderStream;
 
+const MAX_ATTACHMENT_SIZE: usize = 25 * 1024 * 1024;
+
 pub fn attachment_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route(
             "/api/messages/:id/attachments",
             get(list_attachments_handler),
         )
-        .route("/api/attachments/stage", post(stage_handler))
+        .route(
+            "/api/attachments/stage",
+            post(stage_handler).layer(DefaultBodyLimit::max(MAX_ATTACHMENT_SIZE)),
+        )
         .route("/api/attachments/:id", get(download_handler))
 }
 
@@ -51,6 +56,13 @@ async fn stage_handler(
             .bytes()
             .await
             .map_err(|e| crate::api::error::ApiError::bad_request(e.to_string()))?;
+
+        if data.len() > MAX_ATTACHMENT_SIZE {
+            return Err(crate::api::error::ApiError::bad_request(format!(
+                "Attachment '{}' exceeds maximum size of {} bytes",
+                filename, MAX_ATTACHMENT_SIZE
+            )));
+        }
 
         let path = crate::rpc::compose::stage_compose_attachment(
             axum::extract::State(state.clone()),
@@ -85,12 +97,16 @@ async fn download_handler(
     let att = state
         .store
         .get_attachment(&attachment_id)
-        .map_err(|e| crate::api::error::ApiError::internal(e.to_string()))?
+        .map_err(|e| {
+            tracing::error!("Failed to get attachment metadata: {e}");
+            crate::api::error::ApiError::internal("Internal server error")
+        })?
         .ok_or_else(|| crate::api::error::ApiError::not_found("Attachment not found"))?;
 
-    let file = tokio::fs::File::open(&path)
-        .await
-        .map_err(|e| crate::api::error::ApiError::internal(e.to_string()))?;
+    let file = tokio::fs::File::open(&path).await.map_err(|e| {
+        tracing::error!("Failed to open attachment file: {e}");
+        crate::api::error::ApiError::internal("Internal server error")
+    })?;
     let stream = ReaderStream::new(file);
     let body = Body::from_stream(stream);
 

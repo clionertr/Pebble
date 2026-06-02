@@ -497,7 +497,9 @@ pub async fn batch_delete(
 
     // Update search index: remove deleted messages.
     let delete_ids: Vec<String> = ids_to_delete.clone();
-    let _ = state.store.add_search_pending(&delete_ids, "remove");
+    if let Err(e) = state.store.add_search_pending(&delete_ids, "remove") {
+        tracing::warn!("Failed to add search pending for deleted messages: {e}");
+    }
     for id in &ids_to_delete {
         if let Err(e) = state.search.remove_message(id) {
             warn!("Failed to remove deleted message {id} from search index: {e}");
@@ -506,7 +508,9 @@ pub async fn batch_delete(
     if let Err(e) = state.search.commit() {
         warn!("Failed to commit search index after batch delete: {e}");
     }
-    let _ = state.store.clear_search_pending(&delete_ids);
+    if let Err(e) = state.store.clear_search_pending(&delete_ids) {
+        tracing::warn!("Failed to clear search pending for deleted messages: {e}");
+    }
 
     info!(
         "Batch delete: {}/{} messages deleted",

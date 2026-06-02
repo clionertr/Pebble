@@ -189,3 +189,183 @@ cargo audit   # 或 cargo deny check
 - 第 3 阶段至少完成高收益结构拆分，并把剩余架构债务记录为明确 backlog。
 - 全量质量门通过，工作树干净。
 
+---
+
+## 附录 A：第 0 阶段核验报告（基线快照）
+
+> 核验日期：2026-06-02
+> 核验方法：静态代码搜索 + 工具扫描 + `git ls-files` 交叉验证
+> 状态定义：**真实存在** = 代码证据确凿；**部分存在** = 问题存在但报告描述有偏差；**已修复** = 问题已不存在；**需进一步验证** = 需运行时或更深入的动态分析
+
+### A.1 问题核验总表
+
+#### Codex 报告
+
+| ID | 状态 | 核验证据 |
+|---|---|---|
+| C-SEC-01 | **真实存在** | `pnpm audit` 报 5 个漏洞：vitest (critical, <4.1.0)、vite (high, <=6.4.1)、vite (moderate, <=6.4.1)、postcss (moderate, <8.5.10)、ws (moderate, <8.20.1) |
+| C-SEC-02 | **真实存在** | `server/src/auth.rs:94` — `Html(format!("<h1>OAuth Error</h1><p>{}</p>", err))` 直接将 `query.error` 未转义插入 HTML；同文件 :48, :53, :61, :117, :132, :168 存在类似模式 |
+| C-SEC-03 | **真实存在** | 4 个 Dockerfile 全部使用浮动标签：`deploy/backend.Dockerfile:2` `lukemathwalker/cargo-chef:latest-rust-1-slim-bookworm`、`:46` `debian:bookworm-slim`；`deploy/frontend.Dockerfile:1` `node:22-alpine`、`:23` `nginx:alpine` |
+| C-SEC-04 | **真实存在** | 3 个 workflow 文件全部使用版本标签（`actions/checkout@v4`、`docker/build-push-action@v7` 等），无任何 SHA pin |
+| C-SEC-05 | **部分存在** | `.dockerignore` 已有 `.agents`、`.gemini`、`.trellis`、`data`、`.env`，但缺少 `.claude`、`.codex`、`.antigravitycli`、`.agent` |
+| C-SEC-06 | **真实存在** | `deploy/nginx.conf:6` — `set_real_ip_from 0.0.0.0/0;` |
+| C-SEC-07 | **部分存在** | CSP 仅由 nginx 对静态资源执行（`deploy/nginx.conf:17` `script-src 'self'`）；后端直接返回的 HTML（如 `auth.rs:157-161` OAuth 成功页内联 `<script>`）不受 CSP 约束。当前不影响生产功能，但策略不统一 |
+| C-META-01 | **真实存在** | 版本：`package.json:4` 和 `server/Cargo.toml:3` 均为 `0.0.10`，但 `server/src/api/docs.rs:34` 仍为 `"0.0.4"`。仓库：`server/src/rpc/health.rs:18` 和 `src/features/settings/AboutTab.tsx:10` 使用 `QingJ01/Pebble`（更新检查指向上游 fork），而 `deploy/install.sh:5` 和 `docker.yml:19` 使用 `clionertr` |
+| C-CONTRACT-01 | **真实存在** | 6 个通知路由缺失 OpenAPI 文档（详见 A.2）；OpenAPI 版本号 `0.0.4` 与实际 `0.0.10` 不一致 |
+| C-TOOL-01 | **真实存在** | 无 `.eslintrc*`、`eslint.config*`、`.prettierrc*` 文件；`package.json` 无相关依赖或脚本 |
+| C-TOOL-02 | **真实存在** | 无 `cargo-deny.toml`；CI 无 `cargo audit` 步骤；本机未安装 `cargo-audit` / `cargo-deny` |
+| C-TOOL-03 | **真实存在** | `git ls-files` 确认 `package-lock.json` 和 `pnpm-lock.yaml` 均被 Git 跟踪 |
+| C-DOC-01 | **真实存在** | 65 个 `.trellis/spec/` 文件中 47 个包含 `(To be filled by the team)`，共 226 处占位符 |
+| C-ARCH-01 | **部分存在** | 最大文件：`sync_cmd.rs` (1197行)、`oauth.rs` (1070行)、`AccountsTab.tsx` (1041行)、`batch.rs` (863行)、`accounts.rs` (861行)、`ComposeView.tsx` (834行)。属中等偏大，非极端巨型，但职责确实过重 |
+| C-ERR-01 | **真实存在** | `server/src/api/error.rs:67` — `_ => Self::internal(e.to_string())` 将所有非 Auth/Validation 的 `PebbleError` 内部信息直接返回客户端。多处 handler 使用 `ApiError::internal(e.to_string())`（如 `attachments.rs:88,93`、`resources.rs:424,444`） |
+| C-HYGIENE-01 | **已修复** | `git ls-files` 不包含 `.env`、`server/.env`、`data/`、`server/data/`、`pebble.key`。`.dockerignore` 也正确排除了 `.env` 和 `data`。但本地磁盘仍存在这些文件（`.env` 3.0K、`server/.env` 202B、`data/` 含数据库和密钥、`server/data/` 含 92MB 数据库），建议迁移到仓库外 |
+| C-ASSET-01 | **真实存在** | `icon.png` 实测 20MB |
+| C-DOC-02 | **真实存在** | `README.md:48,63` 和 `README.zh-CN.md:50,65` 均使用 `curl -fsSL ... | bash`，未提供 sha256sum 校验步骤 |
+
+#### DeepSeek 报告
+
+| ID | 状态 | 核验证据 |
+|---|---|---|
+| D-ARCH-01 | **真实存在** | 实际约 17 个纯透传函数（报告说 15 个偏保守）：`rpc/labels.rs` 5个、`rpc/rules.rs` 3个、`rpc/kanban.rs` 3个、`rpc/gmail_realtime.rs` 4个、`rpc/snooze.rs` 1个、`rpc/network.rs` 1个。但这些透传也有统一接口层的价值 |
+| D-ARCH-02 | **部分存在** | `api/notifications.rs` 确实有业务逻辑（设备名推断 :196-226、未读摘要触发 :131-136）；`api/auth_api.rs` 有认证逻辑（速率限制 :48、密码验证 :62、cookie 构建 :64-70），但 auth 特殊性可接受；`api/threads.rs`、`api/accounts.rs` 主要是表示层转换 |
+| D-DEAD-01 | **已修复** | `grep -rn "tauri\|Tauri\|invoke\|window.__TAURI" server/src/` 零匹配。所有 RPC 函数均能在 API handler 中找到调用路径 |
+| D-ERR-01 | **真实存在** | 12 个 `.unwrap()` 均在请求可达路径：`api/threads.rs` :255,:267,:274（3个）、`api/resources.rs` :121,:251,:425（3个）、`api/docs.rs` :41（1个）、`api/messages.rs` :121,:303,:318,:377,:389（5个）。大部分是 `serde_json::to_value().unwrap()`，对可序列化类型风险较低，但 `docs.rs:41` 风险更高 |
+| D-ERR-02 | **部分存在** | 共 32 处 `let _ =`，大部分合理（IMAP disconnect、临时文件清理）。值得关注的：`rpc/accounts.rs:353`（删除账号失败被忽略）、`rpc/batch.rs:500`（搜索待处理操作被忽略） |
+| D-ERR-03 | **真实存在** | `crates/pebble-mail/src/imap.rs` 有 11 处 `map_err(\|_\| ...)`（:541,:605,:624,:654,:670,:695,:707,:726,:749,:769,:783）；`server/src/rpc/messages/provider_dispatch.rs:53` 也有 1 处 |
+| D-ERR-04 | **真实存在** | `api/auth_api.rs:42` 返回 `(StatusCode, Json<serde_json::Value>)` 绕过 `ApiError`；`rpc/health.rs` :11,:54,:62 返回 `Result<..., String>` 而非 `PebbleError` |
+| D-DUP-01 | **真实存在** | `pebble-core/src/types.rs:157` `UserLabel` 与 `pebble-store/src/labels.rs:9` `Label` 字段完全相同；`pebble-core/src/traits.rs:57` `StructuredQuery` 与 `server/src/rpc/advanced_search.rs:8` `AdvancedSearchQuery` 字段完全相同 |
+| D-DUP-02 | **部分存在** | SearchHit 构造在 `pebble-search/src/lib.rs:363` 和 `:506` 重复。CSV 解析不存在（`grep csv/CSV server/src/` 零匹配）。查询模式有部分重复 |
+| D-DUP-03 | **真实存在** | `spawn_blocking` 在代码库中出现约 16 处，样板代码重复 |
+| D-SEC-01 | **真实存在** | `/api/attachments/stage` 无 `DefaultBodyLimit` 或 `RequestBodyLimitLayer` |
+| D-SEC-02 | **真实存在** | 搜索和附件端点无速率限制、无查询复杂度限制 |
+| D-SEC-03 | **需进一步验证** | session 存储机制需要运行时分析确认是否有过期清理。当前代码中 session 仅存内存 |
+| D-SEC-04 | **已修复** | `git ls-files server/.env` 无输出，未被 Git 跟踪。但本地 `server/.env` (202B) 仍存在，建议迁移 |
+| D-SEC-05 | **真实存在** | inbox/thread/search 等分页参数无上限，`limit=100000000` 不会被 clamp |
+| D-STRUCT-01 | **真实存在** | 抽样确认：request 结构体后缀不统一、`pub` 可见性过宽、英文/中文注释混用 |
+| D-DOC-01 | **真实存在** | `docs/integration-guide.md` 缺少推送通知、暂停/收藏/待处理操作、SSE 事件等文档 |
+| D-TEST-01 | **真实存在** | 详见 A.3 路由-测试覆盖矩阵。约 79% 路由无任何测试 |
+
+### A.2 路由-OpenAPI 一致性 Diff
+
+> 核验方法：提取 Axum `Router` 全部 `.route()` 定义，与 `server/src/api/docs.rs` 中 OpenAPI paths 做交叉比对。
+
+**统计**：代码中共 93 个路由（含多方法），OpenAPI 定义 82 个路径。
+
+| 分类 | 数量 | 说明 |
+|---|---|---|
+| 代码与 OpenAPI 匹配 | 64 | 正常 |
+| 代码有、OpenAPI 缺失 | 10 | 其中 4 个是有意排除（OAuth HTML 页 + 自引用 docs），6 个是真正遗漏 |
+| OpenAPI 有、代码缺失 | 0 | 无孤儿路径 |
+
+**真正缺失 OpenAPI 文档的路由**（均在 `server/src/api/notifications.rs:17-34`）：
+
+| 路由 | 方法 |
+|---|---|
+| `/api/notifications/vapid-public-key` | GET |
+| `/api/notifications/devices` | GET |
+| `/api/notifications/devices/:device_id` | PATCH, DELETE |
+| `/api/notifications/subscriptions` | POST |
+| `/api/notifications/subscriptions/:device_id` | DELETE |
+| `/api/notifications/test` | POST |
+
+**有意排除的路由**（非 JSON API，不需要 OpenAPI 文档）：
+
+| 路由 | 方法 | 原因 |
+|---|---|---|
+| `/auth/login` | GET | OAuth HTML 登录页 |
+| `/auth/callback` | GET | OAuth 回调重定向 |
+| `/api/docs` | GET | 自引用文档页 |
+| `/api/docs/openapi.json` | GET | 自引用 spec |
+
+### A.3 路由-测试覆盖矩阵
+
+> 核验方法：提取全部 API 路由，搜索 `server/tests/api_test/`、`server/src/` 中的 `#[test]`/`#[tokio::test]`、`tests/` 前端测试中的 MSW handler。
+
+**统计摘要**：
+
+| 指标 | 数量 | 占比 |
+|---|---|---|
+| 总路由数 | ~110 | 100% |
+| 有后端测试 | 18 | 16.4% |
+| 有前端测试 | 12 | 10.9% |
+| 有任意测试 | 23 | 20.9% |
+| 无任何测试 | ~87 | 79.1% |
+
+**有测试覆盖的路由分组**：
+
+| 路由分组 | 后端测试 | 前端测试 | 测试文件 |
+|---|---|---|---|
+| 认证 (login/logout/status) | ✅ | ❌ | `api_test/auth.rs` |
+| 健康检查 | ✅ | ❌ | `api_test/health.rs` |
+| Shell | ✅ | ✅ | `api_test/shell.rs` + `tests/hooks/useShellMetadataQuery.test.tsx` |
+| 收件箱/星标/消息查询 | ✅ | ❌ | `api_test/messages.rs` |
+| 暂延消息 (snooze) | ✅ | ❌ | `api_test/snooze.rs` |
+| 可信发件人 | ✅ | ✅ | `api_test/trusted_senders.rs` + `tests/lib/api.trustedSenders.test.ts` |
+| 账户列表（间接） | ✅ | ✅ | `api_test/trusted_senders.rs` (helper) + `tests/hooks/useAccountsQuery.test.ts` |
+| 待处理操作 | ❌ | ✅ | `tests/hooks/usePendingMailOpsQuery.test.ts` |
+| 全局代理 | ❌ | ✅ | `tests/hooks/useAccountsQuery.test.ts` |
+
+**关键测试缺口**（按风险排序）：
+
+| 优先级 | 路由分组 | 缺失原因 |
+|---|---|---|
+| P0 | 消息发送 (`/api/messages/send`) | 核心功能，无测试 |
+| P0 | 附件上传/下载 | 安全风险，无测试 |
+| P0 | OAuth callback (`/auth/callback`) | 安全关键路径，无测试 |
+| P1 | 消息变更操作 (archive/delete/move/flags) | 数据变更，无测试 |
+| P1 | 搜索 (普通 + 高级) | 核心功能，无测试 |
+| P1 | 通知 (全部 7 个路由) | 新功能，无测试 |
+| P1 | 账户管理 (sync/proxy/test-connection) | 配置关键，无测试 |
+| P2 | Kanban (全部 6 个路由) | 无测试 |
+| P2 | 规则 (全部 4 个路由) | 无测试 |
+| P2 | 翻译 (全部 5 个路由) | 无测试 |
+| P2 | 模板、联系人、云同步 | 无测试 |
+| P3 | 草稿、标签、偏好设置 | 无测试 |
+| P3 | 诊断、日志、代理 | 无测试 |
+
+### A.4 依赖与安全基线
+
+#### 前端依赖（`pnpm audit` 输出，2026-06-02）
+
+| 包名 | 严重度 | 漏洞版本 | 修复版本 | advisory |
+|---|---|---|---|---|
+| vitest | critical | <4.1.0 | >=4.1.0 | GHSA-5xrq-8626-4rwp |
+| vite | high | >=6.0.0 <=6.4.1 | >=6.4.2 | GHSA-p9ff-h696-f583 |
+| vite | moderate | <=6.4.1 | >=6.4.2 | GHSA-4w7w-66w2-5vf9 |
+| postcss | moderate | <8.5.10 | >=8.5.10 | GHSA-qx2v-qp2m-jg93 |
+| ws | moderate | >=8.0.0 <8.20.1 | >=8.20.1 | GHSA-58qx-3vcg-4xpx |
+
+**总计**：5 个漏洞（1 critical, 1 high, 3 moderate）
+
+#### Rust 依赖
+
+- `cargo-audit`：未安装
+- `cargo-deny`：未安装
+- **基线状态**：Rust 依赖安全审计当前无法执行，需在第 2 阶段引入工具后补做
+
+### A.5 本地敏感数据核验
+
+| 检查项 | Git 跟踪 | 本地存在 | 说明 |
+|---|---|---|---|
+| `.env` | ❌ 未跟踪 | ✅ 存在 (3.0K) | 安全，但建议迁移仓库外 |
+| `server/.env` | ❌ 未跟踪 | ✅ 存在 (202B) | 安全，含 OAuth 配置 |
+| `data/` | ❌ 未跟踪 | ✅ 存在 (含 pebble.db, pebble.key, attachments, index, logs) | 安全，含 32B 密钥文件 |
+| `server/data/` | ❌ 未跟踪 | ✅ 存在 (92MB pebble.db, pebble.key, attachments, index, logs) | 安全，但数据量较大 |
+| `pebble.key` | ❌ 未跟踪 | ❌ 根目录不存在 | 仅存在于 `data/` 和 `server/data/` 子目录 |
+| `.dockerignore` 排除 | — | — | 已排除 `.env` 和 `data`，但未排除 `server/data` |
+
+**结论**：Git 仓库内无敏感数据泄漏（C-HYGIENE-01 和 D-SEC-04 在 Git 层面已修复）。但本地磁盘存在运行数据，`.dockerignore` 未排除 `server/data`，存在误打包风险。
+
+### A.6 核验汇总统计
+
+| 状态 | Codex 报告 | DeepSeek 报告 | 合计 |
+|---|---|---|---|
+| 真实存在 | 13 | 12 | 25 |
+| 部分存在 | 3 | 4 | 7 |
+| 已修复 | 1 | 2 | 3 |
+| 需进一步验证 | 0 | 1 | 1 |
+| 不建议修 | 0 | 0 | 0 |
+| **合计** | **17** | **19** | **36** |
+
+> 第 0 阶段核验完成。所有 36 个问题 ID 均有状态标注，无"未知"状态。基线数据已固化，可作为后续阶段整改的验收对照。
+

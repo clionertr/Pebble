@@ -10,6 +10,9 @@ use std::sync::Arc;
 
 use crate::state::AppState;
 
+const MAX_PAGE_LIMIT: usize = 500;
+const MAX_SEARCH_QUERY_LEN: usize = 500;
+
 #[derive(Deserialize)]
 pub struct SearchQuery {
     pub q: String,
@@ -74,11 +77,12 @@ async fn list_threads(
     State(state): State<Arc<AppState>>,
     Query(query): Query<ThreadListQuery>,
 ) -> Result<Json<Vec<pebble_core::ThreadSummary>>, crate::api::error::ApiError> {
+    let limit = query.limit.unwrap_or(50).min(MAX_PAGE_LIMIT) as u32;
     let threads = crate::rpc::threads::list_threads(
         axum::extract::State(state),
         query.folder_id.clone(),
         query.folder_ids(),
-        query.limit.unwrap_or(50) as u32,
+        limit,
         query.offset.unwrap_or(0) as u32,
     )
     .await?;
@@ -98,9 +102,15 @@ async fn search_messages(
     State(state): State<Arc<AppState>>,
     Query(query): Query<SearchQuery>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
+    if query.q.len() > MAX_SEARCH_QUERY_LEN {
+        return Err(crate::api::error::ApiError::bad_request(format!(
+            "Search query too long (max {} characters)",
+            MAX_SEARCH_QUERY_LEN
+        )));
+    }
+    let limit = query.limit.map(|l| l.min(MAX_PAGE_LIMIT));
     let hits =
-        crate::rpc::search::search_messages(axum::extract::State(state), query.q, query.limit)
-            .await?;
+        crate::rpc::search::search_messages(axum::extract::State(state), query.q, limit).await?;
 
     Ok(Json(serde_json::json!({
         "hits": hits,
@@ -120,7 +130,8 @@ async fn advanced_search_handler(
     .map_err(|e| crate::api::error::ApiError::bad_request(e.to_string()))?;
     let limit: Option<usize> = body
         .get("limit")
-        .and_then(|v| v.as_u64().map(|n| n as usize));
+        .and_then(|v| v.as_u64().map(|n| n as usize))
+        .map(|l| l.min(MAX_PAGE_LIMIT));
     let hits =
         crate::rpc::advanced_search::advanced_search(axum::extract::State(state), query, limit)
             .await?;
@@ -252,7 +263,7 @@ async fn set_kanban_note_handler(
         body.note,
     )
     .await?;
-    Ok(Json(serde_json::to_value(notes).unwrap()))
+    Ok(Json(serde_json::to_value(notes)?))
 }
 
 async fn merge_kanban_notes_handler(
@@ -264,12 +275,12 @@ async fn merge_kanban_notes_handler(
         .map_err(|e| crate::api::error::ApiError::bad_request(e.to_string()))?;
     let result =
         crate::rpc::kanban::merge_kanban_context_notes(axum::extract::State(state), notes).await?;
-    Ok(Json(serde_json::to_value(result).unwrap()))
+    Ok(Json(serde_json::to_value(result)?))
 }
 
 async fn list_kanban_notes_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
     let notes = crate::rpc::kanban::list_kanban_context_notes(axum::extract::State(state)).await?;
-    Ok(Json(serde_json::to_value(notes).unwrap()))
+    Ok(Json(serde_json::to_value(notes)?))
 }
