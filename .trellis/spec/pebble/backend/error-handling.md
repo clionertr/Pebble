@@ -105,7 +105,7 @@ state.store.do_something().map_err(|e| {
 ## 常见错误
 
 1. **`map_err(|_| ...)` 丢弃原始错误** — `crates/pebble-mail/src/imap.rs` 仍有 11 处，应在第 2 阶段改为保留原始错误或分类错误（区分超时/连接失败/TLS错误）
-2. **错误返回类型不一致** — `auth_api.rs` 返回 `(StatusCode, Json<Value>)` 绕过 `ApiError`；`health.rs` 返回 `Result<..., String>` 而非 `PebbleError`
+2. **错误返回类型不一致** — 已修复的历史问题：`auth_api.rs` 曾返回 `(StatusCode, Json<Value>)` 绕过 `ApiError`，`health.rs` 曾返回 `Result<..., String>` 而非 `PebbleError`。新增 HTTP handler 必须继续走 `ApiError`，RPC/service 层继续返回 `PebbleError`。
 
 ---
 

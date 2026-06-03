@@ -2,7 +2,6 @@
 
 use axum::{
     extract::{ConnectInfo, State},
-    http::StatusCode,
     response::Json,
     routing::{get, post},
     Router,
@@ -12,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use crate::state::AppState;
+use crate::{api::error::ApiError, state::AppState};
 
 const SESSION_COOKIE: &str = "pebble_session";
 
@@ -39,24 +38,20 @@ async fn login_handler(
     connect_info: Option<ConnectInfo<SocketAddr>>,
     jar: CookieJar,
     Json(body): Json<LoginRequest>,
-) -> Result<(CookieJar, Json<AuthStatus>), (StatusCode, Json<serde_json::Value>)> {
+) -> Result<(CookieJar, Json<AuthStatus>), ApiError> {
     let source_ip = connect_info
         .map(|ci| ci.0.ip().to_string())
         .unwrap_or_else(|| "unknown".to_string());
     let session_store = &state.session_store;
 
     if !session_store.check_rate_limit(&source_ip).await {
-        return Err((
-            StatusCode::TOO_MANY_REQUESTS,
-            Json(serde_json::json!({"error": "Too many login attempts. Try again later."})),
+        return Err(ApiError::too_many_requests(
+            "Too many login attempts. Try again later.",
         ));
     }
 
     if body.password.is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Password is required"})),
-        ));
+        return Err(ApiError::bad_request("Password is required"));
     }
 
     if session_store.check_password(&body.password) {
@@ -76,10 +71,7 @@ async fn login_handler(
         ))
     } else {
         session_store.record_failure(&source_ip).await;
-        Err((
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Invalid password"})),
-        ))
+        Err(ApiError::unauthorized("Invalid password"))
     }
 }
 
