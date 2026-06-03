@@ -239,7 +239,7 @@ cargo audit   # 或 cargo deny check
 | P1 | 更新问题状态总表 | **已完成当前映射**：附录 C.1 已按 36 个问题 ID 逐项映射到“已完成 / 部分完成 / 剩余”等当前状态，避免直接把附录 A 基线当作最新事实 | 后续执行每完成一项即更新 C.1；已修复项不再误导后续执行 |
 | P1 | OpenAPI 路由 diff 自动测试 | **已完成**：已新增 `api::docs::tests::openapi_paths_match_public_routes`，用于扫描真实路由并比较 OpenAPI paths | `cargo test -p pebble openapi_paths_match_public_routes -- --nocapture` 通过；后续新增公开路由缺文档会失败 |
 | P1 | Rust 依赖安全/许可证检查进入 CI | **已完成 CI 接入**：`deny.toml` 存在，CI 已加入 SHA pin 的 `EmbarkStudios/cargo-deny-action`；本机当前未安装 `cargo-deny`，无法直接跑本地复核 | CI cargo-deny job 通过；已知例外写入 `deny.toml` |
-| P1 | 错误类型统一 | **部分完成**：`rpc/health.rs`、`rpc/diagnostics.rs` 已迁到 `PebbleError`，`auth_api` 已改走 `ApiError`，`record_timing` 不再向客户端拼接内部错误；仍需持续审视新 handler 边界 | 客户端只见安全文案，日志保留内部细节；新增 handler 不再绕过 `ApiError` |
+| P1 | 错误类型统一 | **已完成当前 API 边界**：`rpc/health.rs`、`rpc/diagnostics.rs` 已迁到 `PebbleError`，`auth_api` 已改走 `ApiError`，`record_timing` 不再向客户端拼接内部错误；新增静态测试防止 `/api` handler 回退到 `Result<..., String>` 或裸 `StatusCode + Json` | `cargo test -p pebble --test api_baseline api_handlers_do_not_bypass_api_error_boundary -- --nocapture` 通过；客户端只见安全文案，日志保留内部细节 |
 | P1 | IMAP 错误保留上下文 | **已完成当前范围**：IMAP 测试连接的 TCP/SOCKS5/TLS/greeting 超时错误带目标地址；深层 SELECT/FETCH/STORE/MOVE/IDLE 等命令统一经 `with_imap_timeout()` 保留操作名和原始错误；IMAP UID 解析错误也保留 `ParseIntError` 上下文 | `rg 'map_err\(\|_\|' crates/pebble-mail/src/imap.rs server/src/rpc/messages/provider_dispatch.rs` 无输出；相关单测通过 |
 | P1 | 关键 API 测试补齐 | **已完成 API 范围**：已有 API baseline、auth、OAuth callback、Compose send、messages、shell、snooze、trusted_senders、搜索、通知测试；OpenAPI diff 测试已补入 | 端到端覆盖继续作为 P3 E2E 项推进 |
 | P2 | 拆 `api/resources.rs` | **剩余** | 建立 route snapshot/OpenAPI diff 保护后，按 rules/translate/cloud_sync/trusted_senders/templates/diagnostics/proxy 拆分 |
@@ -270,7 +270,7 @@ cargo audit   # 或 cargo deny check
 | C-TOOL-03 | **已完成** | `git ls-files package-lock.json` 为空，仓库只保留 `pnpm-lock.yaml`。 |
 | C-DOC-01 | **部分完成** | 主 `pebble/backend` 规范已补；包级 spec 仍有大量 `(To be filled by the team)`，需继续清理。 |
 | C-ARCH-01 | **剩余** | 后端/前端巨型文件仍需测试先行后逐个拆分。 |
-| C-ERR-01 | **部分完成** | `ApiError` 默认内部错误已脱敏，`record_timing` 已改安全返回；仍需持续检查新 handler 不拼接内部错误。 |
+| C-ERR-01 | **已完成当前 API 边界** | `ApiError` 默认内部错误已脱敏，`record_timing` 已改安全返回；`api_handlers_do_not_bypass_api_error_boundary` 防止新增 `/api` handler 绕过 `ApiError`。 |
 | C-HYGIENE-01 | **已完成** | Git 不跟踪 `.env`、`data/`、`server/data/`、`pebble.key`，`.dockerignore` 已排除本地运行数据。 |
 | C-ASSET-01 | **已完成** | 根目录 `icon.png` 已从 20MB 压缩到约 703KB。 |
 | C-DOC-02 | **已完成** | README 中 `curl | bash` 已补校验替代方案，中英文 README 已同步。 |
