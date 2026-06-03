@@ -280,7 +280,7 @@ server {
 
 The one-command installer writes a compose file from `deploy/compose.prod.yml`. If you want to maintain it manually, use the prebuilt GHCR images:
 
-`latest` is updated only when this repository pushes a version tag such as `v0.0.10`.
+`latest` is updated only when this repository pushes a version tag such as `v0.0.11`.
 
 ```yaml
 name: pebble

@@ -23,7 +23,7 @@
 | C-SEC-05 | `.dockerignore` 漏掉 `.agent`、`.claude`、`.codex`、`.antigravitycli` | 本地配置可能进入 Docker build context | 第 1 阶段 |
 | C-SEC-06 | nginx `set_real_ip_from 0.0.0.0/0` 信任所有代理头 | 客户端 IP 可被伪造 | 第 1 阶段 |
 | C-SEC-07 | CSP 与更新检查/OAuth inline script 冲突 | 生产功能可能被拦截，也可能诱导放宽 CSP | 第 2 阶段 |
-| C-META-01 | 版本/仓库元数据漂移：`0.0.10` vs `0.0.4`，`clionertr` vs `QingJ01` | 更新检查、OpenAPI、关于页误导用户 | 第 1 阶段 |
+| C-META-01 | 版本/仓库元数据漂移：`0.0.11` vs `0.0.4`，`clionertr` vs `QingJ01` | 更新检查、OpenAPI、关于页误导用户 | 第 1 阶段 |
 | C-CONTRACT-01 | OpenAPI 与真实路由不同步 | API 集成文档不可信 | 第 2 阶段 |
 | C-TOOL-01 | 缺少 ESLint/Prettier | 前端代码风格和 Hooks/a11y 问题不易发现 | 第 2 阶段 |
 | C-TOOL-02 | 缺少 Rust 依赖安全/许可证检查 | Rust 漏洞和许可证风险不可见 | 第 2 阶段 |
@@ -99,7 +99,7 @@
 | 搜索/附件基础限流或复杂度限制 | D-SEC-02 | 对高 CPU/IO 端点增加单用户并发上限、查询长度限制、附件数量限制 | 超长搜索词/过多附件返回 400/429；正常搜索不受影响 |
 | 消除请求可达 `.unwrap()` | D-ERR-01 | 将 API handler 中 `serde_json::to_value(...).unwrap()` 等改为 `?` / `map_err(ApiError::internal)`；`docs.rs` 使用安全构建 | `git grep` 不再出现报告列出的 12 处 HTTP 可达 unwrap；新增或更新测试验证错误路径 |
 | 静默吞错改为可观测 | D-ERR-02 | 对关键 `let _ =` 改成 `if let Err(e)` 并 `warn!`，必要时阻断流程 | 归档文件夹创建失败、账户回滚失败、索引状态写入失败均有日志或返回错误；测试覆盖至少 1 个关键路径 |
-| 版本/仓库元数据统一 | C-META-01, D-DOC-01 | 将 UI、OpenAPI、更新检查、CHANGELOG 链接统一到 `package.json/server/Cargo.toml` 与 `clionertr/Pebble` | `git grep '0.0.4\|QingJ01/Pebble'` 仅保留明确“原始上游署名/历史链接”位置；About 页显示 `0.0.10` 或构建注入版本 |
+| 版本/仓库元数据统一 | C-META-01, D-DOC-01 | 将 UI、OpenAPI、更新检查、CHANGELOG 链接统一到 `package.json/server/Cargo.toml` 与 `clionertr/Pebble` | `git grep '0.0.4\|QingJ01/Pebble'` 仅保留明确“原始上游署名/历史链接”位置；About 页显示 `0.0.11` 或构建注入版本 |
 | `.dockerignore` 补齐本地目录 | C-SEC-05 | 增加 `.agent/`、`.claude/`、`.codex/`、`.antigravitycli/`、`.trellis/.backup-*` 等 | `docker build` context 不包含这些目录；可用临时 `tar`/BuildKit 输出或脚本验证 |
 | nginx 真实 IP 信任范围收紧 | C-SEC-06 | `set_real_ip_from` 改为具体 Docker 网络/反代 IP，或在示例中说明如何配置 | 默认配置不再信任 `0.0.0.0/0`；README 说明多反代场景配置方式 |
 | 本地运行数据迁移建议 | C-HYGIENE-01, D-SEC-04 | 文档说明开发数据应放仓库外，或使用 `.env` 私有路径配置 | README/开发文档含迁移建议；Git 仍不跟踪敏感文件 |
@@ -263,7 +263,7 @@ cargo audit   # 或 cargo deny check
 | C-SEC-05 | **已完成** | `.dockerignore` 已包含 `.agent`、`.claude`、`.codex`、`.antigravitycli`、`server/data` 等本地目录。 |
 | C-SEC-06 | **已完成** | `deploy/nginx.conf` 不再信任 `0.0.0.0/0`，改为 Docker 私网 CIDR 和 loopback。 |
 | C-SEC-07 | **已完成当前范围** | OAuth 成功页和 API docs 已去除 inline style；nginx CSP 已收紧为 `style-src 'self'`，不再允许 `'unsafe-inline'`。 |
-| C-META-01 | **已完成** | OpenAPI、更新检查、About 页、站点链接、CHANGELOG compare 链接已对齐 `0.0.10` 与 `clionertr/Pebble`；README 仅保留明确的原始上游说明和署名。 |
+| C-META-01 | **已完成** | OpenAPI、更新检查、About 页、站点链接、CHANGELOG compare 链接已对齐 `0.0.11` 与 `clionertr/Pebble`；README 仅保留明确的原始上游说明和署名。 |
 | C-CONTRACT-01 | **已完成** | OpenAPI 已补通知路由，新增 `openapi_paths_match_public_routes` 自动 diff 测试。 |
 | C-TOOL-01 | **已完成** | ESLint/Prettier 严格门禁已可通过；CI 前端 lint/format 不再 `continue-on-error`；`pnpm lint`、`pnpm format:check`、`pnpm test`、`pnpm build:frontend` 均通过。 |
 | C-TOOL-02 | **已完成 CI 接入** | `deny.toml` 与 SHA pin 的 `cargo-deny-action` 已存在；本机未安装 `cargo-deny`，本地复核依赖开发环境。 |
@@ -328,8 +328,8 @@ cargo audit   # 或 cargo deny check
 | C-SEC-05 | **部分存在** | `.dockerignore` 已有 `.agents`、`.gemini`、`.trellis`、`data`、`.env`，但缺少 `.claude`、`.codex`、`.antigravitycli`、`.agent` |
 | C-SEC-06 | **真实存在** | `deploy/nginx.conf:6` — `set_real_ip_from 0.0.0.0/0;` |
 | C-SEC-07 | **部分存在** | CSP 仅由 nginx 对静态资源执行（`deploy/nginx.conf:17` `script-src 'self'`）；后端直接返回的 HTML（如 `auth.rs:157-161` OAuth 成功页内联 `<script>`）不受 CSP 约束。当前不影响生产功能，但策略不统一 |
-| C-META-01 | **真实存在** | 版本：`package.json:4` 和 `server/Cargo.toml:3` 均为 `0.0.10`，但 `server/src/api/docs.rs:34` 仍为 `"0.0.4"`。仓库：`server/src/rpc/health.rs:18` 和 `src/features/settings/AboutTab.tsx:10` 使用 `QingJ01/Pebble`（更新检查指向上游 fork），而 `deploy/install.sh:5` 和 `docker.yml:19` 使用 `clionertr` |
-| C-CONTRACT-01 | **真实存在** | 6 个通知路由缺失 OpenAPI 文档（详见 A.2）；OpenAPI 版本号 `0.0.4` 与实际 `0.0.10` 不一致 |
+| C-META-01 | **真实存在** | 版本：`package.json:4` 和 `server/Cargo.toml:3` 均为 `0.0.11`，但 `server/src/api/docs.rs:34` 仍为 `"0.0.4"`。仓库：`server/src/rpc/health.rs:18` 和 `src/features/settings/AboutTab.tsx:10` 使用 `QingJ01/Pebble`（更新检查指向上游 fork），而 `deploy/install.sh:5` 和 `docker.yml:19` 使用 `clionertr` |
+| C-CONTRACT-01 | **真实存在** | 6 个通知路由缺失 OpenAPI 文档（详见 A.2）；OpenAPI 版本号 `0.0.4` 与实际 `0.0.11` 不一致 |
 | C-TOOL-01 | **真实存在** | 无 `.eslintrc*`、`eslint.config*`、`.prettierrc*` 文件；`package.json` 无相关依赖或脚本 |
 | C-TOOL-02 | **真实存在** | 无 `cargo-deny.toml`；CI 无 `cargo audit` 步骤；本机未安装 `cargo-audit` / `cargo-deny` |
 | C-TOOL-03 | **真实存在** | `git ls-files` 确认 `package-lock.json` 和 `pnpm-lock.yaml` 均被 Git 跟踪 |
@@ -502,7 +502,7 @@ cargo audit   # 或 cargo deny check
 
 | ID | 整改动作 | 验收证据 |
 |---|---|---|
-| C-CONTRACT-01 | `api/docs.rs` 补齐 6 条缺失的 notification 路由（vapid-public-key、devices GET/PATCH/DELETE、subscriptions POST/DELETE、test POST）；OpenAPI 版本号已对齐 `0.0.10` | `git grep -n "api/notifications" server/src/api/docs.rs` 可看到全部 6 条路径；路由-OpenAPI diff 为 0（有意排除的 4 条除外） |
+| C-CONTRACT-01 | `api/docs.rs` 补齐 6 条缺失的 notification 路由（vapid-public-key、devices GET/PATCH/DELETE、subscriptions POST/DELETE、test POST）；OpenAPI 版本号已对齐 `0.0.11` | `git grep -n "api/notifications" server/src/api/docs.rs` 可看到全部 6 条路径；路由-OpenAPI diff 为 0（有意排除的 4 条除外） |
 | C-SEC-07 | OAuth 成功页去掉 `<script>` 自动跳转，改用 `<meta http-equiv="refresh">` + 手动回链 | `server/src/auth.rs` 成功分支渲染的 HTML 不再包含 `setTimeout` 或 `window.location`；nginx CSP `script-src 'self'` 下仍可正常跳转 |
 | C-TOOL-01 | 引入 ESLint 9 flat config + Prettier 3；新增 `pnpm lint`、`pnpm lint:fix`、`pnpm format`、`pnpm format:check` 脚本；清理前端存量 lint/format 问题，并移除 CI 前端 lint/format 的 `continue-on-error` | `eslint.config.js`、`.prettierrc`、`.prettierignore` 存在；`pnpm lint`、`pnpm format:check`、`pnpm test`、`pnpm build:frontend` 均通过 |
 | C-TOOL-02 | 新增 `deny.toml`（licenses / advisories / bans / sources）；CI 加入 `EmbarkStudios/cargo-deny-action@v2` 步骤 | `deny.toml` 存在；`.github/workflows/ci.yml` 出现 `cargo-deny-action` |
@@ -510,7 +510,7 @@ cargo audit   # 或 cargo deny check
 | C-SEC-03 | 4 处 Dockerfile 基础镜像改为多架构 index digest pin（`lukemathwalker/cargo-chef`、`debian:bookworm-slim`、`node:22-alpine`、`nginx:alpine`），注释保留原始 tag 便于后续升级 | `deploy/backend.Dockerfile` 与 `deploy/frontend.Dockerfile` 所有 FROM 使用 `@sha256:...` |
 | C-SEC-04 | 3 个 workflow 全部 action 用 `@<SHA> # <tag>` 形式 pin：checkout v4.2.2、setup-node v4.4.0、pnpm/action-setup v4.1.0、rust-toolchain stable、rust-cache v2.7.8、upload/download-artifact v4.x、setup-buildx v4.0.0、login-action v4.0.0、build-push-action v7.0.0、action-gh-release v2.3.3、cargo-deny-action v2.2.0 | `grep -E '@[a-f0-9]{40}' .github/workflows/*.yml` 全部命中 |
 | D-DOC-01 (集成指南) | `docs/integration-guide.md` 新增：SSE 事件全集、推送通知（Web Push/VAPID）、Kanban、暂延、待处理操作五个章节 | 文档目录新增 5 个二级标题，含请求/响应载荷表 |
-| D-DOC-01 / C-DOC-02 (README) | 修正版本号 `v0.0.9` → `v0.0.10`；Node 22+ / pnpm 11+；`cargo test --workspace --all-targets`；补充 sha256 校验替代 `curl \| bash` | `README.md` 与 `README.zh-CN.md` 均更新 |
+| D-DOC-01 / C-DOC-02 (README) | 修正版本号 `v0.0.9` → `v0.0.11`；Node 22+ / pnpm 11+；`cargo test --workspace --all-targets`；补充 sha256 校验替代 `curl \| bash` | `README.md` 与 `README.zh-CN.md` 均更新 |
 | C-ERR-01 (partial) | `pnpm audit` 零漏洞（`No known vulnerabilities found`），第 1 阶段依赖升级已固化 | `pnpm audit` 输出无告警 |
 
 ### B.2 已知遗留 / 推迟到下一阶段

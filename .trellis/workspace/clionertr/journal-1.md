@@ -493,7 +493,7 @@ Implemented Web Push browser notifications (backend push service, notification d
 
 ### Summary
 
-实现第1阶段全部11个整改项：前端依赖漏洞修复、OAuth XSS防护(escape_html)、附件上传25MB上限、查询limit clamp 500、搜索长度限制500字符、消除12处HTTP可达.unwrap()、关键let _改warn!、版本统一为0.0.10/clionertr/Pebble、.dockerignore补齐、nginx real_ip收紧、ApiError脱敏。质量门全部通过。更新error-handling.md和quality-guidelines.md规范。
+实现第1阶段全部11个整改项：前端依赖漏洞修复、OAuth XSS防护(escape_html)、附件上传25MB上限、查询limit clamp 500、搜索长度限制500字符、消除12处HTTP可达.unwrap()、关键let _改warn!、版本统一为0.0.11/clionertr/Pebble、.dockerignore补齐、nginx real_ip收紧、ApiError脱敏。质量门全部通过。更新error-handling.md和quality-guidelines.md规范。
 
 ### Main Changes
 

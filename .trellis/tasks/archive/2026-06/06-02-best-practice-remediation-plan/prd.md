@@ -11,7 +11,7 @@
 - Codex 报告发现的重点包括：
   - 前端依赖漏洞：Vitest、Vite、PostCSS、ws。
   - OAuth HTML 错误页未转义，存在反射型 XSS 风险。
-  - 版本/仓库元数据漂移：`0.0.10` 与 `0.0.4`、`clionertr/Pebble` 与 `QingJ01/Pebble` 不一致。
+  - 版本/仓库元数据漂移：`0.0.11` 与 `0.0.4`、`clionertr/Pebble` 与 `QingJ01/Pebble` 不一致。
   - Docker 基础镜像和 GitHub Actions 未做强 pin。
   - `.dockerignore` 漏掉本地 agent/config 目录。
   - nginx 信任所有 `X-Forwarded-For`。

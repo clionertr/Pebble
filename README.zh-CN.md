@@ -282,7 +282,7 @@ server {
 
 一键安装脚本会从 `deploy/compose.prod.yml` 写出 compose 文件。如果你想手动维护，可以使用预构建的 GHCR 镜像：
 
-`latest` 只会在仓库推送版本 tag（例如 `v0.0.10`）时更新。
+`latest` 只会在仓库推送版本 tag（例如 `v0.0.11`）时更新。
 
 ```yaml
 name: pebble
