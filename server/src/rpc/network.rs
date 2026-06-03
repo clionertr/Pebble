@@ -59,10 +59,10 @@ pub(crate) fn proxy_config_from_parts(
     match (proxy_host, proxy_port) {
         (None, None) => Ok(None),
         (Some(host), None) if host.trim().is_empty() => Ok(None),
-        (Some(_), None) => Err(PebbleError::Network(format!(
+        (Some(_), None) => Err(PebbleError::Validation(format!(
             "{label} port is required when proxy host is set"
         ))),
-        (None, Some(_)) => Err(PebbleError::Network(format!(
+        (None, Some(_)) => Err(PebbleError::Validation(format!(
             "{label} host is required when proxy port is set"
         ))),
         (Some(host), Some(port)) => {
@@ -70,7 +70,7 @@ pub(crate) fn proxy_config_from_parts(
                 host: host.trim().to_string(),
                 port,
             };
-            proxy.validate().map_err(PebbleError::Network)?;
+            proxy.validate().map_err(PebbleError::Validation)?;
             Ok(Some(proxy))
         }
     }

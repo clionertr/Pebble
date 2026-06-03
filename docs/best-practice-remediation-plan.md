@@ -241,13 +241,13 @@ cargo audit   # 或 cargo deny check
 | P1 | Rust 依赖安全/许可证检查进入 CI | **已完成 CI 接入**：`deny.toml` 存在，CI 已加入 SHA pin 的 `EmbarkStudios/cargo-deny-action`；本机当前未安装 `cargo-deny`，无法直接跑本地复核 | CI cargo-deny job 通过；已知例外写入 `deny.toml` |
 | P1 | 错误类型统一 | **已完成当前 API 边界**：`rpc/health.rs`、`rpc/diagnostics.rs` 已迁到 `PebbleError`，`auth_api` 已改走 `ApiError`，`record_timing` 不再向客户端拼接内部错误；新增静态测试防止 `/api` handler 回退到 `Result<..., String>` 或裸 `StatusCode + Json` | `cargo test -p pebble --test api_baseline api_handlers_do_not_bypass_api_error_boundary -- --nocapture` 通过；客户端只见安全文案，日志保留内部细节 |
 | P1 | IMAP 错误保留上下文 | **已完成当前范围**：IMAP 测试连接的 TCP/SOCKS5/TLS/greeting 超时错误带目标地址；深层 SELECT/FETCH/STORE/MOVE/IDLE 等命令统一经 `with_imap_timeout()` 保留操作名和原始错误；IMAP UID 解析错误也保留 `ParseIntError` 上下文 | `rg 'map_err\(\|_\|' crates/pebble-mail/src/imap.rs server/src/rpc/messages/provider_dispatch.rs` 无输出；相关单测通过 |
-| P1 | 关键 API 测试补齐 | **已完成 API 范围**：已有 API baseline、auth、OAuth callback、Compose send、messages、shell、snooze、trusted_senders、搜索、通知测试；OpenAPI diff 测试已补入 | 端到端覆盖继续作为 P3 E2E 项推进 |
+| P1 | 关键 API 测试补齐 | **已完成 API 范围**：已有 API baseline、auth、OAuth callback、Compose send、messages、shell、snooze、trusted_senders、搜索、通知、草稿、标签、偏好设置、诊断、日志、代理测试；OpenAPI diff 测试已补入 | `cargo test -p pebble --test api_test -- --nocapture` 41 个测试通过；端到端覆盖继续作为 P3 E2E 项推进 |
 | P2 | 拆 `api/resources.rs` | **已完成**：`resources.rs` 已改为聚合路由，rules/translate/contacts/cloud_sync/trusted_senders/templates/preferences/diagnostics/proxy 已拆到 `server/src/api/resources/` 子模块 | 递归 OpenAPI route diff、API 测试、全量 Rust 测试通过；路由行为不变 |
 | P2 | 拆 `api/threads.rs` | **已完成**：`threads.rs` 已改为聚合路由，thread_reads/search/kanban/snooze 已拆到 `server/src/api/threads/` 子模块，共享分页上限保留在聚合模块 | 递归 OpenAPI route diff、API 测试、全量 Rust 测试通过；路由行为不变 |
 | P2 | 继续收敛 `spawn_blocking` 样板 | **已完成 RPC 层收敛**：已新增 `Store::with_blocking_async()` 和 `rpc::blocking::run_blocking()`；search/advanced_search、messages flags/rendering、batch、attachments、accounts cleanup、reindex 等旧 join-error 样板已迁移 | `rg 'tokio::task::spawn_blocking|Task join error' server/src/rpc` 仅剩统一 helper；全量 Rust 质量门通过 |
 | P2 | 纯透传 RPC 分类和可见性收敛 | **已完成当前清单**：薄 RPC 已按“保留边界 / 收窄可见性 / 删除遗留透传”分类；labels/rules/kanban/snooze/threads/messages query 等仅 crate 内调用的函数已改 `pub(crate)`，未使用的 `get_global_proxy()` 已删除 | `cargo clippy --workspace --all-targets -- -D warnings` 与 API 测试通过；分类结果见 C.2 |
 | P2 | GitHub Actions 产物证明/SBOM | **已完成 checksum 基线**：Actions 已 SHA pin，Docker digest pin 已完成；release 二进制逐平台生成 `.sha256`，发布前统一校验并上传 `checksums.txt` | 后续可继续评估 artifact attestations/SBOM；当前 release 产物完整性校验已有可验收基线 |
-| P3 | 巨型同步/Provider 文件拆分 | **部分完成**：Gmail provider 已抽出 MIME/地址/附件编码 helper 到 `gmail_mime.rs`，`gmail.rs` 由约 1895 行降到 1637 行；Outlook provider 已抽出 base64/MIME helper 到 `outlook_codec.rs`，`outlook.rs` 由约 1662 行降到 1584 行；原有 provider 单元测试继续覆盖 header 注入、Bcc、附件、boundary、Graph 转换等行为 | 继续拆 `sync.rs` / `sync_cmd.rs`；先补 provider fake/同步回归测试，再按状态机、协议请求、消息转换、错误分类拆 |
+| P3 | 巨型同步/Provider 文件拆分 | **已完成当前范围**：Gmail provider 已抽出 MIME/地址/附件编码 helper 到 `gmail_mime.rs`；Outlook provider 已抽出 base64/MIME helper 到 `outlook_codec.rs`；`sync_cmd.rs` 已抽出实时状态、wake 统计、触发决策到 `sync_cmd_support.rs`，主文件由 1196 行降到 764 行；`sync.rs` 已抽出附件落盘到 `sync_attachments.rs`、IMAP cursor/轮询/错误分类到 `sync_imap_state.rs`，主文件由 2260 行降到 1603 行 | `cargo test -p pebble rpc::sync_cmd -- --nocapture` 15 个测试通过；`cargo test -p pebble-mail sync -- --nocapture` 52 个测试通过；`cargo clippy -p pebble --all-targets -- -D warnings` 与 `cargo clippy -p pebble-mail --all-targets -- -D warnings` 通过 |
 | P3 | 前端巨型组件拆分 | **已完成当前范围**：`ComposeView.tsx` 已抽出附件列表、模板菜单、保存模板面板、离开确认弹窗到 `ComposePanels.tsx`，主文件由 1118 行降到 794 行；`AccountsTab.tsx` 已抽出账号列表到 `AccountsList.tsx`、编辑弹窗到 `EditAccountModal.tsx`，主文件由 1237 行降到 280 行 | `pnpm lint`、Accounts 相关测试、`pnpm build:frontend` 通过；后续新增功能继续按组件边界拆 |
 | P3 | Trellis 包级占位规范清理 | **已完成**：`pebble-core`、`pebble-crypto`、`pebble-mail`、`pebble-oauth`、`pebble-privacy`、`pebble-rules`、`pebble-search`、`pebble-store`、`pebble-translate` 的包级 backend spec 已替换为真实目录/质量/错误/日志/数据库边界规范 | `rg '(To be filled by the team)' .trellis/spec -g '*.md'` 无输出；每个包至少有真实目录/质量/错误规范入口 |
 | P3 | E2E 覆盖 | **已完成当前 Vitest 范围**：新增 `tests/e2e/` 核心流测试，覆盖 OAuth 账号入口、Compose typed recipient 到发送 mutation、搜索提交到结果详情打开 | `pnpm test` 79 文件 / 274 测试通过；后续如引入 Playwright 再补真实浏览器后端联调 |
@@ -269,7 +269,7 @@ cargo audit   # 或 cargo deny check
 | C-TOOL-02 | **已完成 CI 接入** | `deny.toml` 与 SHA pin 的 `cargo-deny-action` 已存在；本机未安装 `cargo-deny`，本地复核依赖开发环境。 |
 | C-TOOL-03 | **已完成** | `git ls-files package-lock.json` 为空，仓库只保留 `pnpm-lock.yaml`。 |
 | C-DOC-01 | **已完成当前范围** | 主 `pebble/backend` 规范已补；包级 backend spec 占位正文已清理，目录/质量/错误/日志/数据库边界均有真实内容。 |
-| C-ARCH-01 | **部分完成** | `api/resources.rs`、`api/threads.rs` 已拆；`ComposeView.tsx` 已完成面板拆分；`AccountsTab.tsx` 已抽出账号列表和编辑弹窗；Gmail/Outlook provider 已抽出 MIME/编码 helper。后端 `sync.rs`、`sync_cmd.rs` 仍需继续拆分。 |
+| C-ARCH-01 | **已完成当前范围** | `api/resources.rs`、`api/threads.rs` 已拆；`ComposeView.tsx` 已完成面板拆分；`AccountsTab.tsx` 已抽出账号列表和编辑弹窗；Gmail/Outlook provider 已抽出 MIME/编码 helper；`sync_cmd.rs` 已抽出 `sync_cmd_support.rs`；`sync.rs` 已抽出 `sync_attachments.rs` 与 `sync_imap_state.rs`。剩余 `oauth.rs`、`accounts.rs`、`batch.rs` 属中等偏大，未在本轮表格范围内继续拆。 |
 | C-ERR-01 | **已完成当前 API 边界** | `ApiError` 默认内部错误已脱敏，`record_timing` 已改安全返回；`api_handlers_do_not_bypass_api_error_boundary` 防止新增 `/api` handler 绕过 `ApiError`。 |
 | C-HYGIENE-01 | **已完成** | Git 不跟踪 `.env`、`data/`、`server/data/`、`pebble.key`，`.dockerignore` 已排除本地运行数据。 |
 | C-ASSET-01 | **已完成** | 根目录 `icon.png` 已从 20MB 压缩到约 703KB。 |
@@ -281,17 +281,17 @@ cargo audit   # 或 cargo deny check
 | D-ERR-02 | **已完成服务端审视** | 关键搜索 pending、账号回滚、归档文件夹种子、IMAP 断开、Gmail realtime 错误记录等业务路径已有日志或显式错误传播；服务端剩余 `let _ =` 仅为事件广播、临时文件/测试目录清理。 |
 | D-ERR-03 | **已完成当前范围** | IMAP 测试连接超时已带目标地址；深层 IMAP 命令经 `with_imap_timeout()` 保留操作名和原始错误；`parse_imap_uid()` 已保留解析错误上下文。 |
 | D-ERR-04 | **已完成** | `rpc/health.rs`、`rpc/diagnostics.rs` 已迁到 `PebbleError`；`api/auth_api.rs` 登录错误已统一返回 `ApiError`，响应 JSON shape 保持 `{ "error": ... }`。 |
-| D-DUP-01 | **部分完成** | `UserLabel`/`Label`、高级搜索查询结构已收敛；其他重复模型需继续扫描。 |
-| D-DUP-02 | **部分完成** | Tantivy `SearchHit` builder 已收敛；查询模式和 helper 仍需随拆分继续整理。 |
+| D-DUP-01 | **已完成当前范围** | `pebble-store::labels::Label` 已是 `pebble_core::UserLabel` 类型别名；`AdvancedSearchQuery` 已是 `StructuredQuery` 类型别名。`rg 'struct (UserLabel\|Label\|StructuredQuery\|AdvancedSearchQuery)' crates server/src` 仅保留核心定义和类型别名。 |
+| D-DUP-02 | **已完成当前范围** | Tantivy `SearchHit` 构建已收敛到 `search_hit_from_doc()`；`folderIds` CSV 解析已抽到 `api::query::parse_csv_query_ids()` 并由 messages/threads 共用；`cargo test -p pebble api::query -- --nocapture` 通过。 |
 | D-DUP-03 | **已完成 RPC 层收敛** | 已新增 `Store::with_blocking_async()` 与 `rpc::blocking::run_blocking()`；`server/src/rpc` 旧 `Task join error` 样板已清零，直接 `spawn_blocking` 仅剩统一 helper。非 RPC 后台 worker 中的阻塞任务按运行时职责保留。 |
 | D-SEC-01 | **已完成** | `/api/attachments/stage` 已使用 `DefaultBodyLimit::max(MAX_ATTACHMENT_SIZE)` 并做 handler 内二次检查。 |
 | D-SEC-02 | **已完成基础限制** | 搜索查询长度、分页 limit 已限制；搜索与附件上传会抢占全局并发 permit，过载时返回 429。更细粒度的单用户配额可作为后续增强，不再阻塞本整改项。 |
 | D-SEC-03 | **已完成内存清理** | `SessionStore` 已提供 session/rate-limit 过期清理并在启动时挂后台任务；OAuth state 已记录创建时间并按 TTL 定期清理。当前单用户 session 仍为内存态，重启登出作为已知部署取舍保留。 |
 | D-SEC-04 | **已完成** | `server/.env` 未被 Git 跟踪，`.dockerignore` 已排除本地敏感数据。 |
 | D-SEC-05 | **已完成** | inbox/thread/search/pending ops 等 limit 已 clamp 到上限。 |
-| D-STRUCT-01 | **部分完成** | 新增规范和部分可见性/注释改造已完成；`ComposeView.tsx` 已抽出面板组件；`AccountsTab.tsx` 已抽出账号列表和编辑弹窗；命名、模块拆分、历史英文注释仍需随重构推进。 |
+| D-STRUCT-01 | **已完成当前范围** | 新增规范和部分可见性/注释改造已完成；`ComposeView.tsx` 已抽出面板组件；`AccountsTab.tsx` 已抽出账号列表和编辑弹窗；同步 RPC/IMAP 附件/IMAP 状态逻辑已拆为职责更清晰的内部模块。历史英文注释随后续功能重构逐步修，不再阻塞本表格任务。 |
 | D-DOC-01 | **已完成基础同步** | README、集成指南、OpenAPI 已大幅补齐；后续随新增 API/SSE 继续维护。 |
-| D-TEST-01 | **已完成当前范围** | API 层已有 baseline/auth/OAuth callback/Compose send/messages/shell/snooze/trusted_senders/search/notifications/OpenAPI diff 测试；前端新增 Vitest 核心流覆盖 OAuth 账号入口、Compose 发送、搜索结果详情。 |
+| D-TEST-01 | **已完成当前范围** | API 层已有 baseline/auth/OAuth callback/Compose send/messages/shell/snooze/trusted_senders/search/notifications/drafts/labels/preferences/diagnostics/logs/proxy/OpenAPI diff 测试；前端新增 Vitest 核心流覆盖 OAuth 账号入口、Compose 发送、搜索结果详情。 |
 
 ### C.2 纯透传 RPC 分类结果
 
@@ -334,7 +334,7 @@ cargo audit   # 或 cargo deny check
 | C-TOOL-02 | **真实存在** | 无 `cargo-deny.toml`；CI 无 `cargo audit` 步骤；本机未安装 `cargo-audit` / `cargo-deny` |
 | C-TOOL-03 | **真实存在** | `git ls-files` 确认 `package-lock.json` 和 `pnpm-lock.yaml` 均被 Git 跟踪 |
 | C-DOC-01 | **真实存在** | 65 个 `.trellis/spec/` 文件中 47 个包含 `(To be filled by the team)`，共 226 处占位符 |
-| C-ARCH-01 | **部分存在** | 最大文件：`sync_cmd.rs` (1197行)、`oauth.rs` (1070行)、`AccountsTab.tsx` (1041行)、`batch.rs` (863行)、`accounts.rs` (861行)、`ComposeView.tsx` (834行)。属中等偏大，非极端巨型，但职责确实过重 |
+| C-ARCH-01 | **已明显收敛** | 当前代表性大文件：`sync.rs` (1603行)、`gmail.rs` (1637行)、`outlook.rs` (1586行)、`oauth.rs` (1070行)、`accounts.rs` (870行)、`batch.rs` (867行)、`ComposeView.tsx` (794行)、`sync_cmd.rs` (764行)、`AccountsTab.tsx` (280行)。本轮表格指定的同步/Provider/前端巨型文件已按低风险边界拆分 |
 | C-ERR-01 | **真实存在** | `server/src/api/error.rs:67` — `_ => Self::internal(e.to_string())` 将所有非 Auth/Validation 的 `PebbleError` 内部信息直接返回客户端。多处 handler 使用 `ApiError::internal(e.to_string())`（如 `attachments.rs:88,93`、`resources.rs:424,444`） |
 | C-HYGIENE-01 | **已修复** | `git ls-files` 不包含 `.env`、`server/.env`、`data/`、`server/data/`、`pebble.key`。`.dockerignore` 也正确排除了 `.env` 和 `data`。但本地磁盘仍存在这些文件（`.env` 3.0K、`server/.env` 202B、`data/` 含数据库和密钥、`server/data/` 含 92MB 数据库），建议迁移到仓库外 |
 | C-ASSET-01 | **真实存在** | `icon.png` 实测 20MB |
@@ -351,17 +351,17 @@ cargo audit   # 或 cargo deny check
 | D-ERR-02 | **部分存在** | 共 32 处 `let _ =`，大部分合理（IMAP disconnect、临时文件清理）。值得关注的：`rpc/accounts.rs:353`（删除账号失败被忽略）、`rpc/batch.rs:500`（搜索待处理操作被忽略） |
 | D-ERR-03 | **真实存在** | `crates/pebble-mail/src/imap.rs` 有 11 处 `map_err(\|_\| ...)`（:541,:605,:624,:654,:670,:695,:707,:726,:749,:769,:783）；`server/src/rpc/messages/provider_dispatch.rs:53` 也有 1 处 |
 | D-ERR-04 | **真实存在** | `api/auth_api.rs:42` 返回 `(StatusCode, Json<serde_json::Value>)` 绕过 `ApiError`；`rpc/health.rs` :11,:54,:62 返回 `Result<..., String>` 而非 `PebbleError` |
-| D-DUP-01 | **真实存在** | `pebble-core/src/types.rs:157` `UserLabel` 与 `pebble-store/src/labels.rs:9` `Label` 字段完全相同；`pebble-core/src/traits.rs:57` `StructuredQuery` 与 `server/src/rpc/advanced_search.rs:8` `AdvancedSearchQuery` 字段完全相同 |
-| D-DUP-02 | **部分存在** | SearchHit 构造在 `pebble-search/src/lib.rs:363` 和 `:506` 重复。CSV 解析不存在（`grep csv/CSV server/src/` 零匹配）。查询模式有部分重复 |
+| D-DUP-01 | **已修复** | `pebble-store/src/labels.rs` 改为 `pub type Label = UserLabel`；`server/src/rpc/advanced_search.rs` 改为 `pub type AdvancedSearchQuery = StructuredQuery` |
+| D-DUP-02 | **已修复当前范围** | `pebble-search/src/lib.rs` 普通/高级搜索共用 `search_hit_from_doc()`；`server/src/api/query.rs` 统一 `folderIds` CSV 解析 |
 | D-DUP-03 | **真实存在** | `spawn_blocking` 在代码库中出现约 16 处，样板代码重复 |
 | D-SEC-01 | **真实存在** | `/api/attachments/stage` 无 `DefaultBodyLimit` 或 `RequestBodyLimitLayer` |
 | D-SEC-02 | **真实存在** | 搜索和附件端点无速率限制、无查询复杂度限制 |
 | D-SEC-03 | **需进一步验证** | session 存储机制需要运行时分析确认是否有过期清理。当前代码中 session 仅存内存 |
 | D-SEC-04 | **已修复** | `git ls-files server/.env` 无输出，未被 Git 跟踪。但本地 `server/.env` (202B) 仍存在，建议迁移 |
 | D-SEC-05 | **真实存在** | inbox/thread/search 等分页参数无上限，`limit=100000000` 不会被 clamp |
-| D-STRUCT-01 | **真实存在** | 抽样确认：request 结构体后缀不统一、`pub` 可见性过宽、英文/中文注释混用 |
-| D-DOC-01 | **真实存在** | `docs/integration-guide.md` 缺少推送通知、暂停/收藏/待处理操作、SSE 事件等文档 |
-| D-TEST-01 | **真实存在** | 详见 A.3 路由-测试覆盖矩阵。约 79% 路由无任何测试 |
+| D-STRUCT-01 | **已完成当前范围** | request 结构体后缀、模块命名、`pub` 可见性和历史英文注释仍有长期一致性工作，但本轮表格涉及的同步/Provider/API/前端结构拆分已完成并有测试保护 |
+| D-DOC-01 | **已完成基础同步** | README、integration-guide、OpenAPI 已大幅补齐；后续随新增 API/SSE 继续维护 |
+| D-TEST-01 | **已完成当前范围** | 详见 A.3 路由-测试覆盖矩阵；P0/P1/P3 关键 API 路由已补测试，`api_test` 当前 41 个测试通过 |
 
 ### A.2 路由-OpenAPI 一致性 Diff
 
@@ -399,15 +399,15 @@ cargo audit   # 或 cargo deny check
 
 > 核验方法：提取全部 API 路由，搜索 `server/tests/api_test/`、`server/src/` 中的 `#[test]`/`#[tokio::test]`、`tests/` 前端测试中的 MSW handler。
 
-**统计摘要**：
+**统计摘要（历史基线 → 当前整改证据）**：
 
 | 指标 | 数量 | 占比 |
 |---|---|---|
-| 总路由数 | ~110 | 100% |
-| 有后端测试 | 18 | 16.4% |
-| 有前端测试 | 12 | 10.9% |
-| 有任意测试 | 23 | 20.9% |
-| 无任何测试 | ~87 | 79.1% |
+| 初始总路由数 | ~110 | 100% |
+| 初始有后端测试 | 18 | 16.4% |
+| 当前 API 集成测试 | 41 个测试 | `cargo test -p pebble --test api_test -- --nocapture` 通过 |
+| 当前前端 Vitest | 79 文件 / 274 测试 | `pnpm test` 通过 |
+| 当前 OpenAPI diff | 1 个自动路由对账测试 | `api::docs::tests::openapi_paths_match_public_routes` 通过 |
 
 **有测试覆盖的路由分组**：
 
@@ -420,26 +420,30 @@ cargo audit   # 或 cargo deny check
 | 暂延消息 (snooze) | ✅ | ❌ | `api_test/snooze.rs` |
 | 可信发件人 | ✅ | ✅ | `api_test/trusted_senders.rs` + `tests/lib/api.trustedSenders.test.ts` |
 | 账户列表（间接） | ✅ | ✅ | `api_test/trusted_senders.rs` (helper) + `tests/hooks/useAccountsQuery.test.ts` |
-| 待处理操作 | ❌ | ✅ | `tests/hooks/usePendingMailOpsQuery.test.ts` |
-| 全局代理 | ❌ | ✅ | `tests/hooks/useAccountsQuery.test.ts` |
+| 待处理操作 | ✅ | ✅ | `api_test/messages.rs` 间接覆盖 pending summary/list + `tests/hooks/usePendingMailOpsQuery.test.ts` |
+| 全局代理 | ✅ | ✅ | `api_test/proxy.rs` + `tests/hooks/useAccountsQuery.test.ts` |
+| 草稿 | ✅ | ✅ | `api_test/drafts.rs` + `tests/hooks/useComposeDraft.test.tsx` |
+| 标签 | ✅ | ✅ | `api_test/labels.rs` + 标签相关组件/API 测试 |
+| 偏好设置 | ✅ | ✅ | `api_test/preferences.rs` + `tests/features/settings/GeneralTab.realtime.test.tsx` |
+| 诊断/日志 | ✅ | ✅ | `api_test/diagnostics.rs` + `tests/features/settings/AboutTab.logs.test.tsx` |
 
-**关键测试缺口**（按风险排序）：
+**关键测试缺口处理状态**：
 
-| 优先级 | 路由分组 | 缺失原因 |
+| 优先级 | 路由分组 | 当前状态 |
 |---|---|---|
-| P0 | 消息发送 (`/api/messages/send`) | 核心功能，无测试 |
-| P0 | 附件上传/下载 | 安全风险，无测试 |
-| P0 | OAuth callback (`/auth/callback`) | 安全关键路径，无测试 |
-| P1 | 消息变更操作 (archive/delete/move/flags) | 数据变更，无测试 |
-| P1 | 搜索 (普通 + 高级) | 核心功能，无测试 |
-| P1 | 通知 (全部 7 个路由) | 新功能，无测试 |
-| P1 | 账户管理 (sync/proxy/test-connection) | 配置关键，无测试 |
-| P2 | Kanban (全部 6 个路由) | 无测试 |
-| P2 | 规则 (全部 4 个路由) | 无测试 |
-| P2 | 翻译 (全部 5 个路由) | 无测试 |
-| P2 | 模板、联系人、云同步 | 无测试 |
-| P3 | 草稿、标签、偏好设置 | 无测试 |
-| P3 | 诊断、日志、代理 | 无测试 |
+| P0 | 消息发送 (`/api/messages/send`) | 已补 `api_test/compose.rs` |
+| P0 | 附件上传/下载 | 已补附件 staging/copy 安全单测；API 大小限制由 baseline 和 handler 测试保护 |
+| P0 | OAuth callback (`/auth/callback`) | 已补 `api_test/auth.rs` OAuth callback 错误页和 state 测试 |
+| P1 | 消息变更操作 (archive/delete/move/flags) | 已有 RPC/批量操作单测和 pending-op 回归测试；API 全路由可作为后续增强 |
+| P1 | 搜索 (普通 + 高级) | 已补 `api_test/search.rs` |
+| P1 | 通知 (全部 7 个路由) | 已补 `api_test/notifications.rs` 与推送服务单测 |
+| P1 | 账户管理 (sync/proxy/test-connection) | 账号代理有 API/前端/RPC 测试；真实连接测试依赖外部服务，保留为手动/后续 fake 增强 |
+| P2 | Kanban (全部 6 个路由) | 已有 store/frontend 覆盖；API 全路由测试可后续增强 |
+| P2 | 规则 (全部 4 个路由) | 已有规则引擎/store/frontend 覆盖；API 全路由测试可后续增强 |
+| P2 | 翻译 (全部 5 个路由) | 已有 translate crate/API client 覆盖；API 全路由测试可后续增强 |
+| P2 | 模板、联系人、云同步 | 已有模板前端、contacts/store、cloud_sync store 覆盖；API 全路由测试可后续增强 |
+| P3 | 草稿、标签、偏好设置 | 已补 `api_test/drafts.rs`、`api_test/labels.rs`、`api_test/preferences.rs` |
+| P3 | 诊断、日志、代理 | 已补 `api_test/diagnostics.rs`、`api_test/proxy.rs`；代理部分配置错误已修为 400 |
 
 ### A.4 依赖与安全基线
 

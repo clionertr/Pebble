@@ -26,6 +26,7 @@ pub mod rules;
 pub mod search;
 pub mod snooze;
 pub mod sync_cmd;
+mod sync_cmd_support;
 pub mod threads;
 pub mod translate;
 pub mod trusted_senders;

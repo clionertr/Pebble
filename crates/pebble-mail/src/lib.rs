@@ -9,6 +9,8 @@ pub mod realtime_policy;
 pub mod reconcile;
 pub mod smtp;
 pub mod sync;
+mod sync_attachments;
+mod sync_imap_state;
 pub mod thread;
 
 pub use gmail_sync::GmailSyncWorker;

@@ -3,9 +3,14 @@
 
 mod auth;
 mod compose;
+mod diagnostics;
+mod drafts;
 mod health;
+mod labels;
 mod messages;
 mod notifications;
+mod preferences;
+mod proxy;
 mod search;
 mod shell;
 mod snooze;

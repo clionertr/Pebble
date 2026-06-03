@@ -7,6 +7,7 @@ pub mod error;
 pub mod labels;
 pub mod messages;
 pub mod notifications;
+pub(crate) mod query;
 pub mod resources;
 pub mod shell;
 pub mod sync;

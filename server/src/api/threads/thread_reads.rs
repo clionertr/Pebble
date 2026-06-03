@@ -27,12 +27,7 @@ pub struct ThreadListQuery {
 
 impl ThreadListQuery {
     pub fn folder_ids(&self) -> Option<Vec<String>> {
-        self.folder_ids_raw.as_ref().map(|s| {
-            s.split(',')
-                .map(|id| id.trim().to_string())
-                .filter(|id| !id.is_empty())
-                .collect()
-        })
+        crate::api::query::parse_csv_query_ids(self.folder_ids_raw.as_deref())
     }
 }
 
