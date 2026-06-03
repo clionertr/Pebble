@@ -516,3 +516,36 @@ Implemented Web Push browser notifications (backend push service, notification d
 ### Next Steps
 
 - None - task complete
+
+
+## Session 14: 第2阶段契约、文档、工具链与供应链加固实现
+
+**Date**: 2026-06-03
+**Task**: 第2阶段契约、文档、工具链与供应链加固实现
+**Branch**: `master`
+
+### Summary
+
+实现第2阶段全部9个整改项：OpenAPI补齐6条notification路由、OAuth成功页去inline script改用meta refresh、ESLint 9+Prettier 3前端工具链、deny.toml Rust依赖安全/许可证检查、删除package-lock.json统一锁文件、4个Docker基础镜像pin digest、19处GitHub Actions pin SHA、集成指南补齐SSE/WebPush/Kanban/Snooze/PendingOps、README版本及sha256校验。修复deploy/install.sh.sha256缺失问题。D-ERR-03/04合理推迟到第3阶段。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `68e3f6d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
