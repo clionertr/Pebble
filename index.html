@@ -108,6 +108,36 @@
       window.__splashStart=Date.now();
       // Apply saved theme immediately to avoid flash of wrong theme
       try{var t=localStorage.getItem('pebble-theme')||'light';var d=t==='system'?matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light':t;document.documentElement.setAttribute('data-theme',d)}catch(e){}
+      // Safety net: if the React app fails to mount and dismiss the splash,
+      // auto-fade after 6s and remove after the transition so the UI is not
+      // permanently blocked by the pebble-outline overlay. Also enforces a
+      // minimum display time so the splash draw animation isn't cut off when
+      // React mounts quickly.
+      (function(){
+        var minMs = 900;
+        var maxMs = 6000;
+        var dismissed = false;
+        var start = window.__splashStart || Date.now();
+        var fade = function(){
+          var s = document.getElementById('splash');
+          if (!s) return;
+          s.classList.add('fade-out');
+          setTimeout(function(){
+            if (s.parentNode) s.parentNode.removeChild(s);
+            var st = document.getElementById('splash-style');
+            if (st && st.parentNode) st.parentNode.removeChild(st);
+          }, 600);
+        };
+        var dismiss = function(){
+          if (dismissed) return;
+          dismissed = true;
+          var elapsed = Date.now() - start;
+          if (elapsed >= minMs) { fade(); return; }
+          setTimeout(fade, minMs - elapsed);
+        };
+        window.__pebbleDismissSplash = dismiss;
+        setTimeout(dismiss, maxMs);
+      })();
     </script>
     <div id="splash">
       <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
