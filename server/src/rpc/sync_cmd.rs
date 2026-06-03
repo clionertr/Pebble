@@ -36,7 +36,7 @@ pub async fn start_sync(
     account_id: String,
     poll_interval_secs: Option<u64>,
 ) -> std::result::Result<String, PebbleError> {
-    let _ = start_sync_inner(state.0.clone(), account_id.clone(), poll_interval_secs).await?;
+    start_sync_inner(state.0.clone(), account_id.clone(), poll_interval_secs).await?;
     Ok(format!("Sync started for account {account_id}"))
 }
 
@@ -833,7 +833,7 @@ async fn dispatch_sync_trigger(
         return Ok(TriggerDispatchOutcome::SkippedNoWorker);
     }
 
-    let _ = start_sync_inner(state, account_id, Some(0)).await?;
+    start_sync_inner(state, account_id, Some(0)).await?;
     Ok(TriggerDispatchOutcome::StartedOneShot)
 }
 

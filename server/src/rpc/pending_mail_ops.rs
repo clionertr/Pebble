@@ -303,7 +303,9 @@ async fn replay_remote_update_flags(
             let result = imap
                 .set_flags(&folder_remote_id, uid, is_read, is_starred)
                 .await;
-            let _ = imap.disconnect().await;
+            if let Err(e) = imap.disconnect().await {
+                tracing::warn!("Failed to disconnect IMAP provider after replaying flags op: {e}");
+            }
             result
         }
     }
@@ -350,7 +352,11 @@ async fn replay_remote_archive(
             let result = imap
                 .move_message(&source_remote_id, uid, &target_remote_id)
                 .await;
-            let _ = imap.disconnect().await;
+            if let Err(e) = imap.disconnect().await {
+                tracing::warn!(
+                    "Failed to disconnect IMAP provider after replaying archive op: {e}"
+                );
+            }
             result
         }
     }
@@ -408,7 +414,11 @@ async fn replay_remote_restore(
             let result = imap
                 .move_message(&source_remote_id, uid, &target_remote_id)
                 .await;
-            let _ = imap.disconnect().await;
+            if let Err(e) = imap.disconnect().await {
+                tracing::warn!(
+                    "Failed to disconnect IMAP provider after replaying restore op: {e}"
+                );
+            }
             result
         }
     }
@@ -466,7 +476,9 @@ async fn replay_remote_delete(
             } else {
                 imap.delete_message(&source_remote_id, uid).await
             };
-            let _ = imap.disconnect().await;
+            if let Err(e) = imap.disconnect().await {
+                tracing::warn!("Failed to disconnect IMAP provider after replaying delete op: {e}");
+            }
             result
         }
     }
@@ -517,7 +529,9 @@ async fn replay_remote_move_to_folder(
             let result = imap
                 .move_message(&source_remote_id, uid, &target_remote_id)
                 .await;
-            let _ = imap.disconnect().await;
+            if let Err(e) = imap.disconnect().await {
+                tracing::warn!("Failed to disconnect IMAP provider after replaying move op: {e}");
+            }
             result
         }
     }

@@ -55,7 +55,7 @@ pub async fn restore_from_webdav(
     let client = WebDavClient::new(url, username, password)?;
     let data = client.download(BACKUP_FILENAME).await?;
     // Re-validate before import; `import_settings` enforces size + version too.
-    let _ = preview_backup(&data)?;
+    preview_backup(&data)?;
     let backup_value: serde_json::Value = serde_json::from_slice(&data)
         .map_err(|e| PebbleError::Validation(format!("Failed to parse backup: {e}")))?;
     let has_kanban_context_notes = backup_value.get("kanban_context_notes").is_some();

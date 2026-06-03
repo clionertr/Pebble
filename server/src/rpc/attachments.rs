@@ -158,7 +158,12 @@ where
 
     if let Err(e) = copy_result {
         drop(dst_file);
-        let _ = std::fs::remove_file(&actual_save_path);
+        if let Err(cleanup_err) = std::fs::remove_file(&actual_save_path) {
+            tracing::warn!(
+                "Failed to remove partial attachment copy {} after copy error: {cleanup_err}",
+                actual_save_path.display()
+            );
+        }
         return Err(e);
     }
 

@@ -517,12 +517,12 @@ pub(crate) async fn enable_gmail_realtime_raw(
         ensure_sync_running_with_interval(state.clone(), &account_id, fallback_secs).await
     {
         warn!("Failed to start Gmail sync after enabling realtime for {account_id}: {error}");
-        let _ = record_gmail_realtime_error(&state.store, &account_id, error.to_string());
+        record_gmail_realtime_error_or_warn(&state.store, &account_id, error.to_string());
     }
 
     if let Err(error) = trigger_provider_push_sync(state.clone(), &account_id).await {
         warn!("Failed to trigger Gmail sync after enabling realtime for {account_id}: {error}");
-        let _ = record_gmail_realtime_error(&state.store, &account_id, error.to_string());
+        record_gmail_realtime_error_or_warn(&state.store, &account_id, error.to_string());
     }
 
     get_gmail_realtime_config_raw(&state, &account_id)
@@ -557,7 +557,7 @@ pub(crate) async fn disable_gmail_realtime_raw(
 
     if let Err(error) = restart_running_sync_with_interval(state.clone(), &account_id, None).await {
         warn!("Failed to restart Gmail sync after disabling realtime for {account_id}: {error}");
-        let _ = record_gmail_realtime_error(&state.store, &account_id, error.to_string());
+        record_gmail_realtime_error_or_warn(&state.store, &account_id, error.to_string());
     }
 
     get_gmail_realtime_config_raw(&state, &account_id)
@@ -585,7 +585,7 @@ pub(crate) async fn update_gmail_realtime_config_raw(
             warn!(
                 "Failed to start Gmail sync after updating realtime config for {account_id}: {error}"
             );
-            let _ = record_gmail_realtime_error(&state.store, &account_id, error.to_string());
+            record_gmail_realtime_error_or_warn(&state.store, &account_id, error.to_string());
         }
     }
 
@@ -601,6 +601,12 @@ fn record_gmail_realtime_error(
         push_state.last_error = Some(error);
     })?;
     Ok(())
+}
+
+fn record_gmail_realtime_error_or_warn(store: &Store, account_id: &str, error: String) {
+    if let Err(record_error) = record_gmail_realtime_error(store, account_id, error) {
+        warn!("Failed to record Gmail realtime error for account {account_id}: {record_error}");
+    }
 }
 
 fn record_gmail_push_delivery(
@@ -673,8 +679,11 @@ pub(crate) async fn run_gmail_watch_renewal_pass(state: Arc<AppState>) {
                     .map(|push_state| push_state.enabled)
                     .unwrap_or(false)
                 {
-                    let _ =
-                        record_gmail_realtime_error(&state.store, &account.id, error.to_string());
+                    record_gmail_realtime_error_or_warn(
+                        &state.store,
+                        &account.id,
+                        error.to_string(),
+                    );
                     emit_gmail_realtime_status(
                         &state,
                         &account.id,
@@ -721,7 +730,7 @@ pub(crate) async fn run_gmail_watch_renewal_pass(state: Arc<AppState>) {
                     "Failed to renew Gmail watch for account {}: {}",
                     account.id, error
                 );
-                let _ = record_gmail_realtime_error(&state.store, &account.id, error.to_string());
+                record_gmail_realtime_error_or_warn(&state.store, &account.id, error.to_string());
                 emit_gmail_realtime_status(
                     &state,
                     &account.id,
@@ -863,7 +872,7 @@ async fn process_gmail_push_notification(
                 "Failed to trigger sync from Gmail push for account {}: {}",
                 account.id, error
             );
-            let _ = record_gmail_realtime_error(&state.store, &account.id, error.to_string());
+            record_gmail_realtime_error_or_warn(&state.store, &account.id, error.to_string());
         }
     }
 

@@ -278,7 +278,7 @@ cargo audit   # 或 cargo deny check
 | D-ARCH-02 | **部分完成** | 通知业务已下沉到 service；`api/resources.rs`、`api/threads.rs` 等胖 handler 仍需拆分。 |
 | D-DEAD-01 | **已完成** | Tauri 遗留引用已清理，API/RPC inventory 测试覆盖无 `/rpc` 暴露。 |
 | D-ERR-01 | **已完成** | 请求可达 `.unwrap()` 已清理到安全位置或测试代码；质量门包含 clippy 和全量测试。 |
-| D-ERR-02 | **部分完成** | 关键搜索 pending 等路径已有日志；仍需逐项审视剩余 `let _ =` 是否仅为断开/清理/广播。 |
+| D-ERR-02 | **已完成服务端审视** | 关键搜索 pending、账号回滚、归档文件夹种子、IMAP 断开、Gmail realtime 错误记录等业务路径已有日志或显式错误传播；服务端剩余 `let _ =` 仅为事件广播、临时文件/测试目录清理。 |
 | D-ERR-03 | **已完成当前范围** | IMAP 测试连接超时已带目标地址；深层 IMAP 命令经 `with_imap_timeout()` 保留操作名和原始错误；`parse_imap_uid()` 已保留解析错误上下文。 |
 | D-ERR-04 | **已完成** | `rpc/health.rs`、`rpc/diagnostics.rs` 已迁到 `PebbleError`；`api/auth_api.rs` 登录错误已统一返回 `ApiError`，响应 JSON shape 保持 `{ "error": ... }`。 |
 | D-DUP-01 | **部分完成** | `UserLabel`/`Label`、高级搜索查询结构已收敛；其他重复模型需继续扫描。 |

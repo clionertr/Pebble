@@ -228,7 +228,11 @@ pub async fn update_message_flags(
                         let result = provider
                             .set_flags(&folder_remote_id, uid, is_read, is_starred)
                             .await;
-                        let _ = provider.disconnect().await;
+                        if let Err(e) = provider.disconnect().await {
+                            tracing::warn!(
+                                "Failed to disconnect IMAP provider after flags update: {e}"
+                            );
+                        }
                         match result {
                             Ok(()) => RemoteMutationOutcome::Applied,
                             Err(e) => {

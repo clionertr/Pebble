@@ -41,7 +41,9 @@ impl ConnectedProvider {
     /// Disconnect the provider (only meaningful for IMAP).
     pub async fn disconnect(&self) {
         if let Self::Imap(imap) = self {
-            let _ = imap.disconnect().await;
+            if let Err(e) = imap.disconnect().await {
+                tracing::warn!("Failed to disconnect IMAP provider: {e}");
+            }
         }
     }
 }

@@ -64,7 +64,11 @@ pub(crate) async fn list_folders(
                     is_system: true,
                     sort_order: 3,
                 };
-                let _ = store.insert_folder(&archive);
+                if let Err(e) = store.insert_folder(&archive) {
+                    tracing::warn!(
+                        "Failed to seed local archive folder for account {account_id}: {e}"
+                    );
+                }
                 let folders = store.list_folders(&account_id)?;
                 return Ok(filter_display_folders(provider.as_ref(), folders));
             }

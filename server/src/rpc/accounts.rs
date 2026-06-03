@@ -698,7 +698,9 @@ pub async fn delete_account(
     {
         let mut handles = state.sync_handles.lock().await;
         if let Some(handle) = handles.remove(&account_id) {
-            let _ = handle.stop_tx.send(true);
+            if let Err(e) = handle.stop_tx.send(true) {
+                tracing::warn!("Failed to signal sync stop for account {account_id}: {e}");
+            }
             handle.task.abort();
         }
     }
