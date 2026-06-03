@@ -549,3 +549,36 @@ Implemented Web Push browser notifications (backend push service, notification d
 ### Next Steps
 
 - None - task complete
+
+
+## Session 15: 完成最佳实践整改计划第三阶段
+
+**Date**: 2026-06-03
+**Task**: 完成最佳实践整改计划第三阶段
+**Branch**: `master`
+
+### Summary
+
+完成第3阶段架构清债：补 API/RPC/store 边界规范，通知业务下沉，搜索和标签重复类型收敛，Store blocking helper 接入，图标压缩，并通过质量门。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `437e62d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
