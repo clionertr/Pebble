@@ -89,7 +89,7 @@ export function useMessageLoader(messageId: string | null, privacyMode: PrivacyM
       });
 
     return () => { cancelled = true; };
-  }, [privacyMode, messageId, message]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [privacyMode, messageId, message]);  
 
   return { message, setMessage, rendered, loading, error };
 }

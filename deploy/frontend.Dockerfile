@@ -1,4 +1,6 @@
-FROM node:22-alpine AS builder
+# Pinned to multi-arch index digest of `node:22-alpine`.
+# Update digest by re-fetching: `docker manifest inspect node:22-alpine`.
+FROM node@sha256:968df39aedcea65eeb078fb336ed7191baf48f972b4479711397108be0966920 AS builder
 WORKDIR /app
 ARG TARGETARCH
 
@@ -20,7 +22,8 @@ COPY . .
 RUN echo "Build: ${CACHEBUST}" && pnpm run build:frontend
 
 # Runtime stage: Nginx
-FROM nginx:alpine
+# Pinned to multi-arch index digest of `nginx:alpine`.
+FROM nginx@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a
 
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*

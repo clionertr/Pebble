@@ -530,6 +530,45 @@ fn build_spec() -> Value {
         }),
     );
 
+    // Notifications（推送通知：VAPID 公钥、设备管理、浏览器订阅）
+    paths.insert(
+        "/api/notifications/vapid-public-key".into(),
+        json!({
+            "get": { "summary": "Get VAPID public key for Web Push subscription" }
+        }),
+    );
+    paths.insert(
+        "/api/notifications/devices".into(),
+        json!({
+            "get": { "summary": "List registered notification devices" }
+        }),
+    );
+    paths.insert(
+        "/api/notifications/devices/{device_id}".into(),
+        json!({
+            "patch": { "summary": "Rename a notification device" },
+            "delete": { "summary": "Delete a notification device" }
+        }),
+    );
+    paths.insert(
+        "/api/notifications/subscriptions".into(),
+        json!({
+            "post": { "summary": "Upsert a Web Push subscription for a device" }
+        }),
+    );
+    paths.insert(
+        "/api/notifications/subscriptions/{device_id}".into(),
+        json!({
+            "delete": { "summary": "Delete a notification device by subscription" }
+        }),
+    );
+    paths.insert(
+        "/api/notifications/test".into(),
+        json!({
+            "post": { "summary": "Send a test push notification to a device" }
+        }),
+    );
+
     // Preferences
     paths.insert(
         "/api/preferences/realtime".into(),

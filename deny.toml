@@ -1,0 +1,40 @@
+# cargo-deny 配置：检查 Rust 依赖的许可证、安全告警和重复 crate。
+# 运行 `cargo deny check` 在本地验证；CI 也会执行。
+# 文档：https://embarkstudios.github.io/cargo-deny/
+
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+yanked = "warn"
+ignore = [
+    # 已知告警在此记录；每条需附理由与预计清理时间。
+    # 示例："RUSTSEC-2024-0001",  # 暂时保留，上游已修复但未发布
+]
+
+[licenses]
+# 允许的许可证清单（OSI 或 FSF 友好的宽松许可证）。
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "MPL-2.0",
+    "OpenSSL",
+]
+confidence-threshold = 0.8
+exceptions = [
+    # Unicode-DFS-2016 用于 icu/unicode 相关 crate
+    { allow = ["Unicode-DFS-2016"], name = "unicode-ident" },
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+highlight = "all"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

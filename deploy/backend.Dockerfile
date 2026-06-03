@@ -1,5 +1,7 @@
 # Use cargo-chef for dependency caching
-FROM lukemathwalker/cargo-chef:latest-rust-1-slim-bookworm AS chef
+# Pinned to multi-arch index digest of `lukemathwalker/cargo-chef:latest-rust-1-slim-bookworm`.
+# Update digest by re-fetching: `docker manifest inspect lukemathwalker/cargo-chef:latest-rust-1-slim-bookworm`.
+FROM lukemathwalker/cargo-chef@sha256:4a51277f4e3e8e4643dd6384f6f6b2b3c8de9f074299cd0c19a80f3c29e8dd15 AS chef
 WORKDIR /app
 
 # Install build dependencies
@@ -43,7 +45,8 @@ RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry,sharin
     cp target/release/pebble /app/pebble-bin
 
 # Stage 3: Runtime
-FROM debian:bookworm-slim
+# Pinned to multi-arch index digest of `debian:bookworm-slim`.
+FROM debian@sha256:0104b334637a5f19aa9c983a91b54c89887c0984081f2068983107a6f6c21eeb
 
 # Install runtime dependencies
 RUN apt-get update && \

@@ -71,9 +71,18 @@ curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/inst
     bash
 ```
 
+> 如果不想直接 `curl | bash`，可以先下载脚本并校验 SHA-256：
+>
+> ```bash
+> curl -fsSLo install.sh https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh
+> curl -fsSLo install.sh.sha256 https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh.sha256
+> sha256sum -c install.sh.sha256   # 不匹配会失败
+> bash install.sh
+> ```
+
 ### 源码开发运行
 
-前提：安装 **Rust**（stable 版本）、**Node.js 18+**、**pnpm 8+**。
+前提：安装 **Rust**（stable 版本）、**Node.js 22+**、**pnpm 11+**。
 
 ```bash
 git clone https://github.com/clionertr/Pebble.git
@@ -273,7 +282,7 @@ server {
 
 一键安装脚本会从 `deploy/compose.prod.yml` 写出 compose 文件。如果你想手动维护，可以使用预构建的 GHCR 镜像：
 
-`latest` 只会在仓库推送版本 tag（例如 `v0.0.9`）时更新。
+`latest` 只会在仓库推送版本 tag（例如 `v0.0.10`）时更新。
 
 ```yaml
 name: pebble
@@ -441,7 +450,7 @@ Pebble 在后台同步你的邮件：
 | `pnpm test` | 运行前端测试 |
 | `cargo fmt --check` | 检查 Rust 格式 |
 | `cargo clippy --all-targets -- -D warnings` | 运行 Rust lint 检查 |
-| `cargo test --all` | 运行全部 Rust 测试 |
+| `cargo test --workspace --all-targets` | 运行全部 Rust 测试 |
 | `sudo systemctl restart pebble` | 重启 systemd 管理的源码部署后端 |
 
 ## 常见问题

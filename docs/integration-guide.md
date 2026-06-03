@@ -142,3 +142,90 @@ location ~ ^/(api|events|auth|webhook) {
 ```
 
 前端静态资源由 nginx 或容器中的前端服务托管；API/SSE/OAuth/webhook 走后端。
+
+## SSE 事件全集
+
+`GET /events` 通过同源 Cookie 鉴权。每个事件是 `event: <name>` + `data: <json>`。心跳每 15 秒一次。
+
+| 事件 | 载荷 | 触发时机 |
+|---|---|---|
+| `mail:new` | `{ account_id, message_id, folder_ids, thread_id, subject, from, received_at, latency: { source, backend_received_at_ms, backend_sse_at_ms, message_received_at_ms, history_id } }` | 新邮件完成索引（含规则引擎）后 |
+| `mail:sync-progress` | `{ account_id, ... }`（结构按 provider 略有差异） | Gmail/IMAP/Outlook 同步过程进度 |
+| `mail:sync-complete` | `{ account_id, ... }` | 完整同步 pass 结束 |
+| `mail:realtime-status` | `{ account_id, mode, provider, last_success_at, next_retry_at, message }`（`mode` ∈ `realtime`/`polling`/`manual`/`backoff`/`offline`/`auth_required`/`error`） | Gmail Watch 续约、同步操作后的实时模式状态 |
+| `mail:error` | `pebble_mail::SyncError` | 同步过程中出现的错误 |
+| `mail:unsnoozed` | `{ message_id, return_to }` | 暂延消息到点自动恢复或手动取消暂延 |
+| `mail:pending-ops-changed` | `{}` | 待处理操作队列变化（新增/取消/删除/处理完成） |
+| `mail:attachment-download-progress` | `{ attachment_id, bytes_copied, total_bytes }` | 附件流式下载进度 |
+
+注意：不要把 `mail:sync-progress` 的常规 `poll` 完成当作数据变化，否则前端会频繁重拉 `/api/shell` 和 `/api/inbox`。
+
+## 推送通知（Web Push / VAPID）
+
+浏览器订阅流程：
+
+1. `GET /api/notifications/vapid-public-key` → `{ "public_key": "<URL-safe base64>" }`
+2. 浏览器调用 `PushManager.subscribe({ userVisibleOnly: true, applicationServerKey: publicKey })` 获得 `PushSubscription`。
+3. `POST /api/notifications/subscriptions`：
+
+   ```json
+   {
+     "device_id": "string",
+     "device_name": "string | null",
+     "subscription": {
+       "endpoint": "https://push.example.com/...",
+       "keys": { "p256dh": "...", "auth": "..." }
+     }
+   }
+   ```
+
+   首次订阅时后端会自动推送一封未读摘要。
+
+4. 管理：`GET /api/notifications/devices` 列表，`PATCH /api/notifications/devices/:device_id` 改名，`DELETE /api/notifications/devices/:device_id` 删除，`POST /api/notifications/test` 发一条测试推送（`{ "device_id": "..." }`）。
+
+VAPID 密钥默认自动生成并持久化到加密存储。多实例部署需设置 `PEBBLE_VAPID_PRIVATE_KEY`（可选 `PEBBLE_VAPID_PUBLIC_KEY` 校验）保证一致性。
+
+服务端推送载荷形状：
+
+```json
+{
+  "kind": "mail" | "otp" | "mail_batch" | "summary" | "test",
+  "title": "string",
+  "body": "string",
+  "url": "string",
+  "tag": "string",
+  "timestamp": 0,
+  "allow_foreground": false,
+  "message_id": "string | null"
+}
+```
+
+## Kanban
+
+| 方法 | 路径 | 请求 | 响应 |
+|---|---|---|---|
+| `GET` | `/api/kanban` | `?column=todo\|waiting\|done`（可选） | `{ "cards": [{ message_id, column, position, created_at, updated_at }], "notes": { "messageId": "note" } }` |
+| `POST` | `/api/kanban/cards` | `{ "messageId": "string", "column": "todo\|waiting\|done", "position": 0 }` | `null` |
+| `DELETE` | `/api/kanban/cards/:messageId` | — | `null` |
+| `GET` | `/api/kanban/notes` | — | `{ "messageId": "note" }` |
+| `PUT` | `/api/kanban/notes/:messageId` | `{ "note": "string" }` | 全量 notes map |
+| `PATCH` | `/api/kanban/notes` | `{ "notes": { "messageId": "note" } }` 或直接传 notes map | 合并后的 notes map（不覆盖已有） |
+
+## 暂延（Snooze）
+
+| 方法 | 路径 | 请求 | 响应 |
+|---|---|---|---|
+| `GET` | `/api/snoozed` | — | `[{ message_id, snoozed_at, unsnoozed_at, return_to }]` |
+| `POST` | `/api/snoozed` | `{ "messageId": "string", "until": 0, "returnTo": "string" }`（`until` 为 Unix 时间戳） | `null` |
+| `DELETE` | `/api/snoozed/:messageId` | — | `null`；同时发 `mail:unsnoozed` SSE |
+
+## 待处理操作（Pending Ops）
+
+所有写回远端失败或异步队列化的操作在此管理。
+
+| 方法 | 路径 | 请求 | 响应 |
+|---|---|---|---|
+| `GET` | `/api/pending-ops` | `?accountId=...&limit=100`（默认 100，上限 500） | `[{ id, account_id, message_id, op_type, status, attempts, last_error, created_at, updated_at, next_retry_at }]` |
+| `GET` | `/api/pending-ops/summary` | `?accountId=...` | `{ pending_count, in_progress_count, failed_count, total_active_count, last_error, updated_at }` |
+| `POST` | `/api/pending-ops/:id/cancel` | — | `null`；发 `mail:pending-ops-changed` |
+| `DELETE` | `/api/pending-ops/:id` | — | `null`；发 `mail:pending-ops-changed` |

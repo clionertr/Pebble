@@ -69,9 +69,18 @@ curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/inst
     bash
 ```
 
+> Prefer integrity verification over `curl | bash`? Download the script, check its SHA-256 against the published checksum, then execute:
+>
+> ```bash
+> curl -fsSLo install.sh https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh
+> curl -fsSLo install.sh.sha256 https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh.sha256
+> sha256sum -c install.sh.sha256   # fails loudly on mismatch
+> bash install.sh
+> ```
+
 ### Development from Source
 
-You need: **Rust** (stable), **Node.js 18+**, **pnpm 8+**.
+You need: **Rust** (stable), **Node.js 22+**, **pnpm 11+**.
 
 ```bash
 git clone https://github.com/clionertr/Pebble.git
@@ -271,7 +280,7 @@ server {
 
 The one-command installer writes a compose file from `deploy/compose.prod.yml`. If you want to maintain it manually, use the prebuilt GHCR images:
 
-`latest` is updated only when this repository pushes a version tag such as `v0.0.9`.
+`latest` is updated only when this repository pushes a version tag such as `v0.0.10`.
 
 ```yaml
 name: pebble
@@ -439,7 +448,7 @@ Shortcuts can be customized in Settings.
 | `pnpm test` | Run frontend tests (Vitest) |
 | `cargo fmt --check` | Check Rust formatting |
 | `cargo clippy --all-targets -- -D warnings` | Run Rust lint checks |
-| `cargo test --all` | Run all Rust tests |
+| `cargo test --workspace --all-targets` | Run all Rust tests |
 | `sudo systemctl restart pebble` | Restart a source-deployed backend managed by systemd |
 
 ## Troubleshooting

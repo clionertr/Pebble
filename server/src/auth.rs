@@ -172,21 +172,20 @@ pub async fn callback_handler(
     .await
     {
         Ok(_) => Html(
-            "
-            <html>
-                <head><title>Success</title></head>
-                <body style='font-family:sans-serif;text-align:center;padding:50px;'>
-                    <h2>Account Added Successfully!</h2>
-                    <p>You can close this tab and return to the application.</p>
-                    <script>
-                        setTimeout(() => {
-                            window.location.href = '/';
-                        }, 2000);
-                    </script>
-                </body>
-            </html>
-        "
-            .to_string(),
+            r#"<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Account Added</title>
+  <meta http-equiv="refresh" content="2; url=/">
+</head>
+<body style="font-family:sans-serif;text-align:center;padding:50px;">
+  <h2>Account Added Successfully!</h2>
+  <p>You can close this tab and return to the application.</p>
+  <p><a href="/">Click here if you are not redirected automatically.</a></p>
+</body>
+</html>"#
+                .to_string(),
         )
         .into_response(),
         Err(e) => Html(format!(

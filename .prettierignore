@@ -1,0 +1,16 @@
+node_modules
+dist
+target
+pnpm-lock.yaml
+*.md
+*.json
+*.yml
+*.yaml
+*.svg
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.lock
+.git

@@ -369,3 +369,49 @@ cargo audit   # 或 cargo deny check
 
 > 第 0 阶段核验完成。所有 36 个问题 ID 均有状态标注，无"未知"状态。基线数据已固化，可作为后续阶段整改的验收对照。
 
+---
+
+## 附录 B：第 2 阶段执行报告（契约、文档、工具链与供应链）
+
+> 执行日期：2026-06-02
+> 范围：契约同步、文档补齐、工具链引入、供应链加固。高风险代码重构（错误类型统一、IMAP 错误上下文）按约定推迟到第 3 阶段。
+
+### B.1 已完成项
+
+| ID | 整改动作 | 验收证据 |
+|---|---|---|
+| C-CONTRACT-01 | `api/docs.rs` 补齐 6 条缺失的 notification 路由（vapid-public-key、devices GET/PATCH/DELETE、subscriptions POST/DELETE、test POST）；OpenAPI 版本号已对齐 `0.0.10` | `git grep -n "api/notifications" server/src/api/docs.rs` 可看到全部 6 条路径；路由-OpenAPI diff 为 0（有意排除的 4 条除外） |
+| C-SEC-07 | OAuth 成功页去掉 `<script>` 自动跳转，改用 `<meta http-equiv="refresh">` + 手动回链 | `server/src/auth.rs` 成功分支渲染的 HTML 不再包含 `setTimeout` 或 `window.location`；nginx CSP `script-src 'self'` 下仍可正常跳转 |
+| C-TOOL-01 | 引入 ESLint 9 flat config + Prettier 3；新增 `pnpm lint`、`pnpm lint:fix`、`pnpm format`、`pnpm format:check` 脚本 | `eslint.config.js`、`.prettierrc`、`.prettierignore` 存在；`pnpm lint` 与 `pnpm format:check` 可执行 |
+| C-TOOL-02 | 新增 `deny.toml`（licenses / advisories / bans / sources）；CI 加入 `EmbarkStudios/cargo-deny-action@v2` 步骤 | `deny.toml` 存在；`.github/workflows/ci.yml` 出现 `cargo-deny-action` |
+| C-TOOL-03 | 删除 `package-lock.json`，保留 `pnpm-lock.yaml` 单一锁文件 | `git ls-files package-lock.json` 为空；`pnpm-lock.yaml` 仍在 |
+| C-SEC-03 | 4 处 Dockerfile 基础镜像改为多架构 index digest pin（`lukemathwalker/cargo-chef`、`debian:bookworm-slim`、`node:22-alpine`、`nginx:alpine`），注释保留原始 tag 便于后续升级 | `deploy/backend.Dockerfile` 与 `deploy/frontend.Dockerfile` 所有 FROM 使用 `@sha256:...` |
+| C-SEC-04 | 3 个 workflow 全部 action 用 `@<SHA> # <tag>` 形式 pin：checkout v4.2.2、setup-node v4.4.0、pnpm/action-setup v4.1.0、rust-toolchain stable、rust-cache v2.7.8、upload/download-artifact v4.x、setup-buildx v4.0.0、login-action v4.0.0、build-push-action v7.0.0、action-gh-release v2.3.3、cargo-deny-action v2.2.0 | `grep -E '@[a-f0-9]{40}' .github/workflows/*.yml` 全部命中 |
+| D-DOC-01 (集成指南) | `docs/integration-guide.md` 新增：SSE 事件全集、推送通知（Web Push/VAPID）、Kanban、暂延、待处理操作五个章节 | 文档目录新增 5 个二级标题，含请求/响应载荷表 |
+| D-DOC-01 / C-DOC-02 (README) | 修正版本号 `v0.0.9` → `v0.0.10`；Node 22+ / pnpm 11+；`cargo test --workspace --all-targets`；补充 sha256 校验替代 `curl \| bash` | `README.md` 与 `README.zh-CN.md` 均更新 |
+| C-ERR-01 (partial) | `pnpm audit` 零漏洞（`No known vulnerabilities found`），第 1 阶段依赖升级已固化 | `pnpm audit` 输出无告警 |
+
+### B.2 已知遗留 / 推迟到下一阶段
+
+| ID | 推迟原因 | 下一步 |
+|---|---|---|
+| D-ERR-04 (auth_api/health.rs) | 修改 auth 返回类型涉及调用方解构；health.rs 属于 RPC 层签名变更 | 第 3 阶段随 API/RPC/store 边界规范一起改 |
+| D-ERR-03 (IMAP `map_err(\|_\| ...)`) | 需要重设 pebble-mail crate 的错误枚举 | 第 3 阶段随巨型文件拆分一起做 |
+| C-TOOL-01 前端存量 lint | 47 errors + 13 warnings，多属 `jsx-a11y`、`no-console`、`@typescript-eslint/no-explicit-any` 与一处 `no-control-regex` | CI `continue-on-error: true`；团队逐文件修复后移除 `continue-on-error` |
+
+### B.3 质量门结果
+
+| 检查 | 结果 |
+|---|---|
+| `pnpm exec tsc --noEmit` | ✅ 通过 |
+| `pnpm test` | ✅ 76 文件 / 271 测试通过 |
+| `pnpm run build:frontend` | ✅ 6.71s 构建成功 |
+| `pnpm lint` | ⚠️ 47 errors + 13 warnings（CI continue-on-error） |
+| `pnpm audit --audit-level moderate` | ✅ 零漏洞 |
+| `cargo fmt --all -- --check` | ✅ 通过 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | ✅ 通过 |
+| `cargo test --workspace --all-targets` | ✅ 14 个 crate / 455 测试全部通过 |
+| `bash -n deploy/install.sh` / `bash -n deploy/build.sh` | ✅ 通过 |
+
+> 第 2 阶段主目标（契约、文档、工具链、供应链）达成；质量门除前端 lint 存量外全部绿灯。
+
