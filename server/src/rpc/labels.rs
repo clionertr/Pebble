@@ -1,21 +1,21 @@
 use pebble_core::PebbleError;
 use pebble_store::labels::Label;
 
-pub async fn get_message_labels(
+pub(crate) async fn get_message_labels(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     message_id: String,
 ) -> std::result::Result<Vec<Label>, PebbleError> {
     state.store.get_message_labels(&message_id)
 }
 
-pub async fn get_message_labels_batch(
+pub(crate) async fn get_message_labels_batch(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     message_ids: Vec<String>,
 ) -> std::result::Result<std::collections::HashMap<String, Vec<Label>>, PebbleError> {
     state.store.get_message_labels_batch(&message_ids)
 }
 
-pub async fn add_message_label(
+pub(crate) async fn add_message_label(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     message_id: String,
     label_name: String,
@@ -23,7 +23,7 @@ pub async fn add_message_label(
     state.store.add_label(&message_id, &label_name)
 }
 
-pub async fn remove_message_label(
+pub(crate) async fn remove_message_label(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     message_id: String,
     label_name: String,
@@ -31,7 +31,7 @@ pub async fn remove_message_label(
     state.store.remove_label(&message_id, &label_name)
 }
 
-pub async fn list_labels(
+pub(crate) async fn list_labels(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
 ) -> std::result::Result<Vec<Label>, PebbleError> {
     state.store.list_labels()

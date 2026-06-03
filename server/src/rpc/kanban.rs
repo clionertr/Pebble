@@ -60,7 +60,7 @@ pub(crate) fn replace_kanban_context_notes_for_state(
     Ok(notes)
 }
 
-pub async fn move_to_kanban(
+pub(crate) async fn move_to_kanban(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     message_id: String,
     column: KanbanColumn,
@@ -77,27 +77,27 @@ pub async fn move_to_kanban(
     state.store.upsert_kanban_card(&card)
 }
 
-pub async fn list_kanban_cards(
+pub(crate) async fn list_kanban_cards(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     column: Option<KanbanColumn>,
 ) -> std::result::Result<Vec<KanbanCard>, PebbleError> {
     state.store.list_kanban_cards(column.as_ref())
 }
 
-pub async fn remove_from_kanban(
+pub(crate) async fn remove_from_kanban(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     message_id: String,
 ) -> std::result::Result<(), PebbleError> {
     state.store.delete_kanban_card(&message_id)
 }
 
-pub async fn list_kanban_context_notes(
+pub(crate) async fn list_kanban_context_notes(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
 ) -> std::result::Result<HashMap<String, String>, PebbleError> {
     load_kanban_context_notes_for_state(&state)
 }
 
-pub async fn set_kanban_context_note(
+pub(crate) async fn set_kanban_context_note(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     message_id: String,
     note: String,
@@ -112,7 +112,7 @@ pub async fn set_kanban_context_note(
     replace_kanban_context_notes_for_state(&state, notes)
 }
 
-pub async fn merge_kanban_context_notes(
+pub(crate) async fn merge_kanban_context_notes(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     notes: HashMap<String, String>,
 ) -> std::result::Result<HashMap<String, String>, PebbleError> {

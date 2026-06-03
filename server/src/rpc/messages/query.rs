@@ -1,7 +1,7 @@
 use axum::extract::State;
 use pebble_core::{Message, MessageSummary, PebbleError};
 
-pub async fn list_messages(
+pub(crate) async fn list_messages(
     state: State<std::sync::Arc<crate::state::AppState>>,
     folder_id: String,
     folder_ids: Option<Vec<String>>,
@@ -17,7 +17,7 @@ pub async fn list_messages(
         .await
 }
 
-pub async fn list_starred_messages(
+pub(crate) async fn list_starred_messages(
     state: State<std::sync::Arc<crate::state::AppState>>,
     account_id: String,
     limit: u32,
@@ -29,7 +29,7 @@ pub async fn list_starred_messages(
         .await
 }
 
-pub async fn get_message(
+pub(crate) async fn get_message(
     state: State<std::sync::Arc<crate::state::AppState>>,
     message_id: String,
 ) -> std::result::Result<Option<Message>, PebbleError> {
@@ -39,7 +39,7 @@ pub async fn get_message(
         .await
 }
 
-pub async fn get_messages_batch(
+pub(crate) async fn get_messages_batch(
     state: State<std::sync::Arc<crate::state::AppState>>,
     message_ids: Vec<String>,
 ) -> std::result::Result<Vec<Message>, PebbleError> {

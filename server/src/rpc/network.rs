@@ -191,13 +191,7 @@ pub(crate) fn account_proxy_mode_from_auth_value(value: &serde_json::Value) -> A
         .unwrap_or_default()
 }
 
-pub async fn get_global_proxy(
-    state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
-) -> Result<Option<HttpProxyConfig>, PebbleError> {
-    get_global_proxy_raw(&state.crypto, &state.store)
-}
-
-pub async fn update_global_proxy(
+pub(crate) async fn update_global_proxy(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     proxy_host: Option<String>,
     proxy_port: Option<u16>,

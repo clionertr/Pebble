@@ -245,7 +245,7 @@ cargo audit   # 或 cargo deny check
 | P2 | 拆 `api/resources.rs` | **剩余** | 建立 route snapshot/OpenAPI diff 保护后，按 rules/translate/cloud_sync/trusted_senders/templates/diagnostics/proxy 拆分 |
 | P2 | 拆 `api/threads.rs` | **剩余** | 先抽 `parse_folder_ids` 和搜索请求类型，再拆 search/kanban/snooze；路由行为不变 |
 | P2 | 继续收敛 `spawn_blocking` 样板 | **已完成 RPC 层收敛**：已新增 `Store::with_blocking_async()` 和 `rpc::blocking::run_blocking()`；search/advanced_search、messages flags/rendering、batch、attachments、accounts cleanup、reindex 等旧 join-error 样板已迁移 | `rg 'tokio::task::spawn_blocking|Task join error' server/src/rpc` 仅剩统一 helper；全量 Rust 质量门通过 |
-| P2 | 纯透传 RPC 分类和可见性收敛 | **剩余**：已有边界规范，但未逐函数出处理清单 | 每个薄 RPC 有保留/收敛/删除结论；仅 crate 内使用的函数改 `pub(crate)` |
+| P2 | 纯透传 RPC 分类和可见性收敛 | **已完成当前清单**：薄 RPC 已按“保留边界 / 收窄可见性 / 删除遗留透传”分类；labels/rules/kanban/snooze/threads/messages query 等仅 crate 内调用的函数已改 `pub(crate)`，未使用的 `get_global_proxy()` 已删除 | `cargo clippy --workspace --all-targets -- -D warnings` 与 API 测试通过；分类结果见 C.2 |
 | P2 | GitHub Actions 产物证明/SBOM | **部分完成**：Actions 已 SHA pin，Docker digest pin 已完成；release 已有 artifact 下载/发布流程 | 发布产物补 checksum；评估 artifact attestations/SBOM |
 | P3 | 巨型同步/Provider 文件拆分 | **剩余** | 先补 provider fake/同步回归测试，再按状态机、协议请求、消息转换、错误分类拆 |
 | P3 | 前端巨型组件拆分 | **剩余** | `AccountsTab.tsx`、`ComposeView.tsx` 按职责拆分；前端测试和构建通过 |
@@ -274,7 +274,7 @@ cargo audit   # 或 cargo deny check
 | C-HYGIENE-01 | **已完成** | Git 不跟踪 `.env`、`data/`、`server/data/`、`pebble.key`，`.dockerignore` 已排除本地运行数据。 |
 | C-ASSET-01 | **已完成** | 根目录 `icon.png` 已从 20MB 压缩到约 703KB。 |
 | C-DOC-02 | **已完成** | README 中 `curl | bash` 已补校验替代方案，中英文 README 已同步。 |
-| D-ARCH-01 | **部分完成** | 已写入 API/RPC/store 边界规范；纯透传 RPC 还需逐函数分类和可见性收敛。 |
+| D-ARCH-01 | **已完成当前清单** | 已写入 API/RPC/store 边界规范；纯透传 RPC 已完成分类和可见性收敛，保留的薄函数作为 API → service 边界存在。 |
 | D-ARCH-02 | **部分完成** | 通知业务已下沉到 service；`api/resources.rs`、`api/threads.rs` 等胖 handler 仍需拆分。 |
 | D-DEAD-01 | **已完成** | Tauri 遗留引用已清理，API/RPC inventory 测试覆盖无 `/rpc` 暴露。 |
 | D-ERR-01 | **已完成** | 请求可达 `.unwrap()` 已清理到安全位置或测试代码；质量门包含 clippy 和全量测试。 |
@@ -292,6 +292,20 @@ cargo audit   # 或 cargo deny check
 | D-STRUCT-01 | **部分完成** | 新增规范和部分可见性/注释改造已完成；命名、模块拆分、历史英文注释仍需随重构推进。 |
 | D-DOC-01 | **已完成基础同步** | README、集成指南、OpenAPI 已大幅补齐；后续随新增 API/SSE 继续维护。 |
 | D-TEST-01 | **部分完成** | 已有 API baseline/auth/messages/shell/snooze/trusted_senders/search/notifications/OpenAPI diff 测试；Compose、OAuth callback 和 E2E 仍需补齐。 |
+
+### C.2 纯透传 RPC 分类结果
+
+| 模块 / 函数组 | 处理结论 | 证据 |
+|---|---|---|
+| `rpc/labels.rs` | 保留 service 边界，全部改 `pub(crate)` | 仅 `api/labels.rs` 调用；handler 不直接依赖 store 标签细节。 |
+| `rpc/rules.rs` | 保留 service 边界，全部改 `pub(crate)` | 仅 `api/resources.rs` 调用；后续规则执行/校验可在 service 层扩展。 |
+| `rpc/kanban.rs` | 保留 service 边界，全部改 `pub(crate)` | `api/threads.rs` 与 `rpc/cloud_sync.rs` 调用；上下文备注合并有业务语义。 |
+| `rpc/snooze.rs` | 保留 service 边界，全部改 `pub(crate)` | 仅 `api/threads.rs` 调用；保留暂延业务边界。 |
+| `rpc/threads.rs`、`rpc/messages/query.rs` | 保留查询 service 边界，全部改 `pub(crate)` | API handler 继续只做 HTTP 参数解析和响应包装。 |
+| `rpc/folders.rs`、`rpc/folder_counts.rs`、`rpc/contacts.rs` | 保留轻量 service 边界，改 `pub(crate)` | 被 shell/accounts/resources API 调用；避免 handler 直接散落 store 查询。 |
+| `rpc/network.rs::update_global_proxy()` | 保留 service 边界，改 `pub(crate)` | `api/resources.rs` 调用；配置校验仍集中在 network service。 |
+| `rpc/network.rs::get_global_proxy()` | 删除 | 收窄可见性后编译暴露为未使用；实际调用方使用 `get_global_proxy_raw()`。 |
+| `rpc/gmail_realtime.rs` | 已是 `pub(crate)`，保留 | API 层调用内部 service；没有公开 `/rpc` 入口。 |
 
 ---
 

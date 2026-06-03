@@ -1,6 +1,6 @@
 use pebble_core::{KnownContact, PebbleError};
 
-pub async fn search_contacts(
+pub(crate) async fn search_contacts(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     account_id: String,
     query: String,

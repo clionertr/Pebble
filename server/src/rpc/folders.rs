@@ -32,7 +32,7 @@ fn filter_display_folders(provider: Option<&ProviderType>, folders: Vec<Folder>)
         .collect()
 }
 
-pub async fn list_folders(
+pub(crate) async fn list_folders(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     account_id: String,
 ) -> std::result::Result<Vec<Folder>, PebbleError> {

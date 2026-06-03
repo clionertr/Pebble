@@ -1,6 +1,6 @@
 use pebble_core::{Message, PebbleError, ThreadSummary};
 
-pub async fn list_thread_messages(
+pub(crate) async fn list_thread_messages(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     thread_id: String,
 ) -> std::result::Result<Vec<Message>, PebbleError> {
@@ -10,7 +10,7 @@ pub async fn list_thread_messages(
         .await
 }
 
-pub async fn list_threads(
+pub(crate) async fn list_threads(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     folder_id: String,
     folder_ids: Option<Vec<String>>,

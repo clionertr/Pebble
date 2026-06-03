@@ -1,6 +1,6 @@
 use pebble_core::{now_timestamp, PebbleError, SnoozedMessage};
 
-pub async fn snooze_message(
+pub(crate) async fn snooze_message(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     message_id: String,
     until: i64,
@@ -15,7 +15,7 @@ pub async fn snooze_message(
     state.store.snooze_message(&snooze)
 }
 
-pub async fn unsnooze_message(
+pub(crate) async fn unsnooze_message(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     message_id: String,
 ) -> std::result::Result<(), PebbleError> {
@@ -32,7 +32,7 @@ pub async fn unsnooze_message(
     Ok(())
 }
 
-pub async fn list_snoozed(
+pub(crate) async fn list_snoozed(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
 ) -> std::result::Result<Vec<SnoozedMessage>, PebbleError> {
     state.store.list_snoozed_messages()
