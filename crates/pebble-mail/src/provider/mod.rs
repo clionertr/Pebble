@@ -2,6 +2,7 @@ pub mod gmail;
 mod gmail_mime;
 pub mod imap_provider;
 pub mod outlook;
+mod outlook_codec;
 
 use std::sync::Arc;
 

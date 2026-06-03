@@ -247,7 +247,7 @@ cargo audit   # 或 cargo deny check
 | P2 | 继续收敛 `spawn_blocking` 样板 | **已完成 RPC 层收敛**：已新增 `Store::with_blocking_async()` 和 `rpc::blocking::run_blocking()`；search/advanced_search、messages flags/rendering、batch、attachments、accounts cleanup、reindex 等旧 join-error 样板已迁移 | `rg 'tokio::task::spawn_blocking|Task join error' server/src/rpc` 仅剩统一 helper；全量 Rust 质量门通过 |
 | P2 | 纯透传 RPC 分类和可见性收敛 | **已完成当前清单**：薄 RPC 已按“保留边界 / 收窄可见性 / 删除遗留透传”分类；labels/rules/kanban/snooze/threads/messages query 等仅 crate 内调用的函数已改 `pub(crate)`，未使用的 `get_global_proxy()` 已删除 | `cargo clippy --workspace --all-targets -- -D warnings` 与 API 测试通过；分类结果见 C.2 |
 | P2 | GitHub Actions 产物证明/SBOM | **已完成 checksum 基线**：Actions 已 SHA pin，Docker digest pin 已完成；release 二进制逐平台生成 `.sha256`，发布前统一校验并上传 `checksums.txt` | 后续可继续评估 artifact attestations/SBOM；当前 release 产物完整性校验已有可验收基线 |
-| P3 | 巨型同步/Provider 文件拆分 | **部分完成**：Gmail provider 已抽出 MIME/地址/附件编码 helper 到 `gmail_mime.rs`，`gmail.rs` 由约 1895 行降到 1637 行；原有 Gmail 单元测试继续覆盖 header 注入、Bcc、附件、boundary 等行为 | 继续拆 Outlook provider 与 `sync.rs` / `sync_cmd.rs`；先补 provider fake/同步回归测试，再按状态机、协议请求、消息转换、错误分类拆 |
+| P3 | 巨型同步/Provider 文件拆分 | **部分完成**：Gmail provider 已抽出 MIME/地址/附件编码 helper 到 `gmail_mime.rs`，`gmail.rs` 由约 1895 行降到 1637 行；Outlook provider 已抽出 base64/MIME helper 到 `outlook_codec.rs`，`outlook.rs` 由约 1662 行降到 1584 行；原有 provider 单元测试继续覆盖 header 注入、Bcc、附件、boundary、Graph 转换等行为 | 继续拆 `sync.rs` / `sync_cmd.rs`；先补 provider fake/同步回归测试，再按状态机、协议请求、消息转换、错误分类拆 |
 | P3 | 前端巨型组件拆分 | **已完成当前范围**：`ComposeView.tsx` 已抽出附件列表、模板菜单、保存模板面板、离开确认弹窗到 `ComposePanels.tsx`，主文件由 1118 行降到 794 行；`AccountsTab.tsx` 已抽出账号列表到 `AccountsList.tsx`、编辑弹窗到 `EditAccountModal.tsx`，主文件由 1237 行降到 280 行 | `pnpm lint`、Accounts 相关测试、`pnpm build:frontend` 通过；后续新增功能继续按组件边界拆 |
 | P3 | Trellis 包级占位规范清理 | **已完成**：`pebble-core`、`pebble-crypto`、`pebble-mail`、`pebble-oauth`、`pebble-privacy`、`pebble-rules`、`pebble-search`、`pebble-store`、`pebble-translate` 的包级 backend spec 已替换为真实目录/质量/错误/日志/数据库边界规范 | `rg '(To be filled by the team)' .trellis/spec -g '*.md'` 无输出；每个包至少有真实目录/质量/错误规范入口 |
 | P3 | E2E 覆盖 | **已完成当前 Vitest 范围**：新增 `tests/e2e/` 核心流测试，覆盖 OAuth 账号入口、Compose typed recipient 到发送 mutation、搜索提交到结果详情打开 | `pnpm test` 79 文件 / 274 测试通过；后续如引入 Playwright 再补真实浏览器后端联调 |
@@ -269,7 +269,7 @@ cargo audit   # 或 cargo deny check
 | C-TOOL-02 | **已完成 CI 接入** | `deny.toml` 与 SHA pin 的 `cargo-deny-action` 已存在；本机未安装 `cargo-deny`，本地复核依赖开发环境。 |
 | C-TOOL-03 | **已完成** | `git ls-files package-lock.json` 为空，仓库只保留 `pnpm-lock.yaml`。 |
 | C-DOC-01 | **已完成当前范围** | 主 `pebble/backend` 规范已补；包级 backend spec 占位正文已清理，目录/质量/错误/日志/数据库边界均有真实内容。 |
-| C-ARCH-01 | **部分完成** | `api/resources.rs`、`api/threads.rs` 已拆；`ComposeView.tsx` 已完成面板拆分；`AccountsTab.tsx` 已抽出账号列表和编辑弹窗；Gmail provider 已抽出 MIME helper。后端 Outlook provider、`sync.rs`、`sync_cmd.rs` 仍需继续拆分。 |
+| C-ARCH-01 | **部分完成** | `api/resources.rs`、`api/threads.rs` 已拆；`ComposeView.tsx` 已完成面板拆分；`AccountsTab.tsx` 已抽出账号列表和编辑弹窗；Gmail/Outlook provider 已抽出 MIME/编码 helper。后端 `sync.rs`、`sync_cmd.rs` 仍需继续拆分。 |
 | C-ERR-01 | **已完成当前 API 边界** | `ApiError` 默认内部错误已脱敏，`record_timing` 已改安全返回；`api_handlers_do_not_bypass_api_error_boundary` 防止新增 `/api` handler 绕过 `ApiError`。 |
 | C-HYGIENE-01 | **已完成** | Git 不跟踪 `.env`、`data/`、`server/data/`、`pebble.key`，`.dockerignore` 已排除本地运行数据。 |
 | C-ASSET-01 | **已完成** | 根目录 `icon.png` 已从 20MB 压缩到约 703KB。 |
