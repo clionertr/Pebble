@@ -5,7 +5,9 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use pebble::{api, auth, gmail_realtime, middleware, rpc, snooze_watcher, state::AppState};
+use pebble::{
+    api, auth, gmail_realtime, middleware, rpc, session, snooze_watcher, state::AppState,
+};
 use std::convert::Infallible;
 use std::io::Read;
 use std::net::SocketAddr;
@@ -303,6 +305,8 @@ async fn main() {
     ));
 
     maybe_spawn_search_reindex(state.clone());
+    session::spawn_session_cleanup_task(state.session_store.clone());
+    auth::spawn_oauth_state_cleanup_task(state.clone());
 
     let store_clone = state.store.clone();
     let state_clone = state.clone();

@@ -6,7 +6,12 @@ use axum::{
 use pebble_core::{new_id, now_timestamp, Account, HttpProxyConfig, OAuthTokens};
 use pebble_oauth::{OAuthManager, OAuthNetworkConfig, PkceState};
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+const OAUTH_STATE_TTL: Duration = Duration::from_secs(10 * 60);
+const OAUTH_STATE_CLEANUP_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 fn escape_html(s: &str) -> String {
     s.replace('&', "&amp;")
@@ -20,6 +25,29 @@ pub struct OAuthSession {
     pub provider: String,
     pub pkce_state: PkceState,
     pub proxy: Option<HttpProxyConfig>,
+    pub created_at: Instant,
+}
+
+fn retain_valid_oauth_states(states: &mut HashMap<String, OAuthSession>) -> usize {
+    let before = states.len();
+    states.retain(|_, session| session.created_at.elapsed() < OAUTH_STATE_TTL);
+    before - states.len()
+}
+
+pub fn spawn_oauth_state_cleanup_task(state: Arc<AppState>) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(OAUTH_STATE_CLEANUP_INTERVAL);
+        loop {
+            interval.tick().await;
+            let removed = {
+                let mut states = state.oauth_states.lock().await;
+                retain_valid_oauth_states(&mut states)
+            };
+            if removed > 0 {
+                tracing::info!(removed, "Expired OAuth states cleaned");
+            }
+        }
+    })
 }
 
 #[derive(Deserialize)]
@@ -91,6 +119,7 @@ pub async fn login_handler(
             provider,
             pkce_state,
             proxy,
+            created_at: Instant::now(),
         },
     );
 
@@ -293,6 +322,7 @@ async fn complete_account_creation(
 mod tests {
     use super::*;
     use pebble_core::ProviderType;
+    use pebble_oauth::OAuthConfig;
 
     fn account(id: &str, color: Option<&str>) -> Account {
         let now = now_timestamp();
@@ -345,5 +375,50 @@ mod tests {
     #[test]
     fn escape_html_preserves_plain_text() {
         assert_eq!(escape_html("access_denied"), "access_denied");
+    }
+
+    fn oauth_test_config() -> OAuthConfig {
+        OAuthConfig {
+            client_id: "client-id".to_string(),
+            client_secret: None,
+            auth_url: "https://accounts.example.test/auth".to_string(),
+            token_url: "https://accounts.example.test/token".to_string(),
+            scopes: vec!["email".to_string()],
+            redirect_url: "http://localhost:3000/auth/callback".to_string(),
+            extra_auth_params: HashMap::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn retain_valid_oauth_states_removes_expired_entries() {
+        let manager = OAuthManager::new(oauth_test_config());
+        let (_, old_pkce) = manager.start_auth().await.unwrap();
+        let (_, fresh_pkce) = manager.start_auth().await.unwrap();
+        let mut states = HashMap::from([
+            (
+                "old".to_string(),
+                OAuthSession {
+                    provider: "gmail".to_string(),
+                    pkce_state: old_pkce,
+                    proxy: None,
+                    created_at: Instant::now() - OAUTH_STATE_TTL - Duration::from_secs(1),
+                },
+            ),
+            (
+                "fresh".to_string(),
+                OAuthSession {
+                    provider: "gmail".to_string(),
+                    pkce_state: fresh_pkce,
+                    proxy: None,
+                    created_at: Instant::now(),
+                },
+            ),
+        ]);
+
+        let removed = retain_valid_oauth_states(&mut states);
+
+        assert_eq!(removed, 1);
+        assert!(!states.contains_key("old"));
+        assert!(states.contains_key("fresh"));
     }
 }

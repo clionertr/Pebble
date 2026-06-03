@@ -286,7 +286,7 @@ cargo audit   # 或 cargo deny check
 | D-DUP-03 | **已完成 RPC 层收敛** | 已新增 `Store::with_blocking_async()` 与 `rpc::blocking::run_blocking()`；`server/src/rpc` 旧 `Task join error` 样板已清零，直接 `spawn_blocking` 仅剩统一 helper。非 RPC 后台 worker 中的阻塞任务按运行时职责保留。 |
 | D-SEC-01 | **已完成** | `/api/attachments/stage` 已使用 `DefaultBodyLimit::max(MAX_ATTACHMENT_SIZE)` 并做 handler 内二次检查。 |
 | D-SEC-02 | **部分完成** | 搜索查询长度、分页 limit 已限制；更完整的用户级速率/并发限制仍未完成。 |
-| D-SEC-03 | **剩余** | session/rate-limit/OAuth state 的定期清理与持久化策略仍需运行时分析和实现。 |
+| D-SEC-03 | **已完成内存清理** | `SessionStore` 已提供 session/rate-limit 过期清理并在启动时挂后台任务；OAuth state 已记录创建时间并按 TTL 定期清理。当前单用户 session 仍为内存态，重启登出作为已知部署取舍保留。 |
 | D-SEC-04 | **已完成** | `server/.env` 未被 Git 跟踪，`.dockerignore` 已排除本地敏感数据。 |
 | D-SEC-05 | **已完成** | inbox/thread/search/pending ops 等 limit 已 clamp 到上限。 |
 | D-STRUCT-01 | **部分完成** | 新增规范和部分可见性/注释改造已完成；命名、模块拆分、历史英文注释仍需随重构推进。 |
