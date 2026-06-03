@@ -1,4 +1,5 @@
 pub mod gmail;
+mod gmail_mime;
 pub mod imap_provider;
 pub mod outlook;
 
