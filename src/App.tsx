@@ -63,22 +63,17 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 
 export default function App() {
   useEffect(() => {
-    logStartupTiming("react app mounted");
-    const win = window as Window & { __pebbleDismissSplash?: () => void };
-    if (typeof win.__pebbleDismissSplash === "function") {
-      win.__pebbleDismissSplash();
-      return;
-    }
-    const splash = document.getElementById("splash");
-    if (!splash) return;
-    splash.classList.add("fade-out");
-    const removeSplash = () => {
-      splash.remove();
-      document.getElementById("splash-style")?.remove();
+    const onSplashRemoved = () => {
       logStartupTiming("splash removed");
     };
-    splash.addEventListener("transitionend", removeSplash, { once: true });
-    setTimeout(removeSplash, 2000);
+
+    window.addEventListener("pebble:splash-removed", onSplashRemoved, { once: true });
+    logStartupTiming("react app mounted");
+    window.pebbleSplash?.dismiss("app-mounted");
+
+    return () => {
+      window.removeEventListener("pebble:splash-removed", onSplashRemoved);
+    };
   }, []);
 
   return (
