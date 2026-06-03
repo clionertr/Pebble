@@ -241,16 +241,57 @@ cargo audit   # 或 cargo deny check
 | P1 | Rust 依赖安全/许可证检查进入 CI | **已完成 CI 接入**：`deny.toml` 存在，CI 已加入 SHA pin 的 `EmbarkStudios/cargo-deny-action`；本机当前未安装 `cargo-deny`，无法直接跑本地复核 | CI cargo-deny job 通过；已知例外写入 `deny.toml` |
 | P1 | 错误类型统一 | **部分完成**：本轮已将 `rpc/health.rs`、`rpc/diagnostics.rs` 迁到 `PebbleError`，`record_timing` 不再向客户端拼接内部错误；仍需继续处理其他字符串边界 | 继续统一剩余 `Result<_, String>`；客户端只见安全文案，日志保留内部细节 |
 | P1 | IMAP 错误保留上下文 | **部分完成**：本轮已让 IMAP 测试连接的 TCP/SOCKS5/TLS/greeting 超时错误带目标地址；仍需继续整理更深层 IMAP 命令错误分类 | 保留原始错误或分类；测试能区分连接失败、超时、TLS、认证失败 |
-| P1 | 关键 API 测试补齐 | **部分完成**：已有 API baseline、auth、messages、shell、snooze、trusted_senders 测试；OpenAPI diff 测试本轮补入 | 继续补 Compose send、搜索 API、通知 API、OAuth callback 行为测试 |
+| P1 | 关键 API 测试补齐 | **部分完成**：已有 API baseline、auth、messages、shell、snooze、trusted_senders、搜索、通知测试；OpenAPI diff 测试已补入 | 继续补 Compose send、OAuth callback 行为测试和端到端覆盖 |
 | P2 | 拆 `api/resources.rs` | **剩余** | 建立 route snapshot/OpenAPI diff 保护后，按 rules/translate/cloud_sync/trusted_senders/templates/diagnostics/proxy 拆分 |
 | P2 | 拆 `api/threads.rs` | **剩余** | 先抽 `parse_folder_ids` 和搜索请求类型，再拆 search/kanban/snooze；路由行为不变 |
-| P2 | 继续收敛 `spawn_blocking` 样板 | **部分完成**：已新增 `Store::with_blocking_async()` 并迁移 threads/messages/folders/folder_counts 部分路径 | 继续迁移 search/advanced_search、messages flags/rendering、batch 等旧 join-error 样板 |
+| P2 | 继续收敛 `spawn_blocking` 样板 | **已完成 RPC 层收敛**：已新增 `Store::with_blocking_async()` 和 `rpc::blocking::run_blocking()`；search/advanced_search、messages flags/rendering、batch、attachments、accounts cleanup、reindex 等旧 join-error 样板已迁移 | `rg 'tokio::task::spawn_blocking|Task join error' server/src/rpc` 仅剩统一 helper；全量 Rust 质量门通过 |
 | P2 | 纯透传 RPC 分类和可见性收敛 | **剩余**：已有边界规范，但未逐函数出处理清单 | 每个薄 RPC 有保留/收敛/删除结论；仅 crate 内使用的函数改 `pub(crate)` |
 | P2 | GitHub Actions 产物证明/SBOM | **部分完成**：Actions 已 SHA pin，Docker digest pin 已完成；release 已有 artifact 下载/发布流程 | 发布产物补 checksum；评估 artifact attestations/SBOM |
 | P3 | 巨型同步/Provider 文件拆分 | **剩余** | 先补 provider fake/同步回归测试，再按状态机、协议请求、消息转换、错误分类拆 |
 | P3 | 前端巨型组件拆分 | **剩余** | `AccountsTab.tsx`、`ComposeView.tsx` 按职责拆分；前端测试和构建通过 |
 | P3 | Trellis 包级占位规范清理 | **部分完成**：主 `pebble/backend` 已补齐；包级 spec 仍有大量 `(To be filled by the team)` | `.trellis/spec/*` 不再大面积存在占位正文；每个包至少有真实目录/质量/错误规范入口 |
 | P3 | E2E 覆盖 | **剩余** | 核心用户流 E2E 覆盖 OAuth 到账号创建、Compose 到发送、搜索到 UI |
+
+### C.1 问题 ID 当前状态
+
+| ID | 当前状态 | 当前证据 / 下一步 |
+|---|---|---|
+| C-SEC-01 | **已完成** | `pnpm audit --audit-level moderate` 已为零漏洞；依赖升级已固化在第 1/2 阶段。 |
+| C-SEC-02 | **已完成** | `server/src/auth.rs` 使用 `escape_html()`，OAuth 错误页测试覆盖脚本转义。 |
+| C-SEC-03 | **已完成** | `deploy/backend.Dockerfile`、`deploy/frontend.Dockerfile` 的 `FROM` 均使用 `@sha256` digest pin。 |
+| C-SEC-04 | **已完成** | `.github/workflows/*.yml` action 均用 SHA pin，并保留 tag 注释。 |
+| C-SEC-05 | **已完成** | `.dockerignore` 已包含 `.agent`、`.claude`、`.codex`、`.antigravitycli`、`server/data` 等本地目录。 |
+| C-SEC-06 | **已完成** | `deploy/nginx.conf` 不再信任 `0.0.0.0/0`，改为 Docker 私网 CIDR 和 loopback。 |
+| C-SEC-07 | **部分完成** | OAuth 成功页已去 inline script；CSP 仍允许 inline style，后续可继续细化静态资源策略。 |
+| C-META-01 | **部分完成** | OpenAPI/更新检查已对齐 `0.0.10` 与 `clionertr/Pebble`；`site/` 和 `CHANGELOG.md` 仍保留 `QingJ01/Pebble` 历史/站点链接，需决定是否作为上游署名保留。 |
+| C-CONTRACT-01 | **已完成** | OpenAPI 已补通知路由，新增 `openapi_paths_match_public_routes` 自动 diff 测试。 |
+| C-TOOL-01 | **部分完成** | ESLint/Prettier 已接入；CI 仍 `continue-on-error`，前端存量 lint 需继续清理。 |
+| C-TOOL-02 | **已完成 CI 接入** | `deny.toml` 与 SHA pin 的 `cargo-deny-action` 已存在；本机未安装 `cargo-deny`，本地复核依赖开发环境。 |
+| C-TOOL-03 | **已完成** | `git ls-files package-lock.json` 为空，仓库只保留 `pnpm-lock.yaml`。 |
+| C-DOC-01 | **部分完成** | 主 `pebble/backend` 规范已补；包级 spec 仍有大量 `(To be filled by the team)`，需继续清理。 |
+| C-ARCH-01 | **剩余** | 后端/前端巨型文件仍需测试先行后逐个拆分。 |
+| C-ERR-01 | **部分完成** | `ApiError` 默认内部错误已脱敏，`record_timing` 已改安全返回；仍需持续检查新 handler 不拼接内部错误。 |
+| C-HYGIENE-01 | **已完成** | Git 不跟踪 `.env`、`data/`、`server/data/`、`pebble.key`，`.dockerignore` 已排除本地运行数据。 |
+| C-ASSET-01 | **已完成** | 根目录 `icon.png` 已从 20MB 压缩到约 703KB。 |
+| C-DOC-02 | **已完成** | README 中 `curl | bash` 已补校验替代方案，中英文 README 已同步。 |
+| D-ARCH-01 | **部分完成** | 已写入 API/RPC/store 边界规范；纯透传 RPC 还需逐函数分类和可见性收敛。 |
+| D-ARCH-02 | **部分完成** | 通知业务已下沉到 service；`api/resources.rs`、`api/threads.rs` 等胖 handler 仍需拆分。 |
+| D-DEAD-01 | **已完成** | Tauri 遗留引用已清理，API/RPC inventory 测试覆盖无 `/rpc` 暴露。 |
+| D-ERR-01 | **已完成** | 请求可达 `.unwrap()` 已清理到安全位置或测试代码；质量门包含 clippy 和全量测试。 |
+| D-ERR-02 | **部分完成** | 关键搜索 pending 等路径已有日志；仍需逐项审视剩余 `let _ =` 是否仅为断开/清理/广播。 |
+| D-ERR-03 | **部分完成** | IMAP 测试连接超时已带目标地址；深层 IMAP 命令错误分类仍需继续整理。 |
+| D-ERR-04 | **部分完成** | `rpc/health.rs`、`rpc/diagnostics.rs` 已迁到 `PebbleError`；`auth_api` 特殊返回模型仍未统一。 |
+| D-DUP-01 | **部分完成** | `UserLabel`/`Label`、高级搜索查询结构已收敛；其他重复模型需继续扫描。 |
+| D-DUP-02 | **部分完成** | Tantivy `SearchHit` builder 已收敛；查询模式和 helper 仍需随拆分继续整理。 |
+| D-DUP-03 | **已完成 RPC 层收敛** | 已新增 `Store::with_blocking_async()` 与 `rpc::blocking::run_blocking()`；`server/src/rpc` 旧 `Task join error` 样板已清零，直接 `spawn_blocking` 仅剩统一 helper。非 RPC 后台 worker 中的阻塞任务按运行时职责保留。 |
+| D-SEC-01 | **已完成** | `/api/attachments/stage` 已使用 `DefaultBodyLimit::max(MAX_ATTACHMENT_SIZE)` 并做 handler 内二次检查。 |
+| D-SEC-02 | **部分完成** | 搜索查询长度、分页 limit 已限制；更完整的用户级速率/并发限制仍未完成。 |
+| D-SEC-03 | **剩余** | session/rate-limit/OAuth state 的定期清理与持久化策略仍需运行时分析和实现。 |
+| D-SEC-04 | **已完成** | `server/.env` 未被 Git 跟踪，`.dockerignore` 已排除本地敏感数据。 |
+| D-SEC-05 | **已完成** | inbox/thread/search/pending ops 等 limit 已 clamp 到上限。 |
+| D-STRUCT-01 | **部分完成** | 新增规范和部分可见性/注释改造已完成；命名、模块拆分、历史英文注释仍需随重构推进。 |
+| D-DOC-01 | **已完成基础同步** | README、集成指南、OpenAPI 已大幅补齐；后续随新增 API/SSE 继续维护。 |
+| D-TEST-01 | **部分完成** | 已有 API baseline/auth/messages/shell/snooze/trusted_senders/search/notifications/OpenAPI diff 测试；Compose、OAuth callback 和 E2E 仍需补齐。 |
 
 ---
 

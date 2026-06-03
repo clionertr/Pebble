@@ -1,3 +1,4 @@
+use crate::rpc::blocking::run_blocking;
 use pebble_core::{Attachment, PebbleError};
 use std::path::{Path, PathBuf};
 
@@ -351,9 +352,9 @@ pub async fn download_attachment(
         .ok_or_else(|| PebbleError::Internal("Attachment file not available".to_string()))?;
 
     let att_id = attachment_id.clone();
-    // Use spawn_blocking to avoid blocking the async executor on large files
+    // 大文件复制必须离开 Tokio runtime，避免阻塞其他请求。
     let tx = state.tx.clone();
-    let actual_path_result = tokio::task::spawn_blocking(move || {
+    let actual_path = match run_blocking(move || {
         let source_path = std::path::Path::new(&source);
         let save_path = std::path::Path::new(&save_to);
         copy_attachment_file_safely(source_path, save_path, |bytes_copied, total_bytes| {
@@ -364,9 +365,7 @@ pub async fn download_attachment(
         })
     })
     .await
-    .map_err(|e| PebbleError::Internal(format!("Copy task failed: {e}")))?;
-
-    let actual_path = match actual_path_result {
+    {
         Ok(path) => path,
         Err(e) => {
             tracing::warn!(

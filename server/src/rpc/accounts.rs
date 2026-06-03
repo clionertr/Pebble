@@ -1,4 +1,5 @@
 use crate::account_colors::default_account_color;
+use crate::rpc::blocking::run_blocking;
 use crate::rpc::network::{
     account_proxy_setting_from_parts, get_global_proxy_raw, http_proxy_from_mail_proxy,
     is_inherit_proxy_mode, mail_proxy_from_http, normalize_account_proxy_setting,
@@ -724,7 +725,7 @@ pub async fn delete_account(
     // 5. Clean up attachment files on disk
     let attachments_dir = state.attachments_dir.clone();
     let account_id_for_log = account_id.clone();
-    if let Err(e) = tokio::task::spawn_blocking(move || {
+    if let Err(e) = run_blocking(move || {
         for msg_id in &message_ids {
             let msg_dir = attachments_dir.join(msg_id);
             if msg_dir.exists() {
@@ -733,6 +734,7 @@ pub async fn delete_account(
                 }
             }
         }
+        Ok(())
     })
     .await
     {

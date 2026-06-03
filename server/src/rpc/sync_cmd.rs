@@ -1,5 +1,6 @@
 use crate::events;
 use crate::realtime::{RealtimeMode, RealtimeStatusPayload, SyncTrigger};
+use crate::rpc::blocking::run_blocking;
 use crate::rpc::indexing;
 use crate::rpc::oauth::{
     build_oauth_token_refresher, decode_oauth_account_tokens, gmail_oauth_config,
@@ -989,9 +990,7 @@ pub async fn reindex_search(
     let store = Arc::clone(&state.store);
     let search = Arc::clone(&state.search);
 
-    tokio::task::spawn_blocking(move || indexing::do_reindex(&store, &search))
-        .await
-        .map_err(|e| PebbleError::Internal(format!("Reindex task failed: {e}")))?
+    run_blocking(move || indexing::do_reindex(&store, &search)).await
 }
 
 #[allow(dead_code)]

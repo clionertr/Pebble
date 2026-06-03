@@ -4,6 +4,8 @@
 mod auth;
 mod health;
 mod messages;
+mod notifications;
+mod search;
 mod shell;
 mod snooze;
 mod trusted_senders;

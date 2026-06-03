@@ -1,3 +1,4 @@
+use crate::rpc::blocking::run_blocking;
 use pebble_core::traits::{SearchHit, StructuredQuery};
 use pebble_core::PebbleError;
 use pebble_search::AdvancedSearchParams;
@@ -11,7 +12,7 @@ pub async fn advanced_search(
 ) -> std::result::Result<Vec<SearchHit>, PebbleError> {
     let search = state.search.clone();
     let limit = limit.unwrap_or(50);
-    let hits = tokio::task::spawn_blocking(move || {
+    let hits = run_blocking(move || {
         search.advanced_search(AdvancedSearchParams {
             text: query.text.as_deref(),
             from: query.from.as_deref(),
@@ -24,8 +25,7 @@ pub async fn advanced_search(
             limit,
         })
     })
-    .await
-    .map_err(|e| PebbleError::Internal(format!("Task join error: {e}")))??;
+    .await?;
 
     Ok(hits)
 }

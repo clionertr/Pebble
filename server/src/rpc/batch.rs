@@ -98,9 +98,9 @@ async fn prepare_batch(
         ));
     }
     let ids = message_ids.to_vec();
-    let groups = tokio::task::spawn_blocking(move || group_by_account(&store, &ids))
-        .await
-        .map_err(|e| PebbleError::Internal(format!("Task join error: {e}")))??;
+    let groups = store
+        .with_blocking_async(move |store| group_by_account(store, &ids))
+        .await?;
     Ok(Some(groups))
 }
 

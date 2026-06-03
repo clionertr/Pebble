@@ -37,50 +37,51 @@ pub async fn update_message_flags(
     let crypto = state.crypto.clone();
     let msg_id = message_id.clone();
 
-    let writeback_info =
-        tokio::task::spawn_blocking(move || -> std::result::Result<WritebackInfo, PebbleError> {
-            let msg = match store.get_message(&msg_id)? {
-                Some(m) => m,
-                None => return Ok(WritebackInfo::None),
-            };
+    let writeback_info = store
+        .with_blocking_async(
+            move |store| -> std::result::Result<WritebackInfo, PebbleError> {
+                let msg = match store.get_message(&msg_id)? {
+                    Some(m) => m,
+                    None => return Ok(WritebackInfo::None),
+                };
 
-            let provider_type = store
-                .get_account(&msg.account_id)?
-                .map(|account| account.provider);
+                let provider_type = store
+                    .get_account(&msg.account_id)?
+                    .map(|account| account.provider);
 
-            match provider_type {
-                Some(ProviderType::Gmail) => Ok(WritebackInfo::Gmail { msg }),
-                Some(ProviderType::Outlook) => Ok(WritebackInfo::Outlook { msg }),
-                Some(ProviderType::Imap) | None => {
-                    // For IMAP we also need the folder's remote_id and the IMAP
-                    // config; both require store / crypto access, so resolve them
-                    // here inside the blocking task.
-                    let folder_ids = store.get_message_folder_ids(&msg_id)?;
-                    let folders = store.list_folders(&msg.account_id)?;
-                    let folder = folder_ids
-                        .iter()
-                        .find_map(|fid| folders.iter().find(|f| &f.id == fid))
-                        .cloned();
+                match provider_type {
+                    Some(ProviderType::Gmail) => Ok(WritebackInfo::Gmail { msg }),
+                    Some(ProviderType::Outlook) => Ok(WritebackInfo::Outlook { msg }),
+                    Some(ProviderType::Imap) | None => {
+                        // For IMAP we also need the folder's remote_id and the IMAP
+                        // config; both require store / crypto access, so resolve them
+                        // here inside the blocking task.
+                        let folder_ids = store.get_message_folder_ids(&msg_id)?;
+                        let folders = store.list_folders(&msg.account_id)?;
+                        let folder = folder_ids
+                            .iter()
+                            .find_map(|fid| folders.iter().find(|f| &f.id == fid))
+                            .cloned();
 
-                    // Missing config here means the account has no IMAP writeback
-                    // target; degrade gracefully to `None` rather than failing the
-                    // whole flag update, which is local-only-valid in that case.
-                    let imap_config: Option<ImapConfig> =
-                        load_imap_config(&store, &crypto, &msg.account_id).ok();
+                        // Missing config here means the account has no IMAP writeback
+                        // target; degrade gracefully to `None` rather than failing the
+                        // whole flag update, which is local-only-valid in that case.
+                        let imap_config: Option<ImapConfig> =
+                            load_imap_config(store, &crypto, &msg.account_id).ok();
 
-                    match (folder, imap_config) {
-                        (Some(f), Some(cfg)) => Ok(WritebackInfo::Imap {
-                            msg,
-                            folder_remote_id: f.remote_id.clone(),
-                            imap_config: cfg,
-                        }),
-                        _ => Ok(WritebackInfo::None),
+                        match (folder, imap_config) {
+                            (Some(f), Some(cfg)) => Ok(WritebackInfo::Imap {
+                                msg,
+                                folder_remote_id: f.remote_id.clone(),
+                                imap_config: cfg,
+                            }),
+                            _ => Ok(WritebackInfo::None),
+                        }
                     }
                 }
-            }
-        })
-        .await
-        .map_err(|e| PebbleError::Internal(format!("Task join error: {e}")))??;
+            },
+        )
+        .await?;
 
     // 2. Provider-specific remote writeback. Local flags are committed only
     //    after remote ack or when there is no remote target.
@@ -298,11 +299,11 @@ pub async fn update_message_flags(
     }
 
     let store = state.store.clone();
-    tokio::task::spawn_blocking(move || {
-        store.update_message_flags(&message_id, is_read, is_starred)
-    })
-    .await
-    .map_err(|e| PebbleError::Internal(format!("Task join error: {e}")))??;
+    store
+        .with_blocking_async(move |store| {
+            store.update_message_flags(&message_id, is_read, is_starred)
+        })
+        .await?;
 
     Ok(())
 }

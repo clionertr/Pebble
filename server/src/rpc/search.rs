@@ -1,3 +1,4 @@
+use crate::rpc::blocking::run_blocking;
 use pebble_core::traits::SearchHit;
 use pebble_core::PebbleError;
 
@@ -8,9 +9,7 @@ pub async fn search_messages(
 ) -> std::result::Result<Vec<SearchHit>, PebbleError> {
     let limit = limit.unwrap_or(50);
     let search = state.search.clone();
-    let hits = tokio::task::spawn_blocking(move || search.search(&query, limit))
-        .await
-        .map_err(|e| PebbleError::Internal(format!("Task join error: {e}")))??;
+    let hits = run_blocking(move || search.search(&query, limit)).await?;
 
     Ok(hits)
 }
