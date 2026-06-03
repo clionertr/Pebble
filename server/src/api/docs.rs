@@ -14,7 +14,7 @@ async fn docs_page() -> Html<&'static str> {
         r#"<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>Pebble API Docs</title></head>
-<body style="font-family: system-ui, sans-serif; max-width: 720px; margin: 48px auto; line-height: 1.6;">
+<body>
   <h1>Pebble Webmail API</h1>
   <p>OpenAPI JSON is available at <a href="/api/docs/openapi.json">/api/docs/openapi.json</a>.</p>
 </body>

@@ -262,7 +262,7 @@ cargo audit   # 或 cargo deny check
 | C-SEC-04 | **已完成** | `.github/workflows/*.yml` action 均用 SHA pin，并保留 tag 注释。 |
 | C-SEC-05 | **已完成** | `.dockerignore` 已包含 `.agent`、`.claude`、`.codex`、`.antigravitycli`、`server/data` 等本地目录。 |
 | C-SEC-06 | **已完成** | `deploy/nginx.conf` 不再信任 `0.0.0.0/0`，改为 Docker 私网 CIDR 和 loopback。 |
-| C-SEC-07 | **部分完成** | OAuth 成功页已去 inline script；CSP 仍允许 inline style，后续可继续细化静态资源策略。 |
+| C-SEC-07 | **已完成当前范围** | OAuth 成功页和 API docs 已去除 inline style；nginx CSP 已收紧为 `style-src 'self'`，不再允许 `'unsafe-inline'`。 |
 | C-META-01 | **已完成** | OpenAPI、更新检查、About 页、站点链接、CHANGELOG compare 链接已对齐 `0.0.10` 与 `clionertr/Pebble`；README 仅保留明确的原始上游说明和署名。 |
 | C-CONTRACT-01 | **已完成** | OpenAPI 已补通知路由，新增 `openapi_paths_match_public_routes` 自动 diff 测试。 |
 | C-TOOL-01 | **部分完成** | ESLint/Prettier 已接入；CI 仍 `continue-on-error`，前端存量 lint 需继续清理。 |
