@@ -6,7 +6,7 @@
 
 ## Overview
 
-This directory contains guidelines for backend development. Fill in each file with your project's specific conventions.
+This directory contains the current backend guidelines for Pebble's Webmail API, service layer, persistence, logging, and quality gates.
 
 ---
 
@@ -24,11 +24,11 @@ This directory contains guidelines for backend development. Fill in each file wi
 
 ---
 
-## How to Fill These Guidelines
+## How to Maintain These Guidelines
 
 For each guideline file:
 
-1. Document your project's **actual conventions** (not ideals)
+1. Document Pebble's **actual conventions** (not ideals)
 2. Include **code examples** from your codebase
 3. List **forbidden patterns** and why
 4. Add **common mistakes** your team has made

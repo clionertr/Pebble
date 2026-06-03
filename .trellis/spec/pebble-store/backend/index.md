@@ -1,12 +1,12 @@
 # Backend Development Guidelines
 
-> Best practices for backend development in this project.
+> pebble-store 的包级后端规范入口。
 
 ---
 
 ## Overview
 
-This directory contains guidelines for backend development. Fill in each file with your project's specific conventions.
+`pebble-store` 负责SQLite 持久化、迁移、查询和事务边界。实现时先读本目录规范，再结合根项目 `pebble/backend` 的 API/RPC/store 边界。
 
 ---
 
@@ -14,25 +14,21 @@ This directory contains guidelines for backend development. Fill in each file wi
 
 | Guide | Description | Status |
 |-------|-------------|--------|
-| [Directory Structure](./directory-structure.md) | Module organization and file layout | To fill |
-| [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations | To fill |
-| [Error Handling](./error-handling.md) | Error types, handling strategies | To fill |
-| [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
-| [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | To fill |
+| [Directory Structure](./directory-structure.md) | 模块组织和文件布局 | Done |
+| [Quality Guidelines](./quality-guidelines.md) | 质量门、测试和禁用模式 | Done |
+| [Error Handling](./error-handling.md) | 错误分类和传播 | Done |
+| [Logging Guidelines](./logging-guidelines.md) | 日志级别和敏感信息边界 | Done |
+| [Database Guidelines](./database-guidelines.md) | 持久化边界和迁移要求 | Done |
 
 ---
 
-## How to Fill These Guidelines
+## Pre-Development Checklist
 
-For each guideline file:
-
-1. Document your project's **actual conventions** (not ideals)
-2. Include **code examples** from your codebase
-3. List **forbidden patterns** and why
-4. Add **common mistakes** your team has made
-
-The goal is to help AI assistants and new team members understand how YOUR project works.
+- 读 `directory-structure.md`，确认新增代码属于哪个模块。
+- 读 `quality-guidelines.md`，确认测试和禁用模式。
+- 涉及错误传播时读 `error-handling.md`。
+- 涉及持久化、迁移或序列化时读 `database-guidelines.md`。
 
 ---
 
-**Language**: All documentation should be written in **English**.
+**Language**：文档和注释使用中文；保留代码标识符、HTTP 方法和环境变量原文。

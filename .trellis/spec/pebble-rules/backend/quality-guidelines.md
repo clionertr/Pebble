@@ -1,51 +1,27 @@
-# Quality Guidelines
+# 质量指南
 
-> Code quality standards for backend development.
-
----
-
-## Overview
-
-<!--
-Document your project's quality standards here.
-
-Questions to answer:
-- What patterns are forbidden?
-- What linting rules do you enforce?
-- What are your testing requirements?
-- What code review standards apply?
--->
-
-(To be filled by the team)
+> pebble-rules 的实现质量约定。
 
 ---
 
-## Forbidden Patterns
+## 必守规则
 
-<!-- Patterns that should never be used and why -->
-
-(To be filled by the team)
-
----
-
-## Required Patterns
-
-<!-- Patterns that must always be used -->
-
-(To be filled by the team)
+- 规则匹配必须 deterministic；新增条件要有正反例测试。
+- 规则动作只描述意图，远端写回和 store 变更由 server/rpc 编排。
+- 禁用规则必须被跳过，优先级排序由调用方/存储层保证。
 
 ---
 
-## Testing Requirements
+## 测试要求
 
-<!-- What level of testing is expected -->
-
-(To be filled by the team)
+- 修改公共 API 或领域行为时，补对应 crate 单元测试。
+- 修复 bug 时优先写能复现失败的回归测试。
+- 涉及跨层契约时，同步检查 `server` API 测试、OpenAPI 或前端类型。
 
 ---
 
-## Code Review Checklist
+## 禁止模式
 
-<!-- What reviewers should check -->
-
-(To be filled by the team)
+- 在库 crate 中直接依赖 `server/src/api`。
+- 在请求可达路径新增 `.unwrap()` / `.expect()`，除非测试或不可变常量构造。
+- 为通过测试隐藏错误；应保留足够上下文并让调用方决定降级策略。

@@ -1,54 +1,44 @@
-# Directory Structure
+# 目录结构
 
-> How backend code is organized in this project.
-
----
-
-## Overview
-
-<!--
-Document your project's backend directory structure here.
-
-Questions to answer:
-- How are modules/packages organized?
-- Where does business logic live?
-- Where are API endpoints defined?
-- How are utilities and helpers organized?
--->
-
-(To be filled by the team)
+> pebble-privacy 后端代码组织约定。
 
 ---
 
-## Directory Layout
+## 总览
 
-```
-<!-- Replace with your actual structure -->
-src/
-├── ...
-└── ...
+`pebble-privacy` 负责邮件 HTML 清理、隐私渲染和追踪器识别。它位于 `crates/pebble-privacy/src/`，只暴露 crate API，不定义 HTTP 路由。
+
+---
+
+## 目录布局
+
+```text
+crates/pebble-privacy/src/
+├── sanitizer.rs
+├── tracker.rs
+└── lib.rs
 ```
 
 ---
 
-## Module Organization
+## 模块组织
 
-<!-- How should new features/modules be organized? -->
+- `sanitizer.rs`：HTML/CSS 清理、图片阻止和安全渲染。
+- `tracker.rs`：已知追踪域和 tracking pixel 判断。
+- `lib.rs`：公共导出。
 
-(To be filled by the team)
-
----
-
-## Naming Conventions
-
-<!-- File and folder naming rules -->
-
-(To be filled by the team)
+新增能力优先放入职责最接近的现有模块；只有当现有模块已经承载多个独立状态机或协议边界时才新增文件。
 
 ---
 
-## Examples
+## 命名约定
 
-<!-- Link to well-organized modules as examples -->
+- 文件名使用 snake_case。
+- 公共类型名描述领域对象或协议对象，不使用 HTTP/Tauri/RPC 命名。
+- 只在 crate 外确实需要时使用 `pub`；crate 内共享优先 `pub(crate)`。
 
-(To be filled by the team)
+---
+
+## 示例
+
+以当前 `src/lib.rs` 的公共导出和上方模块职责为准；新增模块后同步更新本文件和 `index.md`。

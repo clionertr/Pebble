@@ -1,51 +1,26 @@
-# Logging Guidelines
+# 日志指南
 
-> How logging is done in this project.
-
----
-
-## Overview
-
-<!--
-Document your project's logging conventions here.
-
-Questions to answer:
-- What logging library do you use?
-- What are the log levels and when to use each?
-- What should be logged?
-- What should NOT be logged (PII, secrets)?
--->
-
-(To be filled by the team)
+> pebble-translate 的日志边界。
 
 ---
 
-## Log Levels
+## 约定
 
-<!-- When to use each level: debug, info, warn, error -->
-
-(To be filled by the team)
+不要记录待翻译全文和 API key；可记录 provider、endpoint host 和错误类别。
 
 ---
 
-## Structured Logging
+## 日志级别
 
-<!-- Log format, required fields -->
-
-(To be filled by the team)
-
----
-
-## What to Log
-
-<!-- Important events to log -->
-
-(To be filled by the team)
+- `debug`：协议步骤、缓存命中、测试诊断。
+- `info`：后台任务启动/结束、迁移完成、重要状态切换。
+- `warn`：可恢复失败、降级路径、清理失败。
+- `error`：调用方需要介入的持久化、认证或不可恢复错误。
 
 ---
 
-## What NOT to Log
+## 禁止记录
 
-<!-- Sensitive data, PII, secrets -->
-
-(To be filled by the team)
+- 密码、token、API key、OAuth code、加密密钥。
+- 完整邮件正文、附件内容或用户私密配置明文。
+- 可被客户端直接利用的内部路径和系统细节。

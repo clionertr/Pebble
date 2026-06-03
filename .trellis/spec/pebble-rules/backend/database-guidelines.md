@@ -1,51 +1,25 @@
-# Database Guidelines
+# 数据库指南
 
-> Database patterns and conventions for this project.
-
----
-
-## Overview
-
-<!--
-Document your project's database conventions here.
-
-Questions to answer:
-- What ORM/query library do you use?
-- How are migrations managed?
-- What are the naming conventions for tables/columns?
-- How do you handle transactions?
--->
-
-(To be filled by the team)
+> pebble-rules 的持久化边界。
 
 ---
 
-## Query Patterns
+## 边界
 
-<!-- How should queries be written? Batch operations? -->
-
-(To be filled by the team)
+本包不访问数据库；规则 CRUD 在 pebble-store，执行编排在 server/src/rpc/indexing.rs。
 
 ---
 
-## Migrations
+## 契约
 
-<!-- How to create and run migrations -->
-
-(To be filled by the team)
-
----
-
-## Naming Conventions
-
-<!-- Table names, column names, index names -->
-
-(To be filled by the team)
+- 直接 SQL 只允许在 `pebble-store` 中出现。
+- 跨 crate 数据结构调整必须同步 store 映射、迁移或调用方序列化。
+- 加密配置和用户数据以密文 blob 存储，明文只在调用边界短暂存在。
 
 ---
 
-## Common Mistakes
+## 测试
 
-<!-- Database-related mistakes your team has made -->
-
-(To be filled by the team)
+- 持久化结构变更要有 round-trip 测试。
+- 迁移变更要验证旧版本数据可升级到 `CURRENT_VERSION`。
+- 无数据库依赖的 crate 要通过单元测试证明行为，不引入 SQLite fixture。
