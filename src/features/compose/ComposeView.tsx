@@ -11,9 +11,6 @@ import {
   Eye,
   EyeOff,
   Paperclip,
-  FileText,
-  Trash2,
-  BookTemplate,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -23,7 +20,7 @@ import { useComposeStore } from "@/stores/compose.store";
 import { useAccountsQuery } from "@/hooks/queries";
 import { useSendEmailMutation } from "@/hooks/mutations";
 import ContactAutocomplete from "@/components/ContactAutocomplete";
-import { listTemplates, saveTemplate, deleteTemplate } from "@/lib/templates";
+import { listTemplates, saveTemplate } from "@/lib/templates";
 import type { EmailTemplate } from "@/lib/templates";
 import { useComposeRecipients } from "@/hooks/useComposeRecipients";
 import { useComposeDraft, loadDraftFromStorage, clearDraftStorage } from "@/hooks/useComposeDraft";
@@ -33,6 +30,12 @@ import { useConfirmStore } from "@/stores/confirm.store";
 import { useToastStore } from "@/stores/toast.store";
 import type { Account } from "@/lib/api-types";
 import type { ComposeAttachment } from "./compose-draft";
+import {
+  ComposeAttachmentList,
+  ComposeLeaveConfirmDialog,
+  SaveTemplatePanel,
+  TemplateMenu,
+} from "./ComposePanels";
 import { ModeButton, EditorToolbar, MarkdownToolbar, composeStyles } from "./ComposeToolbar";
 import { isValidEmailAddress, mergePendingRecipient } from "./recipient-utils";
 
@@ -577,165 +580,23 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
                     e.target.value = "";
                   }}
                 />
-                <div style={{ position: "relative" }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void refreshTemplates();
-                      setShowTemplates((v) => !v);
-                    }}
-                    aria-haspopup="listbox"
-                    aria-expanded={showTemplates}
-                    aria-label={t("compose.templates", "Templates")}
-                    title={t("compose.templates", "Templates")}
-                    className={`compose-toolbar-icon-button${showTemplates ? " is-active" : ""}`}
-                  >
-                    <BookTemplate size={13} />
-                  </button>
-                  {showTemplates && (
-                    <div
-                      className="scroll-region compose-template-scroll"
-                      style={{
-                        position: "absolute",
-                        top: "100%",
-                        left: 0,
-                        zIndex: 100,
-                        backgroundColor: "var(--color-bg)",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: "8px",
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                        minWidth: "220px",
-                        maxHeight: "300px",
-                        overflowY: "auto",
-                      }}
-                    >
-                      <div
-                        style={{
-                          padding: "8px",
-                          borderBottom: "1px solid var(--color-border)",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <span
-                          id="compose-templates-label"
-                          style={{ fontSize: "12px", fontWeight: 600 }}
-                        >
-                          {t("compose.templates", "Templates")}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowSaveTemplate(true);
-                            setShowTemplates(false);
-                          }}
-                          style={{
-                            fontSize: "11px",
-                            border: "none",
-                            background: "none",
-                            cursor: "pointer",
-                            color: "var(--color-accent)",
-                          }}
-                        >
-                          {t("compose.saveAsTemplate", "Save current")}
-                        </button>
-                      </div>
-                      {templates.length === 0 ? (
-                        <div
-                          style={{
-                            padding: "16px",
-                            textAlign: "center",
-                            fontSize: "12px",
-                            color: "var(--color-text-secondary)",
-                          }}
-                        >
-                          {t("compose.noTemplates", "No templates saved")}
-                        </div>
-                      ) : (
-                        <ul
-                          role="listbox"
-                          aria-labelledby="compose-templates-label"
-                          style={{ listStyle: "none", margin: 0, padding: 0 }}
-                        >
-                          {templates.map((tpl) => {
-                            const applyTemplate = () => {
-                              setSubject(tpl.subject);
-                              setRawSource(tpl.body);
-                              if (editor) editor.commands.setContent(tpl.body);
-                              setShowTemplates(false);
-                            };
-                            return (
-                              <li
-                                key={tpl.id}
-                                role="option"
-                                aria-selected={false}
-                                tabIndex={0}
-                                onClick={applyTemplate}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    applyTemplate();
-                                  }
-                                }}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  padding: "8px",
-                                  borderBottom: "1px solid var(--color-border)",
-                                  cursor: "pointer",
-                                  fontSize: "12px",
-                                }}
-                              >
-                                <div style={{ flex: 1, overflow: "hidden" }}>
-                                  <div style={{ fontWeight: 500 }}>{tpl.name}</div>
-                                  <div
-                                    style={{
-                                      color: "var(--color-text-secondary)",
-                                      whiteSpace: "nowrap",
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                    }}
-                                  >
-                                    {tpl.subject}
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    const confirmed = await useConfirmStore.getState().confirm({
-                                      title: t("compose.deleteTemplate", "Delete template"),
-                                      message:
-                                        t("compose.deleteTemplate", "Delete template") +
-                                        ` "${tpl.name}"?`,
-                                      destructive: true,
-                                    });
-                                    if (confirmed) {
-                                      await deleteTemplate(tpl.id);
-                                      void refreshTemplates();
-                                    }
-                                  }}
-                                  aria-label={t("compose.deleteTemplate", "Delete template")}
-                                  title={t("compose.deleteTemplate", "Delete template")}
-                                  style={{
-                                    border: "none",
-                                    background: "none",
-                                    cursor: "pointer",
-                                    color: "var(--color-text-secondary)",
-                                    padding: "2px",
-                                  }}
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <TemplateMenu
+                  show={showTemplates}
+                  templates={templates}
+                  editor={editor}
+                  onToggle={() => setShowTemplates((value) => !value)}
+                  onRefresh={refreshTemplates}
+                  onStartSave={() => {
+                    setShowSaveTemplate(true);
+                    setShowTemplates(false);
+                  }}
+                  onApply={(template) => {
+                    setSubject(template.subject);
+                    setRawSource(template.body);
+                    setShowTemplates(false);
+                  }}
+                  t={t}
+                />
               </div>
               <div className="compose-toolbar-divider" />
 
@@ -797,119 +658,21 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
           </div>
 
           {/* Attachment list */}
-          {attachments.length > 0 && (
-            <div className="compose-inline-panel">
-              {attachments.map((att, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    backgroundColor: "var(--color-bg-hover)",
-                    fontSize: "12px",
-                  }}
-                >
-                  <FileText size={12} />
-                  <span
-                    style={{
-                      maxWidth: "150px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {att.name}
-                  </span>
-                  <span style={{ color: "var(--color-text-secondary)", fontSize: "11px" }}>
-                    {att.size < 1024 * 1024
-                      ? `${(att.size / 1024).toFixed(0)} KB`
-                      : `${(att.size / (1024 * 1024)).toFixed(1)} MB`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
-                    aria-label={t("compose.removeAttachment", "Remove attachment {{name}}", {
-                      name: att.name,
-                    })}
-                    title={t("compose.removeAttachment", "Remove attachment {{name}}", {
-                      name: att.name,
-                    })}
-                    style={{
-                      border: "none",
-                      background: "none",
-                      cursor: "pointer",
-                      padding: "0 2px",
-                      color: "var(--color-text-secondary)",
-                    }}
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <ComposeAttachmentList
+            attachments={attachments}
+            onRemove={(index) => setAttachments((prev) => prev.filter((_, j) => j !== index))}
+            t={t}
+          />
 
           {/* Save template dialog */}
           {showSaveTemplate && (
-            <div className="compose-inline-panel">
-              <input
-                type="text"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder={t("compose.templateName", "Template name")}
-                style={{
-                  flex: 1,
-                  padding: "6px 8px",
-                  fontSize: "12px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "4px",
-                  backgroundColor: "var(--color-bg)",
-                  color: "var(--color-text-primary)",
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && templateName.trim()) {
-                    void handleSaveTemplate();
-                  }
-                  if (e.key === "Escape") setShowSaveTemplate(false);
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  if (!templateName.trim()) return;
-                  void handleSaveTemplate();
-                }}
-                style={{
-                  padding: "5px 12px",
-                  fontSize: "12px",
-                  border: "none",
-                  borderRadius: "4px",
-                  backgroundColor: "var(--color-accent)",
-                  color: "#fff",
-                  cursor: "pointer",
-                }}
-              >
-                {t("common.save")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowSaveTemplate(false)}
-                style={{
-                  padding: "5px 8px",
-                  fontSize: "12px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "4px",
-                  backgroundColor: "transparent",
-                  color: "var(--color-text-secondary)",
-                  cursor: "pointer",
-                }}
-              >
-                {t("common.cancel")}
-              </button>
-            </div>
+            <SaveTemplatePanel
+              name={templateName}
+              onNameChange={setTemplateName}
+              onSave={() => void handleSaveTemplate()}
+              onCancel={() => setShowSaveTemplate(false)}
+              t={t}
+            />
           )}
 
           {/* Editor area */}
@@ -1020,98 +783,11 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
 
       {/* Compose leave confirmation dialog */}
       {showComposeLeaveConfirm && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "rgba(0,0,0,0.4)",
-          }}
-          role="presentation"
-        >
-          <button
-            type="button"
-            aria-label={t("common.cancel")}
-            onClick={cancelCloseCompose}
-            style={{
-              position: "absolute",
-              inset: 0,
-              border: "none",
-              background: "transparent",
-              cursor: "default",
-            }}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="compose-leave-title"
-            style={{
-              position: "relative",
-              zIndex: 1,
-              width: "380px",
-              backgroundColor: "var(--color-sidebar-bg)",
-              color: "var(--color-text-primary)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "8px",
-              padding: "24px",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-              display: "flex",
-              flexDirection: "column" as const,
-              gap: "16px",
-            }}
-          >
-            <h3 id="compose-leave-title" style={{ margin: 0, fontSize: "15px", fontWeight: 600 }}>
-              {t("compose.leaveTitle", "Discard draft?")}
-            </h3>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "13px",
-                color: "var(--color-text-secondary)",
-                lineHeight: 1.5,
-              }}
-            >
-              {t(
-                "compose.leaveMessage",
-                "You have unsaved changes. Are you sure you want to leave?",
-              )}
-            </p>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-              <button
-                onClick={cancelCloseCompose}
-                style={{
-                  padding: "7px 16px",
-                  borderRadius: "6px",
-                  fontSize: "13px",
-                  border: "1px solid var(--color-border)",
-                  cursor: "pointer",
-                  backgroundColor: "transparent",
-                  color: "var(--color-text-primary)",
-                }}
-              >
-                {t("compose.leaveCancel", "Keep editing")}
-              </button>
-              <button
-                onClick={confirmCloseCompose}
-                style={{
-                  padding: "7px 16px",
-                  borderRadius: "6px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  border: "none",
-                  cursor: "pointer",
-                  backgroundColor: "#ef4444",
-                  color: "#fff",
-                }}
-              >
-                {t("compose.leaveConfirm", "Discard")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ComposeLeaveConfirmDialog
+          onCancel={cancelCloseCompose}
+          onConfirm={confirmCloseCompose}
+          t={t}
+        />
       )}
     </div>
   );

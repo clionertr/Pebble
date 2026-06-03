@@ -248,7 +248,7 @@ cargo audit   # 或 cargo deny check
 | P2 | 纯透传 RPC 分类和可见性收敛 | **已完成当前清单**：薄 RPC 已按“保留边界 / 收窄可见性 / 删除遗留透传”分类；labels/rules/kanban/snooze/threads/messages query 等仅 crate 内调用的函数已改 `pub(crate)`，未使用的 `get_global_proxy()` 已删除 | `cargo clippy --workspace --all-targets -- -D warnings` 与 API 测试通过；分类结果见 C.2 |
 | P2 | GitHub Actions 产物证明/SBOM | **已完成 checksum 基线**：Actions 已 SHA pin，Docker digest pin 已完成；release 二进制逐平台生成 `.sha256`，发布前统一校验并上传 `checksums.txt` | 后续可继续评估 artifact attestations/SBOM；当前 release 产物完整性校验已有可验收基线 |
 | P3 | 巨型同步/Provider 文件拆分 | **剩余** | 先补 provider fake/同步回归测试，再按状态机、协议请求、消息转换、错误分类拆 |
-| P3 | 前端巨型组件拆分 | **剩余** | `AccountsTab.tsx`、`ComposeView.tsx` 按职责拆分；前端测试和构建通过 |
+| P3 | 前端巨型组件拆分 | **部分完成**：`ComposeView.tsx` 已抽出附件列表、模板菜单、保存模板面板、离开确认弹窗到 `ComposePanels.tsx`，主文件由 1118 行降到 794 行 | 继续拆 `AccountsTab.tsx`；前端测试和构建通过 |
 | P3 | Trellis 包级占位规范清理 | **已完成**：`pebble-core`、`pebble-crypto`、`pebble-mail`、`pebble-oauth`、`pebble-privacy`、`pebble-rules`、`pebble-search`、`pebble-store`、`pebble-translate` 的包级 backend spec 已替换为真实目录/质量/错误/日志/数据库边界规范 | `rg '(To be filled by the team)' .trellis/spec -g '*.md'` 无输出；每个包至少有真实目录/质量/错误规范入口 |
 | P3 | E2E 覆盖 | **剩余** | 核心用户流 E2E 覆盖 OAuth 到账号创建、Compose 到发送、搜索到 UI |
 
@@ -269,7 +269,7 @@ cargo audit   # 或 cargo deny check
 | C-TOOL-02 | **已完成 CI 接入** | `deny.toml` 与 SHA pin 的 `cargo-deny-action` 已存在；本机未安装 `cargo-deny`，本地复核依赖开发环境。 |
 | C-TOOL-03 | **已完成** | `git ls-files package-lock.json` 为空，仓库只保留 `pnpm-lock.yaml`。 |
 | C-DOC-01 | **已完成当前范围** | 主 `pebble/backend` 规范已补；包级 backend spec 占位正文已清理，目录/质量/错误/日志/数据库边界均有真实内容。 |
-| C-ARCH-01 | **剩余** | 后端/前端巨型文件仍需测试先行后逐个拆分。 |
+| C-ARCH-01 | **部分完成** | `api/resources.rs`、`api/threads.rs` 已拆；`ComposeView.tsx` 已完成首轮面板拆分。后端同步/provider 与 `AccountsTab.tsx` 仍需继续拆分。 |
 | C-ERR-01 | **已完成当前 API 边界** | `ApiError` 默认内部错误已脱敏，`record_timing` 已改安全返回；`api_handlers_do_not_bypass_api_error_boundary` 防止新增 `/api` handler 绕过 `ApiError`。 |
 | C-HYGIENE-01 | **已完成** | Git 不跟踪 `.env`、`data/`、`server/data/`、`pebble.key`，`.dockerignore` 已排除本地运行数据。 |
 | C-ASSET-01 | **已完成** | 根目录 `icon.png` 已从 20MB 压缩到约 703KB。 |
@@ -289,7 +289,7 @@ cargo audit   # 或 cargo deny check
 | D-SEC-03 | **已完成内存清理** | `SessionStore` 已提供 session/rate-limit 过期清理并在启动时挂后台任务；OAuth state 已记录创建时间并按 TTL 定期清理。当前单用户 session 仍为内存态，重启登出作为已知部署取舍保留。 |
 | D-SEC-04 | **已完成** | `server/.env` 未被 Git 跟踪，`.dockerignore` 已排除本地敏感数据。 |
 | D-SEC-05 | **已完成** | inbox/thread/search/pending ops 等 limit 已 clamp 到上限。 |
-| D-STRUCT-01 | **部分完成** | 新增规范和部分可见性/注释改造已完成；命名、模块拆分、历史英文注释仍需随重构推进。 |
+| D-STRUCT-01 | **部分完成** | 新增规范和部分可见性/注释改造已完成；`ComposeView.tsx` 已抽出面板组件；命名、模块拆分、历史英文注释仍需随重构推进。 |
 | D-DOC-01 | **已完成基础同步** | README、集成指南、OpenAPI 已大幅补齐；后续随新增 API/SSE 继续维护。 |
 | D-TEST-01 | **部分完成** | API 层已有 baseline/auth/OAuth callback/Compose send/messages/shell/snooze/trusted_senders/search/notifications/OpenAPI diff 测试；E2E 仍需补齐。 |
 
