@@ -240,7 +240,7 @@ cargo audit   # 或 cargo deny check
 | P1 | OpenAPI 路由 diff 自动测试 | **已完成**：已新增 `api::docs::tests::openapi_paths_match_public_routes`，用于扫描真实路由并比较 OpenAPI paths | `cargo test -p pebble openapi_paths_match_public_routes -- --nocapture` 通过；后续新增公开路由缺文档会失败 |
 | P1 | Rust 依赖安全/许可证检查进入 CI | **已完成 CI 接入**：`deny.toml` 存在，CI 已加入 SHA pin 的 `EmbarkStudios/cargo-deny-action`；本机当前未安装 `cargo-deny`，无法直接跑本地复核 | CI cargo-deny job 通过；已知例外写入 `deny.toml` |
 | P1 | 错误类型统一 | **部分完成**：`rpc/health.rs`、`rpc/diagnostics.rs` 已迁到 `PebbleError`，`auth_api` 已改走 `ApiError`，`record_timing` 不再向客户端拼接内部错误；仍需持续审视新 handler 边界 | 客户端只见安全文案，日志保留内部细节；新增 handler 不再绕过 `ApiError` |
-| P1 | IMAP 错误保留上下文 | **部分完成**：本轮已让 IMAP 测试连接的 TCP/SOCKS5/TLS/greeting 超时错误带目标地址；仍需继续整理更深层 IMAP 命令错误分类 | 保留原始错误或分类；测试能区分连接失败、超时、TLS、认证失败 |
+| P1 | IMAP 错误保留上下文 | **已完成当前范围**：IMAP 测试连接的 TCP/SOCKS5/TLS/greeting 超时错误带目标地址；深层 SELECT/FETCH/STORE/MOVE/IDLE 等命令统一经 `with_imap_timeout()` 保留操作名和原始错误；IMAP UID 解析错误也保留 `ParseIntError` 上下文 | `rg 'map_err\(\|_\|' crates/pebble-mail/src/imap.rs server/src/rpc/messages/provider_dispatch.rs` 无输出；相关单测通过 |
 | P1 | 关键 API 测试补齐 | **部分完成**：已有 API baseline、auth、messages、shell、snooze、trusted_senders、搜索、通知测试；OpenAPI diff 测试已补入 | 继续补 Compose send、OAuth callback 行为测试和端到端覆盖 |
 | P2 | 拆 `api/resources.rs` | **剩余** | 建立 route snapshot/OpenAPI diff 保护后，按 rules/translate/cloud_sync/trusted_senders/templates/diagnostics/proxy 拆分 |
 | P2 | 拆 `api/threads.rs` | **剩余** | 先抽 `parse_folder_ids` 和搜索请求类型，再拆 search/kanban/snooze；路由行为不变 |
@@ -279,7 +279,7 @@ cargo audit   # 或 cargo deny check
 | D-DEAD-01 | **已完成** | Tauri 遗留引用已清理，API/RPC inventory 测试覆盖无 `/rpc` 暴露。 |
 | D-ERR-01 | **已完成** | 请求可达 `.unwrap()` 已清理到安全位置或测试代码；质量门包含 clippy 和全量测试。 |
 | D-ERR-02 | **部分完成** | 关键搜索 pending 等路径已有日志；仍需逐项审视剩余 `let _ =` 是否仅为断开/清理/广播。 |
-| D-ERR-03 | **部分完成** | IMAP 测试连接超时已带目标地址；深层 IMAP 命令错误分类仍需继续整理。 |
+| D-ERR-03 | **已完成当前范围** | IMAP 测试连接超时已带目标地址；深层 IMAP 命令经 `with_imap_timeout()` 保留操作名和原始错误；`parse_imap_uid()` 已保留解析错误上下文。 |
 | D-ERR-04 | **已完成** | `rpc/health.rs`、`rpc/diagnostics.rs` 已迁到 `PebbleError`；`api/auth_api.rs` 登录错误已统一返回 `ApiError`，响应 JSON shape 保持 `{ "error": ... }`。 |
 | D-DUP-01 | **部分完成** | `UserLabel`/`Label`、高级搜索查询结构已收敛；其他重复模型需继续扫描。 |
 | D-DUP-02 | **部分完成** | Tantivy `SearchHit` builder 已收敛；查询模式和 helper 仍需随拆分继续整理。 |

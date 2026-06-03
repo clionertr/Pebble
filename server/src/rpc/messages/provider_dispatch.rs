@@ -50,5 +50,19 @@ impl ConnectedProvider {
 pub(in crate::rpc) fn parse_imap_uid(remote_id: &str) -> Result<u32> {
     remote_id
         .parse::<u32>()
-        .map_err(|_| PebbleError::Internal(format!("Invalid IMAP UID: {remote_id}")))
+        .map_err(|e| PebbleError::Internal(format!("Invalid IMAP UID '{remote_id}': {e}")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_imap_uid;
+
+    #[test]
+    fn parse_imap_uid_includes_parse_error_context() {
+        let error = parse_imap_uid("not-a-uid").expect_err("invalid UID should fail");
+
+        let message = error.to_string();
+        assert!(message.contains("Invalid IMAP UID 'not-a-uid'"));
+        assert!(message.contains("invalid digit"));
+    }
 }
