@@ -25,17 +25,18 @@ export function isAllAccountsFolderId(folderId: string | null | undefined): bool
   return !!folderId && folderId.startsWith(ALL_ACCOUNTS_FOLDER_PREFIX);
 }
 
-export function roleFromAllAccountsFolderId(folderId: string | null | undefined): FolderRole | null {
+export function roleFromAllAccountsFolderId(
+  folderId: string | null | undefined,
+): FolderRole | null {
   if (!folderId || !isAllAccountsFolderId(folderId)) return null;
   const role = folderId.slice(ALL_ACCOUNTS_FOLDER_PREFIX.length);
-  return SYSTEM_ROLE_ORDER.includes(role as FolderRole) ? role as FolderRole : null;
+  return SYSTEM_ROLE_ORDER.includes(role as FolderRole) ? (role as FolderRole) : null;
 }
 
 export function buildAllAccountsFolders(folders: Folder[]): Folder[] {
   const roles = new Set(folders.map((folder) => folder.role).filter(Boolean) as FolderRole[]);
-  const virtualFolders = SYSTEM_ROLE_ORDER
-    .filter((role) => roles.has(role))
-    .map((role, index): Folder => ({
+  const virtualFolders = SYSTEM_ROLE_ORDER.filter((role) => roles.has(role)).map(
+    (role, index): Folder => ({
       id: allAccountsFolderId(role),
       account_id: ALL_ACCOUNTS_ID,
       remote_id: allAccountsFolderId(role),
@@ -46,7 +47,8 @@ export function buildAllAccountsFolders(folders: Folder[]): Folder[] {
       color: null,
       is_system: true,
       sort_order: index,
-    }));
+    }),
+  );
 
   const customFolders = folders
     .filter((folder) => !folder.role)
@@ -82,13 +84,18 @@ export function sortFoldersForSidebar(folders: Folder[]): Folder[] {
 
 export function folderIdsForSelection(folderId: string | null, folders: Folder[]): string[] {
   if (!folderId) return [];
-  const role = roleFromAllAccountsFolderId(folderId) ?? folders.find((folder) => folder.id === folderId)?.role;
+  const role =
+    roleFromAllAccountsFolderId(folderId) ?? folders.find((folder) => folder.id === folderId)?.role;
   if (!role) return folders.some((folder) => folder.id === folderId) ? [folderId] : [];
   return folders.filter((folder) => folder.role === role).map((folder) => folder.id);
 }
 
 export function roleForSelection(folderId: string | null, folders: Folder[]): Folder["role"] {
-  return roleFromAllAccountsFolderId(folderId) ?? folders.find((folder) => folder.id === folderId)?.role ?? null;
+  return (
+    roleFromAllAccountsFolderId(folderId) ??
+    folders.find((folder) => folder.id === folderId)?.role ??
+    null
+  );
 }
 
 export function unreadCountForFolder(

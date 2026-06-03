@@ -31,9 +31,28 @@ interface RuleAction {
   value?: string;
 }
 
-const CONDITION_FIELDS: ConditionField[] = ["from", "to", "subject", "body", "has_attachment", "domain"];
-const CONDITION_OPS: ConditionOp[] = ["contains", "not_contains", "equals", "starts_with", "ends_with"];
-const ACTION_TYPES: ActionType[] = ["AddLabel", "MoveToFolder", "MarkRead", "Archive", "SetKanbanColumn"];
+const CONDITION_FIELDS: ConditionField[] = [
+  "from",
+  "to",
+  "subject",
+  "body",
+  "has_attachment",
+  "domain",
+];
+const CONDITION_OPS: ConditionOp[] = [
+  "contains",
+  "not_contains",
+  "equals",
+  "starts_with",
+  "ends_with",
+];
+const ACTION_TYPES: ActionType[] = [
+  "AddLabel",
+  "MoveToFolder",
+  "MarkRead",
+  "Archive",
+  "SetKanbanColumn",
+];
 const KANBAN_COLUMNS: KanbanColumn[] = ["todo", "waiting", "done"];
 
 // ── Helpers to convert between visual model and JSON string ─────
@@ -111,10 +130,12 @@ export default function RulesTab() {
   useEffect(() => {
     if (!pendingRuleDraftText) return;
     setEditingId("__new__");
-    setForm(buildRuleFormFromSelection(
-      pendingRuleDraftText,
-      t("rules.contextRuleName", "Selected text rule"),
-    ));
+    setForm(
+      buildRuleFormFromSelection(
+        pendingRuleDraftText,
+        t("rules.contextRuleName", "Selected text rule"),
+      ),
+    );
     setError(null);
     setPendingRuleDraftText(null);
   }, [pendingRuleDraftText, setPendingRuleDraftText, t]);
@@ -283,7 +304,9 @@ export default function RulesTab() {
           style={{ ...selectStyle, flex: "0 0 120px" }}
         >
           {CONDITION_FIELDS.map((f) => (
-            <option key={f} value={f}>{t(`rules.field_${f}`, f)}</option>
+            <option key={f} value={f}>
+              {t(`rules.field_${f}`, f)}
+            </option>
           ))}
         </select>
         <select
@@ -293,7 +316,9 @@ export default function RulesTab() {
           style={{ ...selectStyle, flex: "0 0 130px" }}
         >
           {CONDITION_OPS.map((op) => (
-            <option key={op} value={op}>{t(`rules.op_${op}`, op)}</option>
+            <option key={op} value={op}>
+              {t(`rules.op_${op}`, op)}
+            </option>
           ))}
         </select>
         <input
@@ -318,7 +343,10 @@ export default function RulesTab() {
 
   // ── Action row renderer ─────────────────────────────────────
   function renderActionRow(action: RuleAction, index: number) {
-    const needsValue = action.type === "AddLabel" || action.type === "MoveToFolder" || action.type === "SetKanbanColumn";
+    const needsValue =
+      action.type === "AddLabel" ||
+      action.type === "MoveToFolder" ||
+      action.type === "SetKanbanColumn";
 
     return (
       <div key={index} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
@@ -333,11 +361,13 @@ export default function RulesTab() {
           style={{ ...selectStyle, flex: "0 0 160px" }}
         >
           {ACTION_TYPES.map((at) => (
-            <option key={at} value={at}>{t(`rules.action_${at}`, at)}</option>
+            <option key={at} value={at}>
+              {t(`rules.action_${at}`, at)}
+            </option>
           ))}
         </select>
-        {needsValue && (
-          action.type === "SetKanbanColumn" ? (
+        {needsValue &&
+          (action.type === "SetKanbanColumn" ? (
             <select
               aria-label={t("rules.kanbanColumn", "Kanban column")}
               value={action.value || "todo"}
@@ -345,7 +375,9 @@ export default function RulesTab() {
               style={{ ...selectStyle, flex: 1 }}
             >
               {KANBAN_COLUMNS.map((c) => (
-                <option key={c} value={c}>{t(`rules.kanban_${c}`, c)}</option>
+                <option key={c} value={c}>
+                  {t(`rules.kanban_${c}`, c)}
+                </option>
               ))}
             </select>
           ) : (
@@ -361,8 +393,7 @@ export default function RulesTab() {
               }
               style={{ ...inputStyle, flex: 1 }}
             />
-          )
-        )}
+          ))}
         {!needsValue && <div style={{ flex: 1 }} />}
         <button
           onClick={() => removeAction(index)}
@@ -393,7 +424,9 @@ export default function RulesTab() {
       >
         {/* Name */}
         <div>
-          <label htmlFor="rule-name" style={labelStyle}>{t("rules.name")}</label>
+          <label htmlFor="rule-name" style={labelStyle}>
+            {t("rules.name")}
+          </label>
           <input
             id="rule-name"
             type="text"
@@ -407,7 +440,9 @@ export default function RulesTab() {
         {/* Priority + Enabled row */}
         <div style={{ display: "flex", gap: "16px", alignItems: "flex-end" }}>
           <div style={{ flex: 1 }}>
-            <label htmlFor="rule-priority" style={labelStyle}>{t("rules.priority")}</label>
+            <label htmlFor="rule-priority" style={labelStyle}>
+              {t("rules.priority")}
+            </label>
             <input
               id="rule-priority"
               type="number"
@@ -417,7 +452,9 @@ export default function RulesTab() {
             />
           </div>
           <div style={{ flex: 1 }}>
-            <label id="rule-enabled-label" style={labelStyle}>{t("rules.enabled")}</label>
+            <label id="rule-enabled-label" style={labelStyle}>
+              {t("rules.enabled")}
+            </label>
             <button
               aria-pressed={form.is_enabled}
               aria-labelledby="rule-enabled-label"
@@ -487,7 +524,9 @@ export default function RulesTab() {
 
         {/* Error */}
         {error && (
-          <p role="alert" style={{ margin: 0, fontSize: "12px", color: "#ef4444" }}>{error}</p>
+          <p role="alert" style={{ margin: 0, fontSize: "12px", color: "#ef4444" }}>
+            {error}
+          </p>
         )}
 
         {/* Buttons */}
@@ -668,7 +707,13 @@ export default function RulesTab() {
                 >
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--color-text-primary)" }}>
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          color: "var(--color-text-primary)",
+                        }}
+                      >
                         {rule.name}
                       </span>
                       <span
@@ -676,7 +721,9 @@ export default function RulesTab() {
                           fontSize: "11px",
                           padding: "1px 6px",
                           borderRadius: "4px",
-                          backgroundColor: rule.is_enabled ? "rgba(34,197,94,0.12)" : "rgba(156,163,175,0.12)",
+                          backgroundColor: rule.is_enabled
+                            ? "rgba(34,197,94,0.12)"
+                            : "rgba(156,163,175,0.12)",
                           color: rule.is_enabled ? "#22c55e" : "var(--color-text-secondary)",
                         }}
                       >
@@ -705,7 +752,10 @@ export default function RulesTab() {
                         borderRadius: "6px",
                         border: "none",
                         backgroundColor: "transparent",
-                        color: editingId !== null ? "var(--color-border)" : "var(--color-text-secondary)",
+                        color:
+                          editingId !== null
+                            ? "var(--color-border)"
+                            : "var(--color-text-secondary)",
                         cursor: editingId !== null ? "not-allowed" : "pointer",
                       }}
                       onMouseEnter={(e) => {
@@ -715,7 +765,10 @@ export default function RulesTab() {
                         }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.color = editingId !== null ? "var(--color-border)" : "var(--color-text-secondary)";
+                        e.currentTarget.style.color =
+                          editingId !== null
+                            ? "var(--color-border)"
+                            : "var(--color-text-secondary)";
                         e.currentTarget.style.backgroundColor = "transparent";
                       }}
                     >

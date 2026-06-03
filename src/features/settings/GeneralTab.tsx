@@ -28,7 +28,8 @@ const REALTIME_OPTIONS: Array<{
     labelKey: "settings.realtimeModeRealtime",
     fallback: "Realtime (recommended)",
     descriptionKey: "settings.realtimeModeRealtimeDesc",
-    descriptionFallback: "IMAP uses IDLE push when supported. Other providers check about every 3 seconds while you are active.",
+    descriptionFallback:
+      "IMAP uses IDLE push when supported. Other providers check about every 3 seconds while you are active.",
   },
   {
     mode: "balanced",
@@ -42,7 +43,8 @@ const REALTIME_OPTIONS: Array<{
     labelKey: "settings.realtimeModeBattery",
     fallback: "Battery saver",
     descriptionKey: "settings.realtimeModeBatteryDesc",
-    descriptionFallback: "Checks about every 60 seconds while you are active and slows down in the background.",
+    descriptionFallback:
+      "Checks about every 60 seconds while you are active and slows down in the background.",
   },
   {
     mode: "manual",
@@ -82,73 +84,103 @@ export default function GeneralTab() {
       if (notificationsEnabled) {
         setNotificationsEnabled(false);
         await disableCurrentDeviceNotifications();
-        setNotificationMessage(t("settings.notificationsDisabled", "Notifications are off on this device."));
+        setNotificationMessage(
+          t("settings.notificationsDisabled", "Notifications are off on this device."),
+        );
         refreshDevices();
         return;
       }
 
       if (realtimeMode === "manual") {
-        setNotificationMessage(t(
-          "settings.notificationsManualBlocked",
-          "Notifications need background mail checks. Choose Realtime, Balanced, or Battery saver first.",
-        ));
+        setNotificationMessage(
+          t(
+            "settings.notificationsManualBlocked",
+            "Notifications need background mail checks. Choose Realtime, Balanced, or Battery saver first.",
+          ),
+        );
         return;
       }
 
       if (!supportsWebPush()) {
-        setNotificationMessage(t("settings.notificationsUnsupported", "This browser does not support Web Push notifications."));
+        setNotificationMessage(
+          t(
+            "settings.notificationsUnsupported",
+            "This browser does not support Web Push notifications.",
+          ),
+        );
         return;
       }
 
       await enableCurrentDeviceNotifications();
       setNotificationsEnabled(true);
-      setNotificationMessage(t("settings.notificationsEnabled", "Notifications are on for this device."));
+      setNotificationMessage(
+        t("settings.notificationsEnabled", "Notifications are on for this device."),
+      );
       refreshDevices();
     } catch (error) {
       setNotificationsEnabled(false);
-      setNotificationMessage(error instanceof Error ? error.message : t("settings.notificationsEnableFailed", "Failed to enable notifications."));
+      setNotificationMessage(
+        error instanceof Error
+          ? error.message
+          : t("settings.notificationsEnableFailed", "Failed to enable notifications."),
+      );
     } finally {
       setNotificationBusy(false);
     }
   }, [notificationsEnabled, realtimeMode, refreshDevices, setNotificationsEnabled, t]);
 
-  const renameDevice = useCallback(async (deviceId: string, deviceName: string) => {
-    const trimmed = deviceName.trim();
-    if (!trimmed) return;
-    try {
-      const updated = await renameNotificationDevice(deviceId, trimmed);
-      setDevices((items) => items.map((item) => item.id === deviceId ? updated : item));
-    } catch {
-      setNotificationMessage(t("settings.notificationRenameFailed", "Failed to rename notification device."));
-    }
-  }, [t]);
-
-  const removeDevice = useCallback(async (deviceId: string) => {
-    try {
-      if (deviceId === getStoredWebPushDeviceId()) {
-        setNotificationsEnabled(false);
-        await disableCurrentDeviceNotifications();
-      } else {
-        await deleteNotificationDevice(deviceId);
+  const renameDevice = useCallback(
+    async (deviceId: string, deviceName: string) => {
+      const trimmed = deviceName.trim();
+      if (!trimmed) return;
+      try {
+        const updated = await renameNotificationDevice(deviceId, trimmed);
+        setDevices((items) => items.map((item) => (item.id === deviceId ? updated : item)));
+      } catch {
+        setNotificationMessage(
+          t("settings.notificationRenameFailed", "Failed to rename notification device."),
+        );
       }
-      setDevices((items) => items.filter((item) => item.id !== deviceId));
-    } catch {
-      setNotificationMessage(t("settings.notificationRemoveFailed", "Failed to remove notification device."));
-    }
-  }, [setNotificationsEnabled, t]);
+    },
+    [t],
+  );
 
-  const testDevice = useCallback(async (deviceId: string) => {
-    setTestingDeviceId(deviceId);
-    setNotificationMessage(null);
-    try {
-      await sendTestNotification(deviceId);
-      setNotificationMessage(t("settings.notificationTestSent", "Test notification sent."));
-    } catch {
-      setNotificationMessage(t("settings.notificationTestFailed", "Failed to send test notification."));
-    } finally {
-      setTestingDeviceId(null);
-    }
-  }, [t]);
+  const removeDevice = useCallback(
+    async (deviceId: string) => {
+      try {
+        if (deviceId === getStoredWebPushDeviceId()) {
+          setNotificationsEnabled(false);
+          await disableCurrentDeviceNotifications();
+        } else {
+          await deleteNotificationDevice(deviceId);
+        }
+        setDevices((items) => items.filter((item) => item.id !== deviceId));
+      } catch {
+        setNotificationMessage(
+          t("settings.notificationRemoveFailed", "Failed to remove notification device."),
+        );
+      }
+    },
+    [setNotificationsEnabled, t],
+  );
+
+  const testDevice = useCallback(
+    async (deviceId: string) => {
+      setTestingDeviceId(deviceId);
+      setNotificationMessage(null);
+      try {
+        await sendTestNotification(deviceId);
+        setNotificationMessage(t("settings.notificationTestSent", "Test notification sent."));
+      } catch {
+        setNotificationMessage(
+          t("settings.notificationTestFailed", "Failed to send test notification."),
+        );
+      } finally {
+        setTestingDeviceId(null);
+      }
+    },
+    [t],
+  );
 
   const showUnreadCount = useUIStore((s) => s.showFolderUnreadCount);
   const setShowUnreadCount = useUIStore((s) => s.setShowFolderUnreadCount);
@@ -162,7 +194,14 @@ export default function GeneralTab() {
       <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "8px" }}>
         {t("settings.realtimeMode", "Realtime Mode")}
       </h3>
-      <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginBottom: "12px", marginTop: 0 }}>
+      <p
+        style={{
+          fontSize: "12px",
+          color: "var(--color-text-secondary)",
+          marginBottom: "12px",
+          marginTop: 0,
+        }}
+      >
         {t("settings.realtimeModeDesc", "Choose how aggressively Pebble checks for new mail.")}
       </p>
       <div
@@ -185,17 +224,34 @@ export default function GeneralTab() {
                 minWidth: 0,
                 padding: "8px 10px",
                 borderRadius: "6px",
-                border: selected ? "2px solid var(--color-accent)" : "1px solid var(--color-border)",
+                border: selected
+                  ? "2px solid var(--color-accent)"
+                  : "1px solid var(--color-border)",
                 backgroundColor: selected ? "var(--color-bg-hover)" : "transparent",
                 cursor: "pointer",
                 textAlign: "left",
                 color: "var(--color-text-primary)",
               }}
             >
-              <span style={{ display: "block", fontSize: "13px", fontWeight: selected ? 600 : 500, lineHeight: 1.3 }}>
+              <span
+                style={{
+                  display: "block",
+                  fontSize: "13px",
+                  fontWeight: selected ? 600 : 500,
+                  lineHeight: 1.3,
+                }}
+              >
                 {label}
               </span>
-              <span style={{ display: "block", marginTop: "4px", fontSize: "12px", lineHeight: 1.35, color: "var(--color-text-secondary)" }}>
+              <span
+                style={{
+                  display: "block",
+                  marginTop: "4px",
+                  fontSize: "12px",
+                  lineHeight: 1.35,
+                  color: "var(--color-text-secondary)",
+                }}
+              >
                 {t(option.descriptionKey, option.descriptionFallback)}
               </span>
             </button>
@@ -220,18 +276,34 @@ export default function GeneralTab() {
           type="checkbox"
           checked={notificationsEnabled}
           disabled={notificationBusy}
-          onChange={() => { void toggleNotifications(); }}
+          onChange={() => {
+            void toggleNotifications();
+          }}
         />
         <span>{t("settings.enableNotifications")}</span>
       </label>
-      <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "8px", marginBottom: 0 }}>
+      <p
+        style={{
+          fontSize: "12px",
+          color: "var(--color-text-secondary)",
+          marginTop: "8px",
+          marginBottom: 0,
+        }}
+      >
         {t(
           "settings.notificationsDesc",
           "This uses encrypted browser Web Push. It works only on this device and requires HTTPS outside localhost.",
         )}
       </p>
       {notificationMessage && (
-        <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "8px", marginBottom: 0 }}>
+        <p
+          style={{
+            fontSize: "12px",
+            color: "var(--color-text-secondary)",
+            marginTop: "8px",
+            marginBottom: 0,
+          }}
+        >
           {notificationMessage}
         </p>
       )}
@@ -261,7 +333,9 @@ export default function GeneralTab() {
                   <input
                     aria-label={t("settings.notificationDeviceName", "Device name")}
                     defaultValue={device.device_name}
-                    onBlur={(event) => { void renameDevice(device.id, event.currentTarget.value); }}
+                    onBlur={(event) => {
+                      void renameDevice(device.id, event.currentTarget.value);
+                    }}
                     style={{
                       width: "100%",
                       border: "1px solid var(--color-border)",
@@ -272,24 +346,45 @@ export default function GeneralTab() {
                       fontSize: "12px",
                     }}
                   />
-                  <div style={{ marginTop: "4px", fontSize: "11px", color: "var(--color-text-secondary)" }}>
+                  <div
+                    style={{
+                      marginTop: "4px",
+                      fontSize: "11px",
+                      color: "var(--color-text-secondary)",
+                    }}
+                  >
                     {paused
-                      ? t("settings.notificationDevicePaused", "Paused · sign in again on this device to resume")
+                      ? t(
+                          "settings.notificationDevicePaused",
+                          "Paused · sign in again on this device to resume",
+                        )
                       : t("settings.notificationDeviceActive", "Active")}
-                    {isCurrent ? ` · ${t("settings.notificationDeviceCurrent", "current device")}` : ""}
+                    {isCurrent
+                      ? ` · ${t("settings.notificationDeviceCurrent", "current device")}`
+                      : ""}
                   </div>
                 </div>
                 <button
                   type="button"
                   disabled={testingDeviceId === device.id || paused}
-                  onClick={() => { void testDevice(device.id); }}
-                  style={{ padding: "5px 10px", fontSize: "12px", cursor: paused ? "not-allowed" : "pointer" }}
+                  onClick={() => {
+                    void testDevice(device.id);
+                  }}
+                  style={{
+                    padding: "5px 10px",
+                    fontSize: "12px",
+                    cursor: paused ? "not-allowed" : "pointer",
+                  }}
                 >
-                  {testingDeviceId === device.id ? t("common.testing", "Testing...") : t("settings.notificationTest", "Test")}
+                  {testingDeviceId === device.id
+                    ? t("common.testing", "Testing...")
+                    : t("settings.notificationTest", "Test")}
                 </button>
                 <button
                   type="button"
-                  onClick={() => { void removeDevice(device.id); }}
+                  onClick={() => {
+                    void removeDevice(device.id);
+                  }}
                   style={{ padding: "5px 10px", fontSize: "12px", cursor: "pointer" }}
                 >
                   {t("common.remove", "Remove")}
@@ -313,11 +408,7 @@ export default function GeneralTab() {
           color: "var(--color-text-primary)",
         }}
       >
-        <input
-          type="checkbox"
-          checked={showUnreadCount}
-          onChange={toggleUnreadCount}
-        />
+        <input type="checkbox" checked={showUnreadCount} onChange={toggleUnreadCount} />
         <span>{t("settings.showUnreadCount", "Show unread count badges in sidebar")}</span>
       </label>
     </div>

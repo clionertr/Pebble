@@ -3,8 +3,27 @@ import { useComposeStore } from "./compose.store";
 import { useMailStore } from "./mail.store";
 import { deferPersist } from "@/lib/deferPersist";
 
-export type ActiveView = "inbox" | "kanban" | "settings" | "search" | "snoozed" | "starred" | "compose" | "login";
-export type SettingsTab = "accounts" | "general" | "proxy" | "appearance" | "privacy" | "rules" | "remoteWrites" | "translation" | "shortcuts" | "cloudSync" | "about";
+export type ActiveView =
+  | "inbox"
+  | "kanban"
+  | "settings"
+  | "search"
+  | "snoozed"
+  | "starred"
+  | "compose"
+  | "login";
+export type SettingsTab =
+  | "accounts"
+  | "general"
+  | "proxy"
+  | "appearance"
+  | "privacy"
+  | "rules"
+  | "remoteWrites"
+  | "translation"
+  | "shortcuts"
+  | "cloudSync"
+  | "about";
 
 interface UIState {
   sidebarCollapsed: boolean;
@@ -58,8 +77,12 @@ export const useUIStore = create<UIState>((set) => ({
         return;
       }
       useComposeStore.setState({
-        composeMode: null, composeReplyTo: null, composePrefill: null, composeDirty: false,
-        showComposeLeaveConfirm: false, pendingView: null,
+        composeMode: null,
+        composeReplyTo: null,
+        composePrefill: null,
+        composeDirty: false,
+        showComposeLeaveConfirm: false,
+        pendingView: null,
       });
       set({ activeView: view, drawerOpen: false });
       return;
@@ -77,8 +100,11 @@ export const useUIStore = create<UIState>((set) => ({
       }
     }
     useMailStore.setState({
-      selectedMessageId: messageId, selectedThreadId: null, threadView: false,
-      selectedMessageIds: new Set(), batchMode: false,
+      selectedMessageId: messageId,
+      selectedThreadId: null,
+      threadView: false,
+      selectedMessageIds: new Set(),
+      batchMode: false,
     });
     set({ activeView: "inbox", pendingInboxMessageId: null });
   },
@@ -86,8 +112,11 @@ export const useUIStore = create<UIState>((set) => ({
     const messageId = useUIStore.getState().pendingInboxMessageId;
     if (!messageId) return;
     useMailStore.setState({
-      selectedMessageId: messageId, selectedThreadId: null, threadView: false,
-      selectedMessageIds: new Set(), batchMode: false,
+      selectedMessageId: messageId,
+      selectedThreadId: null,
+      threadView: false,
+      selectedMessageIds: new Set(),
+      batchMode: false,
     });
     set({ activeView: "inbox", pendingInboxMessageId: null });
   },

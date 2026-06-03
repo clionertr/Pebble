@@ -41,14 +41,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run frontend linter (ESLint)
-        # 基线仍存在历史告警；在全部修完前先用 continue-on-error 保证 CI 可见但不阻塞。
-        # 本地严格检查：`pnpm lint`（--max-warnings 0）。
-        continue-on-error: true
         run: pnpm lint
 
       - name: Check frontend formatting (Prettier)
-        # 同 lint：历史格式问题正在收敛，CI 仅汇报。
-        continue-on-error: true
         run: pnpm format:check
 
       - name: Run frontend dependency audit

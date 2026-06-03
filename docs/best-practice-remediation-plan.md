@@ -265,7 +265,7 @@ cargo audit   # 或 cargo deny check
 | C-SEC-07 | **已完成当前范围** | OAuth 成功页和 API docs 已去除 inline style；nginx CSP 已收紧为 `style-src 'self'`，不再允许 `'unsafe-inline'`。 |
 | C-META-01 | **已完成** | OpenAPI、更新检查、About 页、站点链接、CHANGELOG compare 链接已对齐 `0.0.10` 与 `clionertr/Pebble`；README 仅保留明确的原始上游说明和署名。 |
 | C-CONTRACT-01 | **已完成** | OpenAPI 已补通知路由，新增 `openapi_paths_match_public_routes` 自动 diff 测试。 |
-| C-TOOL-01 | **部分完成** | ESLint/Prettier 已接入；CI 仍 `continue-on-error`，前端存量 lint 需继续清理。 |
+| C-TOOL-01 | **已完成** | ESLint/Prettier 严格门禁已可通过；CI 前端 lint/format 不再 `continue-on-error`；`pnpm lint`、`pnpm format:check`、`pnpm test`、`pnpm build:frontend` 均通过。 |
 | C-TOOL-02 | **已完成 CI 接入** | `deny.toml` 与 SHA pin 的 `cargo-deny-action` 已存在；本机未安装 `cargo-deny`，本地复核依赖开发环境。 |
 | C-TOOL-03 | **已完成** | `git ls-files package-lock.json` 为空，仓库只保留 `pnpm-lock.yaml`。 |
 | C-DOC-01 | **已完成当前范围** | 主 `pebble/backend` 规范已补；包级 backend spec 占位正文已清理，目录/质量/错误/日志/数据库边界均有真实内容。 |
@@ -500,7 +500,7 @@ cargo audit   # 或 cargo deny check
 |---|---|---|
 | C-CONTRACT-01 | `api/docs.rs` 补齐 6 条缺失的 notification 路由（vapid-public-key、devices GET/PATCH/DELETE、subscriptions POST/DELETE、test POST）；OpenAPI 版本号已对齐 `0.0.10` | `git grep -n "api/notifications" server/src/api/docs.rs` 可看到全部 6 条路径；路由-OpenAPI diff 为 0（有意排除的 4 条除外） |
 | C-SEC-07 | OAuth 成功页去掉 `<script>` 自动跳转，改用 `<meta http-equiv="refresh">` + 手动回链 | `server/src/auth.rs` 成功分支渲染的 HTML 不再包含 `setTimeout` 或 `window.location`；nginx CSP `script-src 'self'` 下仍可正常跳转 |
-| C-TOOL-01 | 引入 ESLint 9 flat config + Prettier 3；新增 `pnpm lint`、`pnpm lint:fix`、`pnpm format`、`pnpm format:check` 脚本 | `eslint.config.js`、`.prettierrc`、`.prettierignore` 存在；`pnpm lint` 与 `pnpm format:check` 可执行 |
+| C-TOOL-01 | 引入 ESLint 9 flat config + Prettier 3；新增 `pnpm lint`、`pnpm lint:fix`、`pnpm format`、`pnpm format:check` 脚本；清理前端存量 lint/format 问题，并移除 CI 前端 lint/format 的 `continue-on-error` | `eslint.config.js`、`.prettierrc`、`.prettierignore` 存在；`pnpm lint`、`pnpm format:check`、`pnpm test`、`pnpm build:frontend` 均通过 |
 | C-TOOL-02 | 新增 `deny.toml`（licenses / advisories / bans / sources）；CI 加入 `EmbarkStudios/cargo-deny-action@v2` 步骤 | `deny.toml` 存在；`.github/workflows/ci.yml` 出现 `cargo-deny-action` |
 | C-TOOL-03 | 删除 `package-lock.json`，保留 `pnpm-lock.yaml` 单一锁文件 | `git ls-files package-lock.json` 为空；`pnpm-lock.yaml` 仍在 |
 | C-SEC-03 | 4 处 Dockerfile 基础镜像改为多架构 index digest pin（`lukemathwalker/cargo-chef`、`debian:bookworm-slim`、`node:22-alpine`、`nginx:alpine`），注释保留原始 tag 便于后续升级 | `deploy/backend.Dockerfile` 与 `deploy/frontend.Dockerfile` 所有 FROM 使用 `@sha256:...` |
@@ -515,7 +515,7 @@ cargo audit   # 或 cargo deny check
 |---|---|---|
 | D-ERR-04 (auth_api/health.rs) | 修改 auth 返回类型涉及调用方解构；health.rs 属于 RPC 层签名变更 | 第 3 阶段随 API/RPC/store 边界规范一起改 |
 | D-ERR-03 (IMAP `map_err(\|_\| ...)`) | 需要重设 pebble-mail crate 的错误枚举 | 第 3 阶段随巨型文件拆分一起做 |
-| C-TOOL-01 前端存量 lint | 47 errors + 13 warnings，多属 `jsx-a11y`、`no-console`、`@typescript-eslint/no-explicit-any` 与一处 `no-control-regex` | CI `continue-on-error: true`；团队逐文件修复后移除 `continue-on-error` |
+| C-TOOL-01 前端存量 lint | 已清理：Service Worker 全局、React Hooks 依赖、a11y 交互语义、`no-console`、`no-explicit-any`、`no-control-regex` 与测试 mock 的 ARIA 问题均已收敛 | CI 前端 lint/format 已改为阻塞门禁；`pnpm lint` 以 `--max-warnings 0` 通过 |
 
 ### B.3 质量门结果
 
@@ -524,11 +524,12 @@ cargo audit   # 或 cargo deny check
 | `pnpm exec tsc --noEmit` | ✅ 通过 |
 | `pnpm test` | ✅ 76 文件 / 271 测试通过 |
 | `pnpm run build:frontend` | ✅ 6.71s 构建成功 |
-| `pnpm lint` | ⚠️ 47 errors + 13 warnings（CI continue-on-error） |
+| `pnpm lint` | ✅ 通过（`--max-warnings 0`） |
+| `pnpm format:check` | ✅ 通过 |
 | `pnpm audit --audit-level moderate` | ✅ 零漏洞 |
 | `cargo fmt --all -- --check` | ✅ 通过 |
 | `cargo clippy --workspace --all-targets -- -D warnings` | ✅ 通过 |
 | `cargo test --workspace --all-targets` | ✅ 14 个 crate / 455 测试全部通过 |
 | `bash -n deploy/install.sh` / `bash -n deploy/build.sh` | ✅ 通过 |
 
-> 第 2 阶段主目标（契约、文档、工具链、供应链）达成；质量门除前端 lint 存量外全部绿灯。
+> 第 2 阶段主目标（契约、文档、工具链、供应链）达成；前端 lint/format 已恢复为可阻塞质量门。

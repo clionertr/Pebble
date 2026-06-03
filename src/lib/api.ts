@@ -143,10 +143,7 @@ export async function updateAccountProxySetting(
   return client.updateAccountProxySetting(accountId, mode, proxyHost, proxyPort);
 }
 
-export async function updateGlobalProxy(
-  proxyHost?: string,
-  proxyPort?: number,
-): Promise<void> {
+export async function updateGlobalProxy(proxyHost?: string, proxyPort?: number): Promise<void> {
   return client.updateGlobalProxy(proxyHost, proxyPort);
 }
 
@@ -209,8 +206,13 @@ export async function testImapConnection(
   password?: string,
 ): Promise<string> {
   return client.testImapConnection({
-    imap_host: imapHost, imap_port: imapPort, imap_security: imapSecurity,
-    proxy_host: proxyHost, proxy_port: proxyPort, username, password,
+    imap_host: imapHost,
+    imap_port: imapPort,
+    imap_security: imapSecurity,
+    proxy_host: proxyHost,
+    proxy_port: proxyPort,
+    username,
+    password,
   }) as Promise<string>;
 }
 
@@ -261,7 +263,10 @@ export async function enableGmailRealtime(
   accountId: string,
   fallbackIntervalMinutes?: number,
 ): Promise<GmailRealtimeConfig> {
-  return client.enableGmailRealtime(accountId, fallbackIntervalMinutes) as Promise<GmailRealtimeConfig>;
+  return client.enableGmailRealtime(
+    accountId,
+    fallbackIntervalMinutes,
+  ) as Promise<GmailRealtimeConfig>;
 }
 
 export async function disableGmailRealtime(accountId: string): Promise<GmailRealtimeConfig> {
@@ -272,7 +277,10 @@ export async function updateGmailRealtimeConfig(
   accountId: string,
   fallbackIntervalMinutes: number,
 ): Promise<GmailRealtimeConfig> {
-  return client.updateGmailRealtimeConfig(accountId, fallbackIntervalMinutes) as Promise<GmailRealtimeConfig>;
+  return client.updateGmailRealtimeConfig(
+    accountId,
+    fallbackIntervalMinutes,
+  ) as Promise<GmailRealtimeConfig>;
 }
 
 // ─── Folder API ──────────────────────────────────────────────────────────────
@@ -352,8 +360,8 @@ export async function archiveMessage(messageId: string): Promise<string> {
   }
   archivingIds.add(messageId);
   try {
-    const res = await client.archiveMessage(messageId) as string | { targetFolder?: string };
-    return typeof res === "string" ? res : res.targetFolder ?? "archived";
+    const res = (await client.archiveMessage(messageId)) as string | { targetFolder?: string };
+    return typeof res === "string" ? res : (res.targetFolder ?? "archived");
   } finally {
     archivingIds.delete(messageId);
   }
@@ -406,7 +414,11 @@ export async function removeTrustedSender(accountId: string, email: string): Pro
   return client.removeTrustedSender(accountId, email);
 }
 
-export async function trustSender(accountId: string, email: string, trustType: "images" | "all"): Promise<void> {
+export async function trustSender(
+  accountId: string,
+  email: string,
+  trustType: "images" | "all",
+): Promise<void> {
   return client.trustSender(accountId, email, trustType);
 }
 
@@ -416,10 +428,7 @@ export async function isTrustedSender(accountId: string, email: string): Promise
 
 // ─── Search API ──────────────────────────────────────────────────────────────
 
-export async function searchMessages(
-  query: string,
-  limit?: number,
-): Promise<SearchHit[]> {
+export async function searchMessages(query: string, limit?: number): Promise<SearchHit[]> {
   return client.searchMessages(query, limit) as Promise<SearchHit[]>;
 }
 
@@ -469,7 +478,7 @@ export class SyncWakeError extends Error {
 }
 
 export async function wakeSync(request: SyncWakeRequest): Promise<SyncWakeResult> {
-  const result = await client.wakeSync(request) as SyncWakeResult;
+  const result = (await client.wakeSync(request)) as SyncWakeResult;
   if (result.failures.length > 0) {
     throw new SyncWakeError(result);
   }
@@ -502,7 +511,11 @@ export async function getAttachmentPath(attachmentId: string): Promise<string | 
 
 // ─── Kanban API ──────────────────────────────────────────────────────────────
 
-export async function moveToKanban(messageId: string, column: KanbanColumnType, position?: number): Promise<void> {
+export async function moveToKanban(
+  messageId: string,
+  column: KanbanColumnType,
+  position?: number,
+): Promise<void> {
   return client.moveToKanban(messageId, column, position);
 }
 
@@ -533,7 +546,11 @@ export async function mergeKanbanContextNotes(
 
 // ─── Snooze API ──────────────────────────────────────────────────────────────
 
-export async function snoozeMessage(messageId: string, until: number, returnTo: string): Promise<void> {
+export async function snoozeMessage(
+  messageId: string,
+  until: number,
+  returnTo: string,
+): Promise<void> {
   return client.snoozeMessage(messageId, until, returnTo);
 }
 
@@ -547,7 +564,12 @@ export async function listSnoozed(): Promise<SnoozedMessage[]> {
 
 // ─── Rules API ───────────────────────────────────────────────────────────────
 
-export async function createRule(name: string, priority: number, conditions: string, actions: string): Promise<Rule> {
+export async function createRule(
+  name: string,
+  priority: number,
+  conditions: string,
+  actions: string,
+): Promise<Rule> {
   return client.createRule(name, priority, conditions, actions) as Promise<Rule>;
 }
 
@@ -577,7 +599,15 @@ export async function sendEmail(
   attachmentPaths?: string[],
 ): Promise<void> {
   return client.sendEmail({
-    accountId, to, cc, bcc, subject, bodyText, bodyHtml, inReplyTo, attachmentPaths,
+    accountId,
+    to,
+    cc,
+    bcc,
+    subject,
+    bodyText,
+    bodyHtml,
+    inReplyTo,
+    attachmentPaths,
   });
 }
 
@@ -608,7 +638,11 @@ export async function batchStar(messageIds: string[], starred: boolean): Promise
 
 // ─── Translate API ───────────────────────────────────────────────────────────
 
-export async function translateText(text: string, fromLang: string, toLang: string): Promise<TranslateResult> {
+export async function translateText(
+  text: string,
+  fromLang: string,
+  toLang: string,
+): Promise<TranslateResult> {
   return client.translateText(text, fromLang, toLang) as Promise<TranslateResult>;
 }
 
@@ -619,7 +653,9 @@ export async function translateTextStream(
   onDelta?: (translated: string) => void,
 ): Promise<TranslateResult> {
   try {
-    return await client.translateTextStream(text, fromLang, toLang, { onDelta }) as TranslateResult;
+    return (await client.translateTextStream(text, fromLang, toLang, {
+      onDelta,
+    })) as TranslateResult;
   } catch (err) {
     if (err instanceof client.ApiError && err.message.includes("only supported for LLM")) {
       const result = await translateText(text, fromLang, toLang);
@@ -634,7 +670,11 @@ export async function getTranslateConfig(): Promise<TranslateConfig | null> {
   return client.getTranslateConfig() as Promise<TranslateConfig | null>;
 }
 
-export async function saveTranslateConfig(providerType: string, config: string, isEnabled: boolean): Promise<void> {
+export async function saveTranslateConfig(
+  providerType: string,
+  config: string,
+  isEnabled: boolean,
+): Promise<void> {
   return client.saveTranslateConfig(providerType, config, isEnabled);
 }
 
@@ -663,7 +703,9 @@ export async function getMessageLabels(messageId: string): Promise<Label[]> {
   return client.getMessageLabels(messageId) as Promise<Label[]>;
 }
 
-export async function getMessageLabelsBatch(messageIds: string[]): Promise<Record<string, Label[]>> {
+export async function getMessageLabelsBatch(
+  messageIds: string[],
+): Promise<Record<string, Label[]>> {
   return client.getMessageLabelsBatch(messageIds) as Promise<Record<string, Label[]>>;
 }
 
@@ -681,19 +723,35 @@ export async function listLabels(): Promise<Label[]> {
 
 // ─── Cloud Sync API ─────────────────────────────────────────────────────────
 
-export async function testWebdavConnection(url: string, username: string, password: string): Promise<string> {
+export async function testWebdavConnection(
+  url: string,
+  username: string,
+  password: string,
+): Promise<string> {
   return client.testWebdavConnection(url, username, password) as Promise<string>;
 }
 
-export async function backupToWebdav(url: string, username: string, password: string): Promise<string> {
+export async function backupToWebdav(
+  url: string,
+  username: string,
+  password: string,
+): Promise<string> {
   return client.backupToWebdav(url, username, password) as Promise<string>;
 }
 
-export async function previewWebdavBackup(url: string, username: string, password: string): Promise<BackupPreview> {
+export async function previewWebdavBackup(
+  url: string,
+  username: string,
+  password: string,
+): Promise<BackupPreview> {
   return client.previewWebdavBackup(url, username, password) as Promise<BackupPreview>;
 }
 
-export async function restoreFromWebdav(url: string, username: string, password: string): Promise<string> {
+export async function restoreFromWebdav(
+  url: string,
+  username: string,
+  password: string,
+): Promise<string> {
   return client.restoreFromWebdav(url, username, password) as Promise<string>;
 }
 

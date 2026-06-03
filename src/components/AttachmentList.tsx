@@ -14,8 +14,21 @@ function getMimeIcon(mimeType: string) {
   if (mimeType.startsWith("image/")) return Image;
   if (mimeType.startsWith("video/")) return Film;
   if (mimeType.startsWith("audio/")) return Music;
-  if (mimeType.includes("zip") || mimeType.includes("archive") || mimeType.includes("compressed") || mimeType.includes("tar") || mimeType.includes("rar")) return FileArchive;
-  if (mimeType.includes("text") || mimeType.includes("pdf") || mimeType.includes("document") || mimeType.includes("word")) return FileText;
+  if (
+    mimeType.includes("zip") ||
+    mimeType.includes("archive") ||
+    mimeType.includes("compressed") ||
+    mimeType.includes("tar") ||
+    mimeType.includes("rar")
+  )
+    return FileArchive;
+  if (
+    mimeType.includes("text") ||
+    mimeType.includes("pdf") ||
+    mimeType.includes("document") ||
+    mimeType.includes("word")
+  )
+    return FileText;
   return File;
 }
 
@@ -51,7 +64,9 @@ export default function AttachmentList({ messageId }: Props) {
         setDownloadProgress((prev) => ({ ...prev, [attachment_id]: pct }));
       },
     );
-    return () => { unlisten.then((fn) => fn()); };
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, []);
 
   useEffect(() => {
@@ -80,18 +95,24 @@ export default function AttachmentList({ messageId }: Props) {
     setDownloadingId(attachment.id);
     try {
       // Trigger browser download via the streaming attachment endpoint
-      const anchor = document.createElement('a');
+      const anchor = document.createElement("a");
       anchor.href = `/api/attachments/${encodeURIComponent(attachment.id)}`;
       anchor.download = attachment.filename;
       anchor.click();
       setDownloadingId(null);
-      setDownloadProgress((prev) => { const next = { ...prev }; delete next[attachment.id]; return next; });
+      setDownloadProgress((prev) => {
+        const next = { ...prev };
+        delete next[attachment.id];
+        return next;
+      });
     } catch (err) {
       console.error("Failed to download attachment:", err);
       const reason = getErrorMessage(err);
       useToastStore.getState().addToast({
         message: reason
-          ? t("attachments.downloadFailedWithReason", "Failed to download attachment: {{reason}}", { reason })
+          ? t("attachments.downloadFailedWithReason", "Failed to download attachment: {{reason}}", {
+              reason,
+            })
           : t("attachments.downloadFailed", "Failed to download attachment"),
         type: "error",
       });
@@ -164,7 +185,14 @@ export default function AttachmentList({ messageId }: Props) {
               </span>
               <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
                 {isDownloading && downloadProgress[attachment.id] != null && (
-                  <span style={{ fontSize: "10px", color: "var(--color-accent)", minWidth: "28px", textAlign: "right" }}>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      color: "var(--color-accent)",
+                      minWidth: "28px",
+                      textAlign: "right",
+                    }}
+                  >
                     {downloadProgress[attachment.id]}%
                   </span>
                 )}

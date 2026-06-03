@@ -4,7 +4,13 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Inbox, Archive, Trash2, MailOpen, MailCheck, Star, X } from "lucide-react";
 import type { MessageSummary } from "@/lib/api";
-import { getMessageLabelsBatch, batchArchive, batchDelete, batchMarkRead, batchStar } from "@/lib/api";
+import {
+  getMessageLabelsBatch,
+  batchArchive,
+  batchDelete,
+  batchMarkRead,
+  batchStar,
+} from "@/lib/api";
 import { markDisplayedMessagesForMailLatencyLogging } from "@/lib/mailLatencyLogging";
 import { useAccountsQuery, useFoldersForAccountsQuery } from "@/hooks/queries";
 import { useMailStore } from "@/stores/mail.store";
@@ -59,13 +65,15 @@ export default function MessageList({
   const accountColorsById = useMemo(() => assignAccountColors(accounts), [accounts]);
   const showAccountColorMarkers = !activeAccountId && accounts.length > 1;
   const folderAccountIds = useMemo(
-    () => activeAccountId ? [activeAccountId] : accounts.map((account) => account.id),
+    () => (activeAccountId ? [activeAccountId] : accounts.map((account) => account.id)),
     [accounts, activeAccountId],
   );
   const { data: folders = [] } = useFoldersForAccountsQuery(folderAccountIds);
   // Offer spam action only when NOT already viewing the spam folder
   const activeFolderRole = roleForSelection(activeFolderId, folders);
-  const spamFolder = activeAccountId ? folders.find((f) => f.account_id === activeAccountId && f.role === "spam") : undefined;
+  const spamFolder = activeAccountId
+    ? folders.find((f) => f.account_id === activeAccountId && f.role === "spam")
+    : undefined;
   const spamFolderId = activeFolderRole !== "spam" ? spamFolder?.id : undefined;
   const messageIds = useMemo(() => messages.map((m) => m.id), [messages]);
   const messageIdsKey = useMemo(() => messageIds.join(","), [messageIds]);
@@ -134,11 +142,15 @@ export default function MessageList({
     queryClient.invalidateQueries({ queryKey: ["starred-messages"] });
   }
 
-  function batchActionChangesUnreadCounts(action: "archive" | "delete" | "markRead" | "markUnread" | "star" | "unstar") {
+  function batchActionChangesUnreadCounts(
+    action: "archive" | "delete" | "markRead" | "markUnread" | "star" | "unstar",
+  ) {
     return action !== "star" && action !== "unstar";
   }
 
-  async function handleBatchAction(action: "archive" | "delete" | "markRead" | "markUnread" | "star" | "unstar") {
+  async function handleBatchAction(
+    action: "archive" | "delete" | "markRead" | "markUnread" | "star" | "unstar",
+  ) {
     const ids = [...selectedMessageIds];
     if (ids.length === 0) return;
     if (action === "delete") {
@@ -182,31 +194,69 @@ export default function MessageList({
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Batch toolbar */}
       {batchMode && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: "6px",
-          padding: "6px 10px", borderBottom: "1px solid var(--color-border)",
-          backgroundColor: "var(--color-bg)", flexShrink: 0,
-        }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "6px 10px",
+            borderBottom: "1px solid var(--color-border)",
+            backgroundColor: "var(--color-bg)",
+            flexShrink: 0,
+          }}
+        >
           <label className="batch-select-control">
             <input
               type="checkbox"
               checked={allSelected}
-              onChange={() => allSelected ? clearSelection() : selectAllMessages(messageIds)}
+              onChange={() => (allSelected ? clearSelection() : selectAllMessages(messageIds))}
               aria-label={t("batch.selectAll", "Select all")}
               className="batch-checkbox batch-select-all-checkbox"
             />
             <span>
-              {selectedMessageIds.size > 0 ? t("batch.selected", { count: selectedMessageIds.size }) : t("batch.selectAll")}
+              {selectedMessageIds.size > 0
+                ? t("batch.selected", { count: selectedMessageIds.size })
+                : t("batch.selectAll")}
             </span>
           </label>
           {selectedMessageIds.size > 0 && (
             <>
-              <BatchBtn icon={Archive} label={t("messageActions.archive")} onClick={() => handleBatchAction("archive")} disabled={batchLoading} />
-              <BatchBtn icon={Trash2} label={t("common.delete")} onClick={() => handleBatchAction("delete")} disabled={batchLoading} />
-              <BatchBtn icon={MailOpen} label={t("batch.markRead")} onClick={() => handleBatchAction("markRead")} disabled={batchLoading} />
-              <BatchBtn icon={MailCheck} label={t("batch.markUnread")} onClick={() => handleBatchAction("markUnread")} disabled={batchLoading} />
-              <BatchBtn icon={Star} label={t("batch.star", "Star")} onClick={() => handleBatchAction("star")} disabled={batchLoading} />
-              <BatchBtn icon={Star} label={t("batch.unstar", "Unstar")} onClick={() => handleBatchAction("unstar")} disabled={batchLoading} />
+              <BatchBtn
+                icon={Archive}
+                label={t("messageActions.archive")}
+                onClick={() => handleBatchAction("archive")}
+                disabled={batchLoading}
+              />
+              <BatchBtn
+                icon={Trash2}
+                label={t("common.delete")}
+                onClick={() => handleBatchAction("delete")}
+                disabled={batchLoading}
+              />
+              <BatchBtn
+                icon={MailOpen}
+                label={t("batch.markRead")}
+                onClick={() => handleBatchAction("markRead")}
+                disabled={batchLoading}
+              />
+              <BatchBtn
+                icon={MailCheck}
+                label={t("batch.markUnread")}
+                onClick={() => handleBatchAction("markUnread")}
+                disabled={batchLoading}
+              />
+              <BatchBtn
+                icon={Star}
+                label={t("batch.star", "Star")}
+                onClick={() => handleBatchAction("star")}
+                disabled={batchLoading}
+              />
+              <BatchBtn
+                icon={Star}
+                label={t("batch.unstar", "Unstar")}
+                onClick={() => handleBatchAction("unstar")}
+                disabled={batchLoading}
+              />
             </>
           )}
           <BatchBtn icon={X} label={t("common.close")} onClick={toggleBatchMode} disabled={false} />
@@ -245,7 +295,9 @@ export default function MessageList({
                   message={message}
                   labels={labelsByMessage[message.id] ?? []}
                   isSelected={message.id === selectedMessageId}
-                  onClick={() => batchMode ? toggleMessageSelection(message.id) : onSelectMessage(message.id)}
+                  onClick={() =>
+                    batchMode ? toggleMessageSelection(message.id) : onSelectMessage(message.id)
+                  }
                   onToggleStar={onToggleStar}
                   batchMode={batchMode}
                   batchSelected={selectedMessageIds.has(message.id)}
@@ -254,10 +306,15 @@ export default function MessageList({
                   folderRole={activeFolderRole}
                   accountColor={
                     showAccountColorMarkers
-                      ? accountColorsById.get(message.account_id) ?? getAccountColor(account, message.account_id)
+                      ? (accountColorsById.get(message.account_id) ??
+                        getAccountColor(account, message.account_id))
                       : undefined
                   }
-                  accountLabel={showAccountColorMarkers ? getAccountLabel(account, message.account_id) : undefined}
+                  accountLabel={
+                    showAccountColorMarkers
+                      ? getAccountLabel(account, message.account_id)
+                      : undefined
+                  }
                 />
               </div>
             );
@@ -281,7 +338,9 @@ export default function MessageList({
                 opacity: isFetchingNextPage ? 0.7 : 1,
               }}
             >
-              {isFetchingNextPage ? t("common.loading", "Loading...") : t("common.loadMore", "Load more")}
+              {isFetchingNextPage
+                ? t("common.loading", "Loading...")
+                : t("common.loadMore", "Load more")}
             </button>
           </div>
         )}
@@ -290,8 +349,16 @@ export default function MessageList({
   );
 }
 
-function BatchBtn({ icon: Icon, label, onClick, disabled }: {
-  icon: React.ElementType; label: string; onClick: () => void; disabled: boolean;
+function BatchBtn({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  icon: React.ElementType;
+  label: string;
+  onClick: () => void;
+  disabled: boolean;
 }) {
   return (
     <button
@@ -300,10 +367,15 @@ function BatchBtn({ icon: Icon, label, onClick, disabled }: {
       title={label}
       aria-label={label}
       style={{
-        display: "flex", alignItems: "center", padding: "4px",
-        border: "none", background: "transparent", borderRadius: "4px",
+        display: "flex",
+        alignItems: "center",
+        padding: "4px",
+        border: "none",
+        background: "transparent",
+        borderRadius: "4px",
         cursor: disabled ? "default" : "pointer",
-        color: "var(--color-text-secondary)", opacity: disabled ? 0.5 : 1,
+        color: "var(--color-text-secondary)",
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       <Icon size={14} />

@@ -14,8 +14,11 @@ interface Props {
 
 function formatFullDate(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString([], {
-    year: "numeric", month: "short", day: "numeric",
-    hour: "2-digit", minute: "2-digit",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -73,18 +76,26 @@ export default function ThreadMessageBubble({ message, defaultExpanded = false }
       {expanded && (
         <div style={{ padding: "12px 14px", borderTop: "1px solid var(--color-border)" }}>
           {/* To/Cc line */}
-          <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginBottom: "8px" }}>
-            {t("thread.to")} {message.to_list?.map((r: { address: string }) => r.address).join(", ")}
+          <div
+            style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginBottom: "8px" }}
+          >
+            {t("thread.to")}{" "}
+            {message.to_list?.map((r: { address: string }) => r.address).join(", ")}
           </div>
           {/* Body content */}
           {rendered?.html ? (
             <ShadowDomEmail html={rendered.html} />
           ) : (
-            <pre style={{
-              fontSize: "13px", color: "var(--color-text-primary)",
-              whiteSpace: "pre-wrap", wordBreak: "break-word",
-              margin: 0, fontFamily: "inherit",
-            }}>
+            <pre
+              style={{
+                fontSize: "13px",
+                color: "var(--color-text-primary)",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                margin: 0,
+                fontFamily: "inherit",
+              }}
+            >
               {message.body_text}
             </pre>
           )}

@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { searchMessages } from "@/lib/api";
 
-export const searchQueryKey = (query: string, limit?: number) =>
-  ["search", query, limit] as const;
+export const searchQueryKey = (query: string, limit?: number) => ["search", query, limit] as const;
 
 export function useSearchQuery(query: string, limit?: number) {
   return useQuery({

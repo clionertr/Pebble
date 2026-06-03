@@ -1,5 +1,8 @@
 import { useEffect } from "react";
-import { disableCurrentDeviceNotifications, restoreCurrentDeviceNotifications } from "@/lib/web-push";
+import {
+  disableCurrentDeviceNotifications,
+  restoreCurrentDeviceNotifications,
+} from "@/lib/web-push";
 import { useSyncStore } from "@/stores/sync.store";
 
 export function useWebPushRegistration() {

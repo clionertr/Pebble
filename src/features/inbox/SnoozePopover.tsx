@@ -9,7 +9,9 @@ interface Props {
   onSnoozed: () => void;
 }
 
-function getPresets(t: (key: string, fallback: string) => string): { label: string; getTimestamp: () => number }[] {
+function getPresets(
+  t: (key: string, fallback: string) => string,
+): { label: string; getTimestamp: () => number }[] {
   return [
     {
       label: t("snooze.oneHour", "1 hour"),
@@ -116,23 +118,24 @@ export default function SnoozePopover({ messageId, onClose, onSnoozed }: Props) 
             color: "var(--color-text-primary)",
           }}
           onMouseEnter={(e) =>
-            (e.currentTarget.style.backgroundColor =
-              "var(--color-bg-hover, rgba(0,0,0,0.05))")
+            (e.currentTarget.style.backgroundColor = "var(--color-bg-hover, rgba(0,0,0,0.05))")
           }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.backgroundColor = "transparent")
-          }
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
         >
           {preset.label}
         </button>
       ))}
       {error && (
-        <div role="alert" aria-live="assertive" style={{
-          padding: "6px 10px",
-          fontSize: "12px",
-          color: "#ef4444",
-          textAlign: "center",
-        }}>
+        <div
+          role="alert"
+          aria-live="assertive"
+          style={{
+            padding: "6px 10px",
+            fontSize: "12px",
+            color: "#ef4444",
+            textAlign: "center",
+          }}
+        >
           {t("snooze.failed", "Snooze failed")}
         </div>
       )}

@@ -69,7 +69,7 @@ export function rememberMailNewLatencyEvent(payload: MailNewLatencyEvent) {
   };
   pendingDisplayTimings.set(payload.message_id, timing);
   if (browserDebugEnabled()) {
-    console.debug("[mail-latency] frontend_sse_received", compactTiming(timing));
+    console.warn("[mail-latency] frontend_sse_received", compactTiming(timing));
   }
 }
 
@@ -77,7 +77,8 @@ export function markDisplayedMessagesForMailLatencyLogging(
   messages: MessageSummary[],
   activeFolderId?: string | null,
 ) {
-  if (!serverReportingEnabled() || pendingDisplayTimings.size === 0 || messages.length === 0) return;
+  if (!serverReportingEnabled() || pendingDisplayTimings.size === 0 || messages.length === 0)
+    return;
 
   const visibleIds = new Set(messages.map((message) => message.id));
   for (const [messageId, timing] of pendingDisplayTimings) {
@@ -94,11 +95,11 @@ export function markDisplayedMessagesForMailLatencyLogging(
         frontendSseToDisplayMs: Math.round(displayedPerfMs - timing.frontendSsePerfMs),
       };
       if (browserDebugEnabled()) {
-        console.debug("[mail-latency] frontend_message_displayed", compactTiming(displayedTiming));
+        console.warn("[mail-latency] frontend_message_displayed", compactTiming(displayedTiming));
       }
       recordMailDisplayTiming(displayedTiming).catch((error) => {
         if (browserDebugEnabled()) {
-          console.debug("[mail-latency] failed to record display timing", error);
+          console.warn("[mail-latency] failed to record display timing", error);
         }
       });
     });

@@ -39,8 +39,12 @@ export default function ConfirmDialog({
   const onConfirmRef = useRef(onConfirm);
   const onCancelRef = useRef(onCancel);
 
-  useEffect(() => { onConfirmRef.current = onConfirm; }, [onConfirm]);
-  useEffect(() => { onCancelRef.current = onCancel; }, [onCancel]);
+  useEffect(() => {
+    onConfirmRef.current = onConfirm;
+  }, [onConfirm]);
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  }, [onCancel]);
 
   useEffect(() => {
     const previousFocus =
@@ -71,8 +75,12 @@ export default function ConfirmDialog({
 
       const currentIndex = focusable.indexOf(document.activeElement as HTMLElement);
       const nextIndex = e.shiftKey
-        ? (currentIndex <= 0 ? focusable.length - 1 : currentIndex - 1)
-        : (currentIndex === focusable.length - 1 ? 0 : currentIndex + 1);
+        ? currentIndex <= 0
+          ? focusable.length - 1
+          : currentIndex - 1
+        : currentIndex === focusable.length - 1
+          ? 0
+          : currentIndex + 1;
 
       e.preventDefault();
       focusable[nextIndex]?.focus();
@@ -119,13 +127,24 @@ export default function ConfirmDialog({
       >
         <h3
           id="confirm-dialog-title"
-          style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: "var(--color-text-primary)" }}
+          style={{
+            margin: 0,
+            fontSize: "15px",
+            fontWeight: 600,
+            color: "var(--color-text-primary)",
+          }}
         >
           {title}
         </h3>
         <p
           id="confirm-dialog-message"
-          style={{ margin: 0, fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}
+          style={{
+            margin: 0,
+            fontSize: "13px",
+            color: "var(--color-text-secondary)",
+            lineHeight: 1.5,
+            whiteSpace: "pre-wrap",
+          }}
         >
           {message}
         </p>

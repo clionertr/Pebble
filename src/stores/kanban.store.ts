@@ -77,9 +77,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   moveCard: async (messageId: string, column: KanbanColumnType, position: number) => {
     // Optimistic update
     const prev = get().cards;
-    const updated = prev.map((c) =>
-      c.message_id === messageId ? { ...c, column, position } : c,
-    );
+    const updated = prev.map((c) => (c.message_id === messageId ? { ...c, column, position } : c));
     set({ cards: updated, cardIdSet: buildIdSet(updated) });
     try {
       await moveToKanban(messageId, column, position);

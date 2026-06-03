@@ -29,7 +29,9 @@ export function useComposeRecipients({
   // Prefer the draft's original accountId when available — the draft body was
   // authored under that account, so restoring it under the active account
   // would silently misattribute the message.
-  const [fromAccountId, setFromAccountId] = useState(restoredDraft?.accountId || activeAccountId || "");
+  const [fromAccountId, setFromAccountId] = useState(
+    restoredDraft?.accountId || activeAccountId || "",
+  );
   const currentAccount = accounts.find((a) => a.id === fromAccountId);
   const myEmail = currentAccount?.email || "";
 
@@ -61,9 +63,10 @@ export function useComposeRecipients({
   // Re-calculate from/to/cc once accounts data loads (fixes reply-all with async data)
   useEffect(() => {
     if (accounts.length === 0) return;
-    const newAccountId = (!fromAccountId || !accounts.find((a) => a.id === fromAccountId))
-      ? (activeAccountId || accounts[0]?.id || "")
-      : fromAccountId;
+    const newAccountId =
+      !fromAccountId || !accounts.find((a) => a.id === fromAccountId)
+        ? activeAccountId || accounts[0]?.id || ""
+        : fromAccountId;
     if (newAccountId !== fromAccountId) {
       setFromAccountId(newAccountId);
     }
@@ -75,12 +78,18 @@ export function useComposeRecipients({
   }, [accounts, activeAccountId, composeReplyTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
-    fromAccountId, setFromAccountId,
-    to, setTo,
-    cc, setCc,
-    bcc, setBcc,
-    showCc, setShowCc,
-    showBcc, setShowBcc,
+    fromAccountId,
+    setFromAccountId,
+    to,
+    setTo,
+    cc,
+    setCc,
+    bcc,
+    setBcc,
+    showCc,
+    setShowCc,
+    showBcc,
+    setShowBcc,
     myEmail,
   };
 }

@@ -4,20 +4,9 @@
 // a matching change there (and vice versa) will silently skip or reject
 // rules at load time. When the two drift, prefer fixing both; a future
 // migration to shared ts-rs-generated bindings is tracked separately.
-export type ConditionField =
-  | "from"
-  | "to"
-  | "subject"
-  | "body"
-  | "has_attachment"
-  | "domain";
+export type ConditionField = "from" | "to" | "subject" | "body" | "has_attachment" | "domain";
 
-export type ConditionOp =
-  | "contains"
-  | "not_contains"
-  | "equals"
-  | "starts_with"
-  | "ends_with";
+export type ConditionOp = "contains" | "not_contains" | "equals" | "starts_with" | "ends_with";
 
 export interface RuleConditionInput {
   field: ConditionField;
@@ -25,12 +14,7 @@ export interface RuleConditionInput {
   value: string;
 }
 
-export type ActionType =
-  | "AddLabel"
-  | "MoveToFolder"
-  | "MarkRead"
-  | "Archive"
-  | "SetKanbanColumn";
+export type ActionType = "AddLabel" | "MoveToFolder" | "MarkRead" | "Archive" | "SetKanbanColumn";
 
 export type KanbanColumn = "todo" | "waiting" | "done";
 
@@ -65,9 +49,7 @@ export function parseRuleConditions(json: string): RuleConditionInput[] {
   return [DEFAULT_CONDITION];
 }
 
-export function serializeRuleConditions(
-  conditions: RuleConditionInput[],
-): string {
+export function serializeRuleConditions(conditions: RuleConditionInput[]): string {
   return JSON.stringify({
     operator: "and",
     conditions,
@@ -95,8 +77,7 @@ export function parseRuleActions(json: string): RuleActionInput[] {
       if (typeof record.type === "string") {
         return {
           type: record.type as ActionType,
-          value:
-            typeof record.value === "string" ? record.value : undefined,
+          value: typeof record.value === "string" ? record.value : undefined,
         };
       }
 

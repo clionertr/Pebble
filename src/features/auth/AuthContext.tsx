@@ -25,7 +25,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => {
         if (!cancelled) setAuthState("unauthenticated");
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(async (password: string): Promise<string | null> => {
@@ -53,9 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ authState, login, logout }}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={{ authState, login, logout }}>{children}</AuthContext.Provider>
   );
 }
 

@@ -19,8 +19,8 @@ export default function TranslatePopover({ text, position, onClose }: Props) {
   const uiLang = localStorage.getItem("pebble-language") || "zh";
   const [targetLang, setTargetLang] = useState(uiLang === "en" ? "zh" : "en");
 
-  const [privacyAcked, setPrivacyAcked] = useState(() =>
-    localStorage.getItem("pebble-translate-privacy-ack") === "1",
+  const [privacyAcked, setPrivacyAcked] = useState(
+    () => localStorage.getItem("pebble-translate-privacy-ack") === "1",
   );
 
   useEffect(() => {
@@ -52,7 +52,9 @@ export default function TranslatePopover({ text, position, onClose }: Props) {
     }
 
     void runTranslate();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [text, targetLang, privacyAcked]);
 
   function handleAcceptPrivacy() {
@@ -81,11 +83,20 @@ export default function TranslatePopover({ text, position, onClose }: Props) {
         zIndex: 1000,
         color: "var(--color-text-primary)",
       }}
-      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      role="presentation"
     >
       {/* Header with target lang selector */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-        <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", flex: 1 }}>
+        <span
+          style={{
+            fontSize: "11px",
+            fontWeight: 600,
+            color: "var(--color-text-secondary)",
+            textTransform: "uppercase",
+            flex: 1,
+          }}
+        >
           {t("translate.title")}
         </span>
         <select
@@ -154,9 +165,7 @@ export default function TranslatePopover({ text, position, onClose }: Props) {
           {t("common.translating")}
         </div>
       ) : error ? (
-        <div style={{ fontSize: "13px", color: "#ef4444", padding: "8px 0" }}>
-          {error}
-        </div>
+        <div style={{ fontSize: "13px", color: "#ef4444", padding: "8px 0" }}>{error}</div>
       ) : (
         <div>
           <div style={{ fontSize: "13px", lineHeight: "1.5", marginBottom: "8px" }}>

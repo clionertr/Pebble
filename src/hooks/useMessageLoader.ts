@@ -53,7 +53,7 @@ export function useMessageLoader(messageId: string | null, privacyMode: PrivacyM
           flagsMutation.mutate({ messageId: messageId!, isRead: true });
         }
       } catch (err) {
-        if (!cancelled && !(err instanceof DOMException && err.name === 'AbortError')) {
+        if (!cancelled && !(err instanceof DOMException && err.name === "AbortError")) {
           setError(err instanceof Error ? err.message : String(err));
         }
       } finally {
@@ -62,7 +62,10 @@ export function useMessageLoader(messageId: string | null, privacyMode: PrivacyM
     }
 
     load();
-    return () => { cancelled = true; controller.abort(); };
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [messageId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-render HTML when privacy mode changes (without reloading message)
@@ -88,8 +91,10 @@ export function useMessageLoader(messageId: string | null, privacyMode: PrivacyM
         }
       });
 
-    return () => { cancelled = true; };
-  }, [privacyMode, messageId, message]);  
+    return () => {
+      cancelled = true;
+    };
+  }, [privacyMode, messageId, message]);
 
   return { message, setMessage, rendered, loading, error };
 }

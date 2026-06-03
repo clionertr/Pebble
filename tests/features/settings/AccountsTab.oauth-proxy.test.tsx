@@ -6,7 +6,6 @@ import {
   enableGmailRealtime,
   getGmailRealtimeConfig,
   getOAuthAccountProxySetting,
-  setRealtimePreference,
   updateAccount,
   updateGmailRealtimeConfig,
   updateOAuthAccountProxySetting,

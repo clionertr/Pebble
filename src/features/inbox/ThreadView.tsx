@@ -2,7 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, MessageSquare, ChevronDown } from "lucide-react";
 import { useMailStore } from "@/stores/mail.store";
-import { useAccountsQuery, useFoldersForAccountsQuery, useThreadMessagesQuery, useThreadsQuery } from "@/hooks/queries";
+import {
+  useAccountsQuery,
+  useFoldersForAccountsQuery,
+  useThreadMessagesQuery,
+  useThreadsQuery,
+} from "@/hooks/queries";
 import { folderIdsForSelection } from "@/lib/folderAggregation";
 import ThreadMessageBubble from "@/components/ThreadMessageBubble";
 import Spinner from "@/components/Spinner";
@@ -15,7 +20,7 @@ export default function ThreadView() {
   const activeAccountId = useMailStore((s) => s.activeAccountId);
   const { data: accounts = [] } = useAccountsQuery();
   const folderAccountIds = useMemo(
-    () => activeAccountId ? [activeAccountId] : accounts.map((account) => account.id),
+    () => (activeAccountId ? [activeAccountId] : accounts.map((account) => account.id)),
     [accounts, activeAccountId],
   );
   const { data: folders = [] } = useFoldersForAccountsQuery(folderAccountIds);
@@ -29,9 +34,8 @@ export default function ThreadView() {
 
   const COLLAPSE_THRESHOLD = 5;
   const shouldCollapse = threadMessages.length > COLLAPSE_THRESHOLD;
-  const visibleMessages = shouldCollapse && !showAllMessages
-    ? threadMessages.slice(0, 3)
-    : threadMessages;
+  const visibleMessages =
+    shouldCollapse && !showAllMessages ? threadMessages.slice(0, 3) : threadMessages;
   const hiddenCount = threadMessages.length - visibleMessages.length;
 
   const thread = threads.find((t) => t.thread_id === selectedThreadId);
@@ -47,27 +51,62 @@ export default function ThreadView() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", backgroundColor: "var(--color-bg)" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        backgroundColor: "var(--color-bg)",
+      }}
+    >
       {/* Header */}
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border)", flexShrink: 0 }}>
+      <div
+        style={{
+          padding: "12px 16px",
+          borderBottom: "1px solid var(--color-border)",
+          flexShrink: 0,
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <button
             onClick={() => setSelectedThreadId(null)}
             aria-label={t("thread.back", "Back")}
             style={{
-              background: "none", border: "none", cursor: "pointer", padding: "4px",
-              borderRadius: "4px", color: "var(--color-text-secondary)", display: "flex", alignItems: "center",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "4px",
+              borderRadius: "4px",
+              color: "var(--color-text-secondary)",
+              display: "flex",
+              alignItems: "center",
             }}
           >
             <ArrowLeft size={18} />
           </button>
-          <h2 style={{
-            fontSize: "15px", fontWeight: "600", color: "var(--color-text-primary)",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0, flex: 1,
-          }}>
+          <h2
+            style={{
+              fontSize: "15px",
+              fontWeight: "600",
+              color: "var(--color-text-primary)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              margin: 0,
+              flex: 1,
+            }}
+          >
             {thread?.subject || t("thread.title")}
           </h2>
-          <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "var(--color-text-secondary)", fontSize: "12px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              color: "var(--color-text-secondary)",
+              fontSize: "12px",
+            }}
+          >
             <MessageSquare size={14} />
             <span>{threadMessages.length}</span>
           </div>
@@ -75,7 +114,11 @@ export default function ThreadView() {
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="scroll-region thread-message-scroll" style={{ flex: 1, overflow: "auto", padding: "16px" }}>
+      <div
+        ref={scrollRef}
+        className="scroll-region thread-message-scroll"
+        style={{ flex: 1, overflow: "auto", padding: "16px" }}
+      >
         {visibleMessages.map((msg, i) => (
           <ThreadMessageBubble
             key={msg.id}
@@ -87,14 +130,23 @@ export default function ThreadView() {
           <button
             onClick={() => setShowAllMessages(true)}
             style={{
-              display: "flex", alignItems: "center", gap: "6px", margin: "8px auto",
-              padding: "6px 16px", border: "1px solid var(--color-border)", borderRadius: "8px",
-              background: "var(--color-bg-secondary)", color: "var(--color-text-secondary)",
-              cursor: "pointer", fontSize: "13px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              margin: "8px auto",
+              padding: "6px 16px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "8px",
+              background: "var(--color-bg-secondary)",
+              color: "var(--color-text-secondary)",
+              cursor: "pointer",
+              fontSize: "13px",
             }}
           >
             <ChevronDown size={14} />
-            {t("thread.showAllMessages", "Show all {{count}} messages", { count: threadMessages.length })}
+            {t("thread.showAllMessages", "Show all {{count}} messages", {
+              count: threadMessages.length,
+            })}
           </button>
         )}
       </div>

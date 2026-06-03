@@ -29,7 +29,9 @@ export function loadDraftFromStorage(validAccountIds?: string[]): DraftData | nu
   void validAccountIds;
   try {
     localStorage.removeItem(DRAFT_STORAGE_KEY);
-  } catch { /* ignore legacy cleanup failure */ }
+  } catch {
+    /* ignore legacy cleanup failure */
+  }
   return null;
 }
 
@@ -56,21 +58,41 @@ interface UseComposeDraftArgs {
 }
 
 export function useComposeDraft({
-  to, cc, bcc, subject, rawSource, richTextHtml, editorMode, composeMode, fromAccountId, attachments, editorReady,
+  to,
+  cc,
+  bcc,
+  subject,
+  rawSource,
+  richTextHtml,
+  editorMode,
+  composeMode,
+  fromAccountId,
+  attachments,
+  editorReady,
 }: UseComposeDraftArgs) {
   // Snapshot the initial compose state so pre-populated reply/forward
   // fields don't immediately trigger the "unsaved draft" guard.
   // Deferred until the editor has rendered its initial content - taken once,
   // in an effect that runs after the first render post-editorReady.
   const initialSnapshot = useRef<{
-    to: string[]; cc: string[]; bcc: string[]; subject: string;
-    rawSource: string; richTextHtml: string; attachments: ComposeAttachment[];
+    to: string[];
+    cc: string[];
+    bcc: string[];
+    subject: string;
+    rawSource: string;
+    richTextHtml: string;
+    attachments: ComposeAttachment[];
   } | null>(null);
   useEffect(() => {
     if (!editorReady || initialSnapshot.current) return;
     initialSnapshot.current = {
-      to: [...to], cc: [...cc], bcc: [...bcc], subject,
-      rawSource, richTextHtml, attachments: attachments.map((a) => ({ ...a })),
+      to: [...to],
+      cc: [...cc],
+      bcc: [...bcc],
+      subject,
+      rawSource,
+      richTextHtml,
+      attachments: attachments.map((a) => ({ ...a })),
     };
     // Only depend on editorReady - we want this to run once after mount, not
     // each time the user edits.
@@ -97,7 +119,9 @@ export function useComposeDraft({
   const saveGenerationByAccountRef = useRef<Record<string, number>>({});
   if (draftAccountRef.current !== fromAccountId) {
     draftAccountRef.current = fromAccountId;
-    draftIdRef.current = fromAccountId ? draftIdsByAccountRef.current[fromAccountId] ?? null : null;
+    draftIdRef.current = fromAccountId
+      ? (draftIdsByAccountRef.current[fromAccountId] ?? null)
+      : null;
   }
 
   // Track dirty state for leave-protection.
@@ -114,18 +138,35 @@ export function useComposeDraft({
       richTextHtml !== init.richTextHtml ||
       !attachmentsEqual(attachments, init.attachments);
     useComposeStore.getState().setComposeDirty(userChanged);
-  }, [arraysEqual, attachments, attachmentsEqual, bcc, cc, rawSource, richTextHtml, subject, to, editorReady]);
+  }, [
+    arraysEqual,
+    attachments,
+    attachmentsEqual,
+    bcc,
+    cc,
+    rawSource,
+    richTextHtml,
+    subject,
+    to,
+    editorReady,
+  ]);
 
   // Auto-save draft to backend (debounced 3s). Do not persist plaintext draft
   // data in WebView storage.
   useEffect(() => {
     if (!composeMode || !editorReady || !initialSnapshot.current) return;
     const timer = setTimeout(() => {
-      const draftAttachments = attachments.filter((attachment) =>
-        attachment.path.trim().length > 0 || attachment.name.trim().length > 0,
+      const draftAttachments = attachments.filter(
+        (attachment) => attachment.path.trim().length > 0 || attachment.name.trim().length > 0,
       );
       const hasDraft = hasComposeDraft({
-        to, cc, bcc, subject, rawSource, richTextHtml, attachments: draftAttachments,
+        to,
+        cc,
+        bcc,
+        subject,
+        rawSource,
+        richTextHtml,
+        attachments: draftAttachments,
       });
       if (hasDraft && fromAccountId) {
         const accountIdAtSave = fromAccountId;
@@ -135,32 +176,54 @@ export function useComposeDraft({
         {
           // Pick body source based on current editor mode to avoid stale content.
           // For rich text, strip HTML tags to produce a plain-text fallback.
-          const bodyText = editorMode === "rich"
-            ? richTextHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
-            : rawSource;
-          const bodyHtml = editorMode === "rich" ? richTextHtml : (editorMode === "html" ? rawSource : undefined);
+          const bodyText =
+            editorMode === "rich"
+              ? richTextHtml
+                  .replace(/<[^>]*>/g, " ")
+                  .replace(/\s+/g, " ")
+                  .trim()
+              : rawSource;
+          const bodyHtml =
+            editorMode === "rich" ? richTextHtml : editorMode === "html" ? rawSource : undefined;
           saveDraft({
             accountId: accountIdAtSave,
-            to, cc, bcc, subject,
+            to,
+            cc,
+            bcc,
+            subject,
             bodyText,
             bodyHtml: bodyHtml || undefined,
             attachmentPaths: draftAttachments.map((attachment) => attachment.path).filter(Boolean),
             existingDraftId: draftIdsByAccountRef.current[accountIdAtSave] || undefined,
-          }).then((id) => {
-            if (saveGenerationByAccountRef.current[accountIdAtSave] === generation) {
-              draftIdsByAccountRef.current[accountIdAtSave] = id;
-              if (draftAccountRef.current === accountIdAtSave) {
-                draftIdRef.current = id;
+          })
+            .then((id) => {
+              if (saveGenerationByAccountRef.current[accountIdAtSave] === generation) {
+                draftIdsByAccountRef.current[accountIdAtSave] = id;
+                if (draftAccountRef.current === accountIdAtSave) {
+                  draftIdRef.current = id;
+                }
               }
-            }
-          }).catch((err) => {
-            console.warn("Backend draft save failed:", err);
-          });
+            })
+            .catch((err) => {
+              console.warn("Backend draft save failed:", err);
+            });
         }
       }
     }, 3000);
     return () => clearTimeout(timer);
-  }, [attachments, to, cc, bcc, subject, rawSource, richTextHtml, editorMode, composeMode, fromAccountId, editorReady]);
+  }, [
+    attachments,
+    to,
+    cc,
+    bcc,
+    subject,
+    rawSource,
+    richTextHtml,
+    editorMode,
+    composeMode,
+    fromAccountId,
+    editorReady,
+  ]);
 
   return { draftIdRef, draftIdsByAccountRef };
 }

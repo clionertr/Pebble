@@ -12,12 +12,7 @@ export function Skeleton({
   borderRadius = "4px",
   style,
 }: SkeletonProps) {
-  return (
-    <div
-      className="skeleton"
-      style={{ width, height, borderRadius, ...style }}
-    />
-  );
+  return <div className="skeleton" style={{ width, height, borderRadius, ...style }} />;
 }
 
 /** Skeleton that mimics a mail list item (avatar + 2 text lines). */
@@ -56,7 +51,12 @@ export function MessageListSkeleton({ count = 6 }: { count?: number }) {
 /** Skeleton for the kanban board columns. */
 export function KanbanSkeleton() {
   return (
-    <div role="status" aria-live="polite" className="fade-in" style={{ display: "flex", gap: "16px", padding: "20px" }}>
+    <div
+      role="status"
+      aria-live="polite"
+      className="fade-in"
+      style={{ display: "flex", gap: "16px", padding: "20px" }}
+    >
       {[1, 2, 3].map((col) => (
         <div
           key={col}
@@ -79,7 +79,12 @@ export function KanbanSkeleton() {
 /** Skeleton for message detail view. */
 export function MessageDetailSkeleton() {
   return (
-    <div role="status" aria-live="polite" className="fade-in" style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+    <div
+      role="status"
+      aria-live="polite"
+      className="fade-in"
+      style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}
+    >
       <Skeleton width="55%" height="18px" />
       <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
         <Skeleton width="28px" height="28px" borderRadius="50%" />

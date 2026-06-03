@@ -7,7 +7,7 @@ import { fetchShellSnapshot } from "./useShellQuery";
 
 function useIsSseActive(accountId: string | null) {
   const status = useSyncStore((s) =>
-    accountId ? s.realtimeStatusByAccount[accountId] : undefined
+    accountId ? s.realtimeStatusByAccount[accountId] : undefined,
   );
   return status?.mode === "realtime";
 }
@@ -32,9 +32,10 @@ export function useFolderUnreadCountsForAccounts(accountIds: string[]) {
   const ready = useDelayedIdleReady(3000);
   const queryClient = useQueryClient();
   // 检查是否有任何一个账户的 SSE 不活跃（需要轮询后备）
-  const sseAllActive = useSyncStore((s) =>
-    accountIds.length > 0 &&
-    accountIds.every((id) => s.realtimeStatusByAccount[id]?.mode === "realtime")
+  const sseAllActive = useSyncStore(
+    (s) =>
+      accountIds.length > 0 &&
+      accountIds.every((id) => s.realtimeStatusByAccount[id]?.mode === "realtime"),
   );
   const queries = useQueries({
     queries: accountIds.map((accountId) => ({

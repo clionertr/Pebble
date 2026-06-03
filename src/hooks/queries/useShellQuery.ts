@@ -4,8 +4,7 @@ import type { ShellData } from "@/lib/api-client";
 
 export const shellQueryKey = ["shell"] as const;
 
-export const gmailRealtimeQueryKey = (accountId: string) =>
-  ["gmail-realtime", accountId] as const;
+export const gmailRealtimeQueryKey = (accountId: string) => ["gmail-realtime", accountId] as const;
 
 export function hydrateShellQueryData(queryClient: QueryClient, shell: ShellData) {
   queryClient.setQueryData(["accounts"], shell.accounts);

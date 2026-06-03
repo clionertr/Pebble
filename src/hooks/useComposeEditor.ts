@@ -49,13 +49,17 @@ interface ShouldApplyInitialEditorContentArgs {
 }
 
 function escapeHtml(s: string) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function plainTextToParagraphs(text: string) {
   return text
     .split(/\r?\n/)
-    .map((line) => line.trim() ? `<p>${escapeHtml(line)}</p>` : "<p><br></p>")
+    .map((line) => (line.trim() ? `<p>${escapeHtml(line)}</p>` : "<p><br></p>"))
     .join("");
 }
 
@@ -70,7 +74,9 @@ function decodeHtmlEntities(value: string) {
 }
 
 function startsWithEncodedHtmlTag(value: string) {
-  return /^\s*(?:&lt;|&#0*60;|&#x0*3c;)\s*\/?[a-z][\w:-]*(?:\s|\/?(?:&gt;|&#0*62;|&#x0*3e;))/i.test(value);
+  return /^\s*(?:&lt;|&#0*60;|&#x0*3c;)\s*\/?[a-z][\w:-]*(?:\s|\/?(?:&gt;|&#0*62;|&#x0*3e;))/i.test(
+    value,
+  );
 }
 
 function looksLikeHtml(value: string) {
@@ -202,7 +208,14 @@ export function useComposeEditor({
   }, [signature]);
 
   const editorContent = useMemo(() => {
-    return buildComposeEditorContent({ composeMode, composeReplyTo, isReply, signatureHtml, prefillBody, t });
+    return buildComposeEditorContent({
+      composeMode,
+      composeReplyTo,
+      isReply,
+      signatureHtml,
+      prefillBody,
+      t,
+    });
   }, [composeMode, composeReplyTo, isReply, t, signatureHtml, prefillBody]);
   const quotedReplyHtml = useMemo(() => {
     return isReply ? buildReplyQuoteHtml({ composeReplyTo, t }) : "";
@@ -212,7 +225,9 @@ export function useComposeEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: t("compose.editorPlaceholder", "Write your message...") }),
+      Placeholder.configure({
+        placeholder: t("compose.editorPlaceholder", "Write your message..."),
+      }),
       MarkdownExtension.configure({ html: true, transformPastedText: true }),
     ],
     content: "",
@@ -220,12 +235,16 @@ export function useComposeEditor({
 
   // Set editor content after creation to avoid initialization crashes
   useEffect(() => {
-    if (!shouldApplyInitialEditorContent({
-      editorExists: Boolean(editor),
-      initialized: contentInitializedRef.current,
-      signatureReady,
-      hasRestoredDraft: Boolean(restoredDraft),
-    }) || !editor) return;
+    if (
+      !shouldApplyInitialEditorContent({
+        editorExists: Boolean(editor),
+        initialized: contentInitializedRef.current,
+        signatureReady,
+        hasRestoredDraft: Boolean(restoredDraft),
+      }) ||
+      !editor
+    )
+      return;
     // If restoring a draft, prefer its richTextHtml over generated editorContent
     if (restoredDraft?.richTextHtml) {
       editor.commands.setContent(restoredDraft.richTextHtml);

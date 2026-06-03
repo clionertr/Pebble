@@ -20,7 +20,7 @@ export function createLazyViewPreloader(importers: readonly LazyViewImporter[]) 
 export function scheduleIdleWork(
   work: ScheduledIdleWork,
   win: Window = window,
-  delayMs: number = 0
+  delayMs: number = 0,
 ) {
   const idleWindow = win as IdleWindow;
   let handle: number;
@@ -57,7 +57,7 @@ export function scheduleIdleWork(
 export function scheduleLazyViewPreload(
   preload: () => Promise<unknown>,
   win: Window = window,
-  delayMs: number = 0
+  delayMs: number = 0,
 ) {
   return scheduleIdleWork(preload, win, delayMs);
 }

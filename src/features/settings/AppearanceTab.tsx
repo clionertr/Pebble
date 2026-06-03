@@ -21,7 +21,9 @@ export default function AppearanceTab() {
 
   return (
     <div>
-      <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "16px" }}>{t("settings.theme")}</h3>
+      <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "16px" }}>
+        {t("settings.theme")}
+      </h3>
       <div style={{ display: "flex", gap: "12px" }}>
         {THEMES.map((th) => (
           <button
@@ -31,15 +33,20 @@ export default function AppearanceTab() {
               flex: 1,
               padding: "16px",
               borderRadius: "8px",
-              border: theme === th.id ? "2px solid var(--color-accent)" : "1px solid var(--color-border)",
+              border:
+                theme === th.id ? "2px solid var(--color-accent)" : "1px solid var(--color-border)",
               backgroundColor: theme === th.id ? "var(--color-bg-hover)" : "transparent",
               cursor: "pointer",
               textAlign: "left",
               color: "var(--color-text-primary)",
             }}
           >
-            <div style={{ fontWeight: 600, fontSize: "13px", marginBottom: "4px" }}>{t(th.labelKey)}</div>
-            <div style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>{t(th.descKey)}</div>
+            <div style={{ fontWeight: 600, fontSize: "13px", marginBottom: "4px" }}>
+              {t(th.labelKey)}
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>
+              {t(th.descKey)}
+            </div>
           </button>
         ))}
       </div>
@@ -56,7 +63,10 @@ export default function AppearanceTab() {
               flex: 1,
               padding: "16px",
               borderRadius: "8px",
-              border: language === l.id ? "2px solid var(--color-accent)" : "1px solid var(--color-border)",
+              border:
+                language === l.id
+                  ? "2px solid var(--color-accent)"
+                  : "1px solid var(--color-border)",
               backgroundColor: language === l.id ? "var(--color-bg-hover)" : "transparent",
               cursor: "pointer",
               textAlign: "left",

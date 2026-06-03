@@ -14,7 +14,15 @@ interface Props {
   onOpen: (messageId: string) => void;
 }
 
-export default function KanbanColumn({ id, title, cardIds, contextNotes, messages, onRemove, onOpen }: Props) {
+export default function KanbanColumn({
+  id,
+  title,
+  cardIds,
+  contextNotes,
+  messages,
+  onRemove,
+  onOpen,
+}: Props) {
   const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id });
 

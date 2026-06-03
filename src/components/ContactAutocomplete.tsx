@@ -62,9 +62,7 @@ export default function ContactAutocomplete({
       try {
         const results = await searchContacts(accountId, query, 10);
         // Filter out already-selected addresses
-        const filtered = results.filter(
-          (c) => !value.includes(c.address),
-        );
+        const filtered = results.filter((c) => !value.includes(c.address));
         setSuggestions(filtered);
         setShowDropdown(filtered.length > 0);
         setActiveIndex(-1);
@@ -99,7 +97,10 @@ export default function ContactAutocomplete({
 
   const addRawAddress = (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed) { setInputValue(""); return; }
+    if (!trimmed) {
+      setInputValue("");
+      return;
+    }
     if (isValidEmailAddress(trimmed) && !value.includes(trimmed)) {
       onChange([...value, trimmed]);
     } else if (!isValidEmailAddress(trimmed)) {
@@ -122,16 +123,12 @@ export default function ContactAutocomplete({
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (showDropdown && suggestions.length > 0) {
-        setActiveIndex((prev) =>
-          prev < suggestions.length - 1 ? prev + 1 : 0,
-        );
+        setActiveIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
       }
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (showDropdown && suggestions.length > 0) {
-        setActiveIndex((prev) =>
-          prev > 0 ? prev - 1 : suggestions.length - 1,
-        );
+        setActiveIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
       }
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -156,10 +153,7 @@ export default function ContactAutocomplete({
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setShowDropdown(false);
       }
     };
@@ -189,9 +183,9 @@ export default function ContactAutocomplete({
 
   return (
     <div ref={containerRef} style={{ position: "relative", flex: 1 }}>
-        <div
-          className="scroll-region contact-autocomplete-scroll"
-          style={{
+      <div
+        className="scroll-region contact-autocomplete-scroll"
+        style={{
           display: "flex",
           flexWrap: "wrap",
           gap: "4px",
@@ -199,7 +193,8 @@ export default function ContactAutocomplete({
           padding: "4px 8px",
           minHeight: "32px",
         }}
-        onClick={() => inputRef.current?.focus()}
+        onMouseDown={() => inputRef.current?.focus()}
+        role="presentation"
       >
         {value.map((addr) => (
           <span
@@ -257,7 +252,9 @@ export default function ContactAutocomplete({
           aria-autocomplete="list"
           aria-expanded={showDropdown && suggestions.length > 0}
           aria-controls={`${instanceId}-listbox`}
-          aria-activedescendant={activeIndex >= 0 ? `${instanceId}-option-${activeIndex}` : undefined}
+          aria-activedescendant={
+            activeIndex >= 0 ? `${instanceId}-option-${activeIndex}` : undefined
+          }
           style={{
             flex: 1,
             minWidth: "120px",
@@ -316,15 +313,20 @@ export default function ContactAutocomplete({
                 role="option"
                 id={`${instanceId}-option-${idx}`}
                 aria-selected={idx === activeIndex}
+                tabIndex={-1}
                 onClick={() => selectContact(contact)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectContact(contact);
+                  }
+                }}
                 onMouseEnter={() => setActiveIndex(idx)}
                 style={{
                   padding: "6px 12px",
                   cursor: "pointer",
                   backgroundColor:
-                    idx === activeIndex
-                      ? "var(--color-bg-secondary, #f5f5f5)"
-                      : "transparent",
+                    idx === activeIndex ? "var(--color-bg-secondary, #f5f5f5)" : "transparent",
                   fontSize: "13px",
                 }}
               >

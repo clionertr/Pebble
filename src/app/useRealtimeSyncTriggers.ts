@@ -61,21 +61,24 @@ export function useRealtimeSyncTriggers() {
     previousNetworkStatus.current = networkStatus;
 
     if (
-      accountIds.length === 0
-      || previous !== "offline"
-      || networkStatus !== "online"
-      || realtimeMode === "manual"
-    ) return;
+      accountIds.length === 0 ||
+      previous !== "offline" ||
+      networkStatus !== "online" ||
+      realtimeMode === "manual"
+    )
+      return;
 
     wakeSync({
       accountIds,
       reason: "network_online",
       ensureRunning: true,
       pollIntervalSecs: pollInterval,
-    }).finally(() => {
-      queryClient.invalidateQueries({ queryKey: shellQueryKey });
-      queryClient.invalidateQueries({ queryKey: ["messages"] });
-      queryClient.invalidateQueries({ queryKey: ["threads"] });
-    }).catch(() => {});
+    })
+      .finally(() => {
+        queryClient.invalidateQueries({ queryKey: shellQueryKey });
+        queryClient.invalidateQueries({ queryKey: ["messages"] });
+        queryClient.invalidateQueries({ queryKey: ["threads"] });
+      })
+      .catch(() => {});
   }, [accountIds, networkStatus, pollInterval, queryClient, realtimeMode]);
 }

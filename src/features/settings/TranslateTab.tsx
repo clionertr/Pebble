@@ -1,10 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  getTranslateConfig,
-  saveTranslateConfig,
-  testTranslateConnection,
-} from "../../lib/api";
+import { getTranslateConfig, saveTranslateConfig, testTranslateConnection } from "../../lib/api";
 import { useToastStore } from "@/stores/toast.store";
 import { extractErrorMessage } from "../../lib/extractErrorMessage";
 
@@ -126,7 +122,11 @@ export default function TranslateTab() {
       case "deeplx":
         return JSON.stringify({ type: "deeplx", endpoint: deeplxEndpoint.trim() });
       case "deepl":
-        return JSON.stringify({ type: "deepl", api_key: deeplApiKey.trim(), use_free_api: deeplUseFree });
+        return JSON.stringify({
+          type: "deepl",
+          api_key: deeplApiKey.trim(),
+          use_free_api: deeplUseFree,
+        });
       case "generic_api":
         return JSON.stringify({
           type: "generic_api",
@@ -196,7 +196,9 @@ export default function TranslateTab() {
       case "deeplx":
         return (
           <div style={fieldGroupStyle}>
-            <label htmlFor="translate-deeplx-endpoint" style={labelStyle}>{t("translate.endpointUrl")}</label>
+            <label htmlFor="translate-deeplx-endpoint" style={labelStyle}>
+              {t("translate.endpointUrl")}
+            </label>
             <input
               id="translate-deeplx-endpoint"
               name="deeplx_endpoint"
@@ -214,7 +216,9 @@ export default function TranslateTab() {
         return (
           <>
             <div style={fieldGroupStyle}>
-              <label htmlFor="translate-deepl-api-key" style={labelStyle}>{t("translate.apiKey")}</label>
+              <label htmlFor="translate-deepl-api-key" style={labelStyle}>
+                {t("translate.apiKey")}
+              </label>
               <input
                 id="translate-deepl-api-key"
                 name="deepl_api_key"
@@ -233,7 +237,10 @@ export default function TranslateTab() {
                 onChange={(e) => setDeeplUseFree(e.target.checked)}
                 id="deepl-free"
               />
-              <label htmlFor="deepl-free" style={{ fontSize: "13px", color: "var(--color-text-primary)", cursor: "pointer" }}>
+              <label
+                htmlFor="deepl-free"
+                style={{ fontSize: "13px", color: "var(--color-text-primary)", cursor: "pointer" }}
+              >
                 {t("translate.useFreeApi")}
               </label>
             </div>
@@ -244,7 +251,9 @@ export default function TranslateTab() {
         return (
           <>
             <div style={fieldGroupStyle}>
-              <label htmlFor="translate-generic-endpoint" style={labelStyle}>{t("translate.endpoint")}</label>
+              <label htmlFor="translate-generic-endpoint" style={labelStyle}>
+                {t("translate.endpoint")}
+              </label>
               <input
                 id="translate-generic-endpoint"
                 name="generic_endpoint"
@@ -257,7 +266,9 @@ export default function TranslateTab() {
               />
             </div>
             <div style={fieldGroupStyle}>
-              <label htmlFor="translate-generic-api-key" style={labelStyle}>{t("translate.apiKeyOptional")}</label>
+              <label htmlFor="translate-generic-api-key" style={labelStyle}>
+                {t("translate.apiKeyOptional")}
+              </label>
               <input
                 id="translate-generic-api-key"
                 name="generic_api_key"
@@ -270,7 +281,9 @@ export default function TranslateTab() {
               />
             </div>
             <div style={fieldGroupStyle}>
-              <label htmlFor="translate-generic-source-param" style={labelStyle}>{t("translate.sourceLangParam")}</label>
+              <label htmlFor="translate-generic-source-param" style={labelStyle}>
+                {t("translate.sourceLangParam")}
+              </label>
               <input
                 id="translate-generic-source-param"
                 name="generic_source_lang_param"
@@ -281,7 +294,9 @@ export default function TranslateTab() {
               />
             </div>
             <div style={fieldGroupStyle}>
-              <label htmlFor="translate-generic-target-param" style={labelStyle}>{t("translate.targetLangParam")}</label>
+              <label htmlFor="translate-generic-target-param" style={labelStyle}>
+                {t("translate.targetLangParam")}
+              </label>
               <input
                 id="translate-generic-target-param"
                 name="generic_target_lang_param"
@@ -292,7 +307,9 @@ export default function TranslateTab() {
               />
             </div>
             <div style={fieldGroupStyle}>
-              <label htmlFor="translate-generic-text-param" style={labelStyle}>{t("translate.textParam")}</label>
+              <label htmlFor="translate-generic-text-param" style={labelStyle}>
+                {t("translate.textParam")}
+              </label>
               <input
                 id="translate-generic-text-param"
                 name="generic_text_param"
@@ -303,7 +320,9 @@ export default function TranslateTab() {
               />
             </div>
             <div style={fieldGroupStyle}>
-              <label htmlFor="translate-generic-result-path" style={labelStyle}>{t("translate.resultPath")}</label>
+              <label htmlFor="translate-generic-result-path" style={labelStyle}>
+                {t("translate.resultPath")}
+              </label>
               <input
                 id="translate-generic-result-path"
                 name="generic_result_path"
@@ -320,7 +339,9 @@ export default function TranslateTab() {
         return (
           <>
             <div style={fieldGroupStyle}>
-              <label htmlFor="translate-llm-endpoint" style={labelStyle}>{t("translate.endpoint")}</label>
+              <label htmlFor="translate-llm-endpoint" style={labelStyle}>
+                {t("translate.endpoint")}
+              </label>
               <input
                 id="translate-llm-endpoint"
                 name="llm_endpoint"
@@ -333,7 +354,9 @@ export default function TranslateTab() {
               />
             </div>
             <div style={fieldGroupStyle}>
-              <label htmlFor="translate-llm-api-key" style={labelStyle}>{t("translate.apiKey")}</label>
+              <label htmlFor="translate-llm-api-key" style={labelStyle}>
+                {t("translate.apiKey")}
+              </label>
               <input
                 id="translate-llm-api-key"
                 name="llm_api_key"
@@ -346,7 +369,9 @@ export default function TranslateTab() {
               />
             </div>
             <div style={fieldGroupStyle}>
-              <label htmlFor="translate-llm-model" style={labelStyle}>{t("translate.model")}</label>
+              <label htmlFor="translate-llm-model" style={labelStyle}>
+                {t("translate.model")}
+              </label>
               <input
                 id="translate-llm-model"
                 name="llm_model"
@@ -358,7 +383,9 @@ export default function TranslateTab() {
               />
             </div>
             <div style={fieldGroupStyle}>
-              <label htmlFor="translate-llm-mode" style={labelStyle}>{t("translate.mode")}</label>
+              <label htmlFor="translate-llm-mode" style={labelStyle}>
+                {t("translate.mode")}
+              </label>
               <select
                 id="translate-llm-mode"
                 name="llm_mode"
@@ -377,7 +404,15 @@ export default function TranslateTab() {
 
   return (
     <div>
-      <h2 style={{ fontSize: "18px", fontWeight: 600, color: "var(--color-text-primary)", marginTop: 0, marginBottom: "20px" }}>
+      <h2
+        style={{
+          fontSize: "18px",
+          fontWeight: 600,
+          color: "var(--color-text-primary)",
+          marginTop: 0,
+          marginBottom: "20px",
+        }}
+      >
         {t("translate.engineTitle")}
       </h2>
 
@@ -389,14 +424,19 @@ export default function TranslateTab() {
           onChange={(e) => setIsEnabled(e.target.checked)}
           id="translate-enabled"
         />
-        <label htmlFor="translate-enabled" style={{ fontSize: "13px", color: "var(--color-text-primary)", cursor: "pointer" }}>
+        <label
+          htmlFor="translate-enabled"
+          style={{ fontSize: "13px", color: "var(--color-text-primary)", cursor: "pointer" }}
+        >
           {t("translate.enableTranslation")}
         </label>
       </div>
 
       {/* Provider selector */}
       <div style={fieldGroupStyle}>
-        <label htmlFor="translate-provider" style={labelStyle}>{t("translate.provider")}</label>
+        <label htmlFor="translate-provider" style={labelStyle}>
+          {t("translate.provider")}
+        </label>
         <select
           id="translate-provider"
           name="translate_provider"
@@ -453,7 +493,8 @@ export default function TranslateTab() {
             padding: "10px 14px",
             borderRadius: "6px",
             fontSize: "13px",
-            background: statusType === "success" ? "var(--color-bg-hover)" : "rgba(220, 53, 69, 0.1)",
+            background:
+              statusType === "success" ? "var(--color-bg-hover)" : "rgba(220, 53, 69, 0.1)",
             color: statusType === "success" ? "var(--color-text-primary)" : "#dc3545",
             border: `1px solid ${statusType === "success" ? "var(--color-border)" : "rgba(220, 53, 69, 0.3)"}`,
           }}

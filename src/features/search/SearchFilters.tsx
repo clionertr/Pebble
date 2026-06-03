@@ -50,14 +50,12 @@ export default function SearchFilters({ filters, onChange, onClear }: Props) {
   }
 
   return (
-    <section
-      role="region"
-      aria-label={t("search.filters")}
-      className="search-filters-panel"
-    >
+    <section aria-label={t("search.filters")} className="search-filters-panel">
       <div className="search-filters-grid">
         <div className="search-filter-field">
-          <label htmlFor="search-filter-from" className="search-filter-label">{t("search.from")}</label>
+          <label htmlFor="search-filter-from" className="search-filter-label">
+            {t("search.from")}
+          </label>
           <input
             id="search-filter-from"
             name="from"
@@ -69,7 +67,9 @@ export default function SearchFilters({ filters, onChange, onClear }: Props) {
           />
         </div>
         <div className="search-filter-field">
-          <label htmlFor="search-filter-to" className="search-filter-label">{t("search.to")}</label>
+          <label htmlFor="search-filter-to" className="search-filter-label">
+            {t("search.to")}
+          </label>
           <input
             id="search-filter-to"
             name="to"
@@ -81,7 +81,9 @@ export default function SearchFilters({ filters, onChange, onClear }: Props) {
           />
         </div>
         <div className="search-filter-field">
-          <label htmlFor="search-filter-subject" className="search-filter-label">{t("search.subject")}</label>
+          <label htmlFor="search-filter-subject" className="search-filter-label">
+            {t("search.subject")}
+          </label>
           <input
             id="search-filter-subject"
             name="subject"
@@ -93,7 +95,9 @@ export default function SearchFilters({ filters, onChange, onClear }: Props) {
           />
         </div>
         <div className="search-filter-field">
-          <label htmlFor="search-filter-date-from" className="search-filter-label">{t("search.dateFrom")}</label>
+          <label htmlFor="search-filter-date-from" className="search-filter-label">
+            {t("search.dateFrom")}
+          </label>
           <input
             id="search-filter-date-from"
             name="date_from"
@@ -106,7 +110,9 @@ export default function SearchFilters({ filters, onChange, onClear }: Props) {
           />
         </div>
         <div className="search-filter-field">
-          <label htmlFor="search-filter-date-to" className="search-filter-label">{t("search.dateTo")}</label>
+          <label htmlFor="search-filter-date-to" className="search-filter-label">
+            {t("search.dateTo")}
+          </label>
           <input
             id="search-filter-date-to"
             name="date_to"
@@ -118,23 +124,20 @@ export default function SearchFilters({ filters, onChange, onClear }: Props) {
             className="search-filter-control"
           />
         </div>
-        <label
-          htmlFor="search-has-attachment"
-          className="search-filter-toggle"
-        >
+        <label htmlFor="search-has-attachment" className="search-filter-toggle">
           <input
             type="checkbox"
             checked={filters.hasAttachment || false}
-            onChange={(e) =>
-              update({ hasAttachment: e.target.checked ? true : undefined })
-            }
+            onChange={(e) => update({ hasAttachment: e.target.checked ? true : undefined })}
             id="search-has-attachment"
             className="search-filter-checkbox"
           />
           <span>{t("search.hasAttachment")}</span>
         </label>
         <div className="search-filter-field">
-          <label htmlFor="search-filter-folder" className="search-filter-label">{t("search.folder")}</label>
+          <label htmlFor="search-filter-folder" className="search-filter-label">
+            {t("search.folder")}
+          </label>
           <select
             id="search-filter-folder"
             value={filters.folderId || ""}
@@ -151,11 +154,7 @@ export default function SearchFilters({ filters, onChange, onClear }: Props) {
         </div>
       </div>
       <div className="search-filters-actions">
-        <button
-          type="button"
-          onClick={onClear}
-          className="search-filters-clear"
-        >
+        <button type="button" onClick={onClear} className="search-filters-clear">
           {t("search.clearFilters")}
         </button>
       </div>

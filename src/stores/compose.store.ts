@@ -21,7 +21,11 @@ interface ComposeState {
   showComposeLeaveConfirm: boolean;
   pendingView: ActiveView | null;
   setComposeDirty: (dirty: boolean) => void;
-  openCompose: (mode: ComposeMode, replyTo?: Message | null, prefill?: ComposePrefill | null) => void;
+  openCompose: (
+    mode: ComposeMode,
+    replyTo?: Message | null,
+    prefill?: ComposePrefill | null,
+  ) => void;
   closeCompose: () => void;
   confirmCloseCompose: () => void;
   cancelCloseCompose: () => void;

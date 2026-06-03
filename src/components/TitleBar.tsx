@@ -30,10 +30,7 @@ export default function TitleBar() {
           draggable={false}
           className="h-5 w-5 shrink-0 bg-transparent object-contain"
         />
-        <span
-          className="text-sm font-semibold"
-          style={{ color: "var(--color-text-primary)" }}
-        >
+        <span className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
           Pebble
         </span>
       </div>

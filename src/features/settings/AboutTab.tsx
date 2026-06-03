@@ -42,18 +42,21 @@ export default function AboutTab() {
     setAppVersion(APP_VERSION);
   }, []);
 
-  useEffect(() => () => {
-    if (diagnosticClickTimer.current !== null) {
-      window.clearTimeout(diagnosticClickTimer.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (diagnosticClickTimer.current !== null) {
+        window.clearTimeout(diagnosticClickTimer.current);
+      }
+    },
+    [],
+  );
 
   async function handleCheckUpdate() {
     setUpdate({ status: "checking" });
     try {
       const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const release = await res.json() as { tag_name: string; html_url: string };
+      const release = (await res.json()) as { tag_name: string; html_url: string };
       const latestVersion = release.tag_name.replace(/^v/, "");
       const isNewer = latestVersion !== appVersion && latestVersion > appVersion;
       setUpdate({
@@ -145,25 +148,48 @@ export default function AboutTab() {
             <div style={{ fontSize: "17px", fontWeight: 600, color: "var(--color-text-primary)" }}>
               Pebble
             </div>
-            <div style={{ fontSize: "13px", color: "var(--color-text-secondary)", marginTop: "2px" }}>
+            <div
+              style={{ fontSize: "13px", color: "var(--color-text-secondary)", marginTop: "2px" }}
+            >
               {t("about.version", "Version")} {appVersion || "..."}
             </div>
           </div>
         </div>
 
-        <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.7, margin: "0 0 8px" }}>
+        <p
+          style={{
+            fontSize: "13px",
+            color: "var(--color-text-secondary)",
+            lineHeight: 1.7,
+            margin: "0 0 8px",
+          }}
+        >
           {t(
             "about.description",
             "A self-hosted webmail app built with Rust and React. Mail, search index, and attachments stay on your server. No telemetry. Outbound traffic happens only when you use a feature that requires it: mail sync with your provider, translation, or WebDAV settings backup.",
           )}
         </p>
-        <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.7, margin: "0 0 8px" }}>
+        <p
+          style={{
+            fontSize: "13px",
+            color: "var(--color-text-secondary)",
+            lineHeight: 1.7,
+            margin: "0 0 8px",
+          }}
+        >
           {t(
             "about.features",
             "Supports Gmail, Outlook (experimental), and IMAP accounts. Includes Kanban board, full-text search, snooze, rules engine, built-in translation, and WebDAV settings backup.",
           )}
         </p>
-        <p style={{ fontSize: "12px", color: "var(--color-text-tertiary, var(--color-text-secondary))", lineHeight: 1.5, margin: 0 }}>
+        <p
+          style={{
+            fontSize: "12px",
+            color: "var(--color-text-tertiary, var(--color-text-secondary))",
+            lineHeight: 1.5,
+            margin: 0,
+          }}
+        >
           {t("about.license", "Open source under AGPL-3.0 license.")}
         </p>
       </div>
@@ -282,12 +308,18 @@ export default function AboutTab() {
           {[
             { label: "GitHub Releases", url: RELEASES_URL },
             { label: t("about.sourceCode", "Source Code"), url: `https://github.com/${REPO}` },
-            { label: t("about.reportIssue", "Report an Issue"), url: `https://github.com/${REPO}/issues` },
+            {
+              label: t("about.reportIssue", "Report an Issue"),
+              url: `https://github.com/${REPO}/issues`,
+            },
           ].map((link) => (
             <a
               key={link.url}
               href={link.url}
-              onClick={(e) => { e.preventDefault(); openUrl(link.url); }}
+              onClick={(e) => {
+                e.preventDefault();
+                openUrl(link.url);
+              }}
               style={{
                 fontSize: "13px",
                 color: "var(--color-accent, #3b82f6)",
@@ -406,7 +438,12 @@ function DiagnosticLogDialog({
           <div style={{ minWidth: 0 }}>
             <h3
               id="diagnostic-log-title"
-              style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: "var(--color-text-primary)" }}
+              style={{
+                margin: 0,
+                fontSize: "15px",
+                fontWeight: 600,
+                color: "var(--color-text-primary)",
+              }}
             >
               {title}
             </h3>
@@ -454,7 +491,9 @@ function DiagnosticLogDialog({
         )}
 
         {state.status === "error" && (
-          <div style={{ padding: "22px", fontSize: "13px", color: "#dc3545", whiteSpace: "pre-wrap" }}>
+          <div
+            style={{ padding: "22px", fontSize: "13px", color: "#dc3545", whiteSpace: "pre-wrap" }}
+          >
             {state.error}
           </div>
         )}

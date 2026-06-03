@@ -19,8 +19,15 @@ export default function StarredView() {
   const accountStateMatches = stateAccountId === activeAccountId;
   const scopedRemovedIds = accountStateMatches ? removedIds : EMPTY_REMOVED_IDS;
   const scopedSelectedId = accountStateMatches ? selectedId : null;
-  const { data: messages, loading, error, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } =
-    useStarredMessagesQuery(activeAccountId, scopedRemovedIds.size);
+  const {
+    data: messages,
+    loading,
+    error,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    refetch,
+  } = useStarredMessagesQuery(activeAccountId, scopedRemovedIds.size);
 
   useEffect(() => {
     if (stateAccountId === activeAccountId) return;
@@ -55,26 +62,37 @@ export default function StarredView() {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const handleToggleStar = useCallback((messageId: string, newStarred: boolean) => {
-    if (newStarred) return;
-    setRemovedIds((prev) => {
-      const next = new Set(prev);
-      next.add(messageId);
-      return next;
-    });
-    if (scopedSelectedId === messageId) {
-      setSelectedId(null);
-    }
-  }, [scopedSelectedId]);
+  const handleToggleStar = useCallback(
+    (messageId: string, newStarred: boolean) => {
+      if (newStarred) return;
+      setRemovedIds((prev) => {
+        const next = new Set(prev);
+        next.add(messageId);
+        return next;
+      });
+      if (scopedSelectedId === messageId) {
+        setSelectedId(null);
+      }
+    },
+    [scopedSelectedId],
+  );
 
   const totalCount = visibleMessages.length;
 
   if (error && messages.length === 0) {
     return (
-      <div className="fade-in" style={{
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        height: "100%", gap: "12px", color: "var(--color-text-secondary)",
-      }}>
+      <div
+        className="fade-in"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          gap: "12px",
+          color: "var(--color-text-secondary)",
+        }}
+      >
         <Star size={40} strokeWidth={1.2} />
         <p style={{ color: "var(--color-error, #e53e3e)", fontSize: "14px", margin: 0 }}>
           {t("starred.loadError", "Failed to load starred messages")}
@@ -101,7 +119,15 @@ export default function StarredView() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--color-text-secondary)" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          color: "var(--color-text-secondary)",
+        }}
+      >
         <Star size={20} className="spinner" style={{ marginRight: "8px" }} />
         {t("common.loading", "Loading...")}
       </div>
@@ -110,10 +136,18 @@ export default function StarredView() {
 
   if (visibleMessages.length === 0 && !hasNextPage) {
     return (
-      <div className="fade-in" style={{
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        height: "100%", gap: "12px", color: "var(--color-text-secondary)",
-      }}>
+      <div
+        className="fade-in"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          gap: "12px",
+          color: "var(--color-text-secondary)",
+        }}
+      >
         <Star size={40} strokeWidth={1.2} />
         <p style={{ fontSize: "14px", margin: 0 }}>{t("starred.empty", "No starred messages")}</p>
       </div>
@@ -122,32 +156,56 @@ export default function StarredView() {
 
   return (
     <div className="fade-in" style={{ display: "flex", height: "100%" }}>
-      <div style={{
-        width: scopedSelectedId ? "340px" : "100%",
-        borderRight: scopedSelectedId ? "1px solid var(--color-border)" : "none",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        transition: "width 0.15s ease",
-      }}>
-        <div style={{
-          padding: "12px 16px", borderBottom: "1px solid var(--color-border)",
-          fontSize: "14px", fontWeight: 600, color: "var(--color-text-primary)",
-          display: "flex", alignItems: "center", gap: "8px",
-        }}>
+      <div
+        style={{
+          width: scopedSelectedId ? "340px" : "100%",
+          borderRight: scopedSelectedId ? "1px solid var(--color-border)" : "none",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          transition: "width 0.15s ease",
+        }}
+      >
+        <div
+          style={{
+            padding: "12px 16px",
+            borderBottom: "1px solid var(--color-border)",
+            fontSize: "14px",
+            fontWeight: 600,
+            color: "var(--color-text-primary)",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
           <Star size={16} />
           {t("starred.title", "Starred Messages")}
-          <span style={{
-            fontSize: "12px", fontWeight: 400, color: "var(--color-text-secondary)",
-            backgroundColor: "var(--color-bg-secondary, rgba(0,0,0,0.06))",
-            padding: "2px 8px", borderRadius: "10px",
-          }}>
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 400,
+              color: "var(--color-text-secondary)",
+              backgroundColor: "var(--color-bg-secondary, rgba(0,0,0,0.06))",
+              padding: "2px 8px",
+              borderRadius: "10px",
+            }}
+          >
             {totalCount}
           </span>
         </div>
 
-        <div ref={parentRef} className="scroll-region starred-list-scroll" style={{ flex: 1, overflow: "auto" }}>
-          <div style={{ height: `${virtualizer.getTotalSize()}px`, width: "100%", position: "relative" }}>
+        <div
+          ref={parentRef}
+          className="scroll-region starred-list-scroll"
+          style={{ flex: 1, overflow: "auto" }}
+        >
+          <div
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              width: "100%",
+              position: "relative",
+            }}
+          >
             {virtualizer.getVirtualItems().map((virtualItem) => {
               const msg = visibleMessages[virtualItem.index];
               return (
@@ -176,12 +234,14 @@ export default function StarredView() {
         </div>
 
         {hasNextPage && (
-          <div style={{
-            borderTop: "1px solid var(--color-border)",
-            padding: "10px 16px",
-            display: "flex",
-            justifyContent: "center",
-          }}>
+          <div
+            style={{
+              borderTop: "1px solid var(--color-border)",
+              padding: "10px 16px",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
             <button
               onClick={handleLoadMore}
               disabled={isFetchingNextPage}
@@ -204,10 +264,7 @@ export default function StarredView() {
 
       {scopedSelectedId && (
         <div className="scroll-region starred-detail-scroll" style={{ flex: 1, overflow: "auto" }}>
-          <MessageDetail
-            messageId={scopedSelectedId}
-            onBack={() => setSelectedId(null)}
-          />
+          <MessageDetail messageId={scopedSelectedId} onBack={() => setSelectedId(null)} />
         </div>
       )}
     </div>

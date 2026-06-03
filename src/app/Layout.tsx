@@ -84,22 +84,22 @@ function AuthenticatedLayout() {
 
   // Load kanban cards at startup so MessageItem can show kanban indicators
   useEffect(() => {
-    return scheduleIdleWork(
-      () => useKanbanStore.getState().fetchCards(),
-      window,
-      5000,
-    );
+    return scheduleIdleWork(() => useKanbanStore.getState().fetchCards(), window, 5000);
   }, []);
 
   useEffect(() => {
     // Preload likely views only after the startup inbox has had time to paint.
     const cleanup1 = scheduleLazyViewPreload(loadComposeView, window, 5000);
-    const cleanup2 = scheduleLazyViewPreload(() => {
-      void loadSettingsView();
-      void loadSearchView();
-      return Promise.resolve();
-    }, window, 7000);
-    
+    const cleanup2 = scheduleLazyViewPreload(
+      () => {
+        void loadSettingsView();
+        void loadSearchView();
+        return Promise.resolve();
+      },
+      window,
+      7000,
+    );
+
     return () => {
       cleanup1();
       cleanup2();
@@ -120,20 +120,25 @@ function AuthenticatedLayout() {
 
   // Global listener: refresh data when snoozed messages are restored
   useEffect(() => {
-    const unlisten = listen<{ message_id: string; return_to?: string }>("mail:unsnoozed", (event) => {
-      queryClient.invalidateQueries({ queryKey: ["messages"] });
-      queryClient.invalidateQueries({ queryKey: ["snoozed"] });
+    const unlisten = listen<{ message_id: string; return_to?: string }>(
+      "mail:unsnoozed",
+      (event) => {
+        queryClient.invalidateQueries({ queryKey: ["messages"] });
+        queryClient.invalidateQueries({ queryKey: ["snoozed"] });
 
-      const { return_to } = event.payload;
-      if (return_to) {
-        if (return_to.startsWith("kanban")) {
-          setActiveView("kanban");
-        } else if (return_to === "inbox" || return_to === "starred" || return_to === "search") {
-          setActiveView(return_to as "inbox" | "starred" | "search");
+        const { return_to } = event.payload;
+        if (return_to) {
+          if (return_to.startsWith("kanban")) {
+            setActiveView("kanban");
+          } else if (return_to === "inbox" || return_to === "starred" || return_to === "search") {
+            setActiveView(return_to as "inbox" | "starred" | "search");
+          }
         }
-      }
-    });
-    return () => { unlisten.then((fn) => fn()); };
+      },
+    );
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, [queryClient, setActiveView]);
 
   useEffect(() => {
@@ -153,8 +158,10 @@ function AuthenticatedLayout() {
         {!isMobile && <Sidebar />}
         {isMobile && drawerOpen && (
           <>
-            <div 
-              className="absolute inset-0 bg-black/20 z-40 transition-opacity fade-in" 
+            <button
+              type="button"
+              aria-label={t("common.close", "Close")}
+              className="absolute inset-0 bg-black/20 z-40 transition-opacity fade-in"
               onClick={() => setDrawerOpen(false)}
             />
             <div className="absolute inset-y-0 left-0 z-50 shadow-2xl animate-slide-in-left">
@@ -162,7 +169,10 @@ function AuthenticatedLayout() {
             </div>
           </>
         )}
-        <main className="flex-1 min-w-0 overflow-auto scroll-region app-main-scroll" style={{ position: "relative" }}>
+        <main
+          className="flex-1 min-w-0 overflow-auto scroll-region app-main-scroll"
+          style={{ position: "relative" }}
+        >
           <OfflineBanner />
           <ViewErrorBoundary key={displayedView}>
             <Suspense fallback={<ViewLoadingFallback />}>
@@ -188,14 +198,16 @@ function AuthenticatedLayout() {
 
 function ViewLoadingFallback() {
   return (
-    <div style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      height: "100%",
-      color: "var(--color-text-secondary)",
-      fontSize: "13px",
-    }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+        color: "var(--color-text-secondary)",
+        fontSize: "13px",
+      }}
+    >
       {i18next.t("common.loading", "Loading...")}
     </div>
   );
@@ -209,7 +221,9 @@ function AuthLoadingSpinner() {
           src={iconUrl}
           alt="Pebble"
           className="w-16 h-16 mx-auto mb-4 rounded-xl"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+          }}
         />
         <p className="text-sm text-[var(--color-text-secondary)]">
           {i18next.t("common.loading", "Loading...")}
@@ -219,10 +233,7 @@ function AuthLoadingSpinner() {
   );
 }
 
-class ViewErrorBoundary extends Component<
-  { children: ReactNode },
-  { error: Error | null }
-> {
+class ViewErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state: { error: Error | null } = { error: null };
 
   static getDerivedStateFromError(error: Error) {
@@ -236,17 +247,35 @@ class ViewErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       return (
-        <div style={{
-          display: "flex", flexDirection: "column", alignItems: "center",
-          justifyContent: "center", height: "100%", gap: 12, padding: 24,
-          color: "var(--color-text-secondary)",
-        }}>
-          <p style={{ fontSize: 14, margin: 0 }}>{i18next.t("errorBoundary.title", "Something went wrong")}</p>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+            gap: 12,
+            padding: 24,
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          <p style={{ fontSize: 14, margin: 0 }}>
+            {i18next.t("errorBoundary.title", "Something went wrong")}
+          </p>
           <p style={{ fontSize: 12, margin: 0, color: "var(--color-text-secondary)" }}>
             {i18next.t("errorBoundary.description", "Please try again or refresh the application.")}
           </p>
           {this.state.error && import.meta.env.DEV && (
-            <pre style={{ fontSize: 11, color: "#ef4444", maxWidth: "90%", overflow: "auto", whiteSpace: "pre-wrap", textAlign: "left" }}>
+            <pre
+              style={{
+                fontSize: 11,
+                color: "#ef4444",
+                maxWidth: "90%",
+                overflow: "auto",
+                whiteSpace: "pre-wrap",
+                textAlign: "left",
+              }}
+            >
               {this.state.error.message}
               {"\n"}
               {this.state.error.stack}
@@ -255,9 +284,13 @@ class ViewErrorBoundary extends Component<
           <button
             onClick={() => this.setState({ error: null })}
             style={{
-              padding: "6px 16px", cursor: "pointer",
-              backgroundColor: "var(--color-accent)", color: "#fff",
-              border: "none", borderRadius: 6, fontSize: 13,
+              padding: "6px 16px",
+              cursor: "pointer",
+              backgroundColor: "var(--color-accent)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              fontSize: 13,
             }}
           >
             {i18next.t("errorBoundary.retry", "Retry")}
@@ -270,7 +303,16 @@ class ViewErrorBoundary extends Component<
 }
 
 function GlobalConfirmDialog() {
-  const { isOpen, title, message, destructive, confirmLabel, cancelLabel, handleConfirm, handleCancel } = useConfirmStore();
+  const {
+    isOpen,
+    title,
+    message,
+    destructive,
+    confirmLabel,
+    cancelLabel,
+    handleConfirm,
+    handleCancel,
+  } = useConfirmStore();
   if (!isOpen) return null;
   return (
     <ConfirmDialog
@@ -289,15 +331,21 @@ function OfflineBanner() {
   const networkStatus = useSyncStore((s) => s.networkStatus);
   if (networkStatus === "online") return null;
   return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: "8px",
-      padding: "6px 16px",
-      backgroundColor: "rgba(239,68,68,0.1)",
-      borderBottom: "1px solid rgba(239,68,68,0.2)",
-      color: "#ef4444", fontSize: "12px",
-    }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        padding: "6px 16px",
+        backgroundColor: "rgba(239,68,68,0.1)",
+        borderBottom: "1px solid rgba(239,68,68,0.2)",
+        color: "#ef4444",
+        fontSize: "12px",
+      }}
+    >
       <WifiOff size={14} />
-      {i18next.t("status.offline", "Offline")} — {i18next.t("status.offlineHint", "Mail sync is paused until you're back online")}
+      {i18next.t("status.offline", "Offline")} —{" "}
+      {i18next.t("status.offlineHint", "Mail sync is paused until you're back online")}
     </div>
   );
 }

@@ -2,7 +2,14 @@ import { create } from "zustand";
 import { deferPersist } from "@/lib/deferPersist";
 
 export type NetworkStatus = "online" | "offline";
-export type RealtimeMode = "realtime" | "polling" | "manual" | "backoff" | "offline" | "auth_required" | "error";
+export type RealtimeMode =
+  | "realtime"
+  | "polling"
+  | "manual"
+  | "backoff"
+  | "offline"
+  | "auth_required"
+  | "error";
 export type RealtimePreference = "realtime" | "balanced" | "battery" | "manual";
 
 export interface RealtimeStatus {
@@ -15,7 +22,12 @@ export interface RealtimeStatus {
 }
 
 const REALTIME_PREFERENCE_KEY = "pebble-realtime-mode";
-const REALTIME_PREFERENCES = new Set<RealtimePreference>(["realtime", "balanced", "battery", "manual"]);
+const REALTIME_PREFERENCES = new Set<RealtimePreference>([
+  "realtime",
+  "balanced",
+  "battery",
+  "manual",
+]);
 const NOTIFICATIONS_KEY = "pebble-notifications-enabled";
 
 function readRealtimePreference(): RealtimePreference {
@@ -32,10 +44,14 @@ export function readNotificationsEnabledPreference(): boolean {
 
 export function realtimePreferenceToPollInterval(mode: RealtimePreference): number {
   switch (mode) {
-    case "realtime": return 3;
-    case "balanced": return 15;
-    case "battery": return 60;
-    case "manual": return 0;
+    case "realtime":
+      return 3;
+    case "balanced":
+      return 15;
+    case "battery":
+      return 60;
+    case "manual":
+      return 0;
   }
 }
 

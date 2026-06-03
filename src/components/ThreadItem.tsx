@@ -26,7 +26,8 @@ function ThreadItem({ thread, isSelected, onClick }: Props) {
   const { t } = useTranslation();
   const hasUnread = thread.unread_count > 0;
   const fontWeight = hasUnread ? "600" : "normal";
-  const participantText = thread.participants.slice(0, 3).join(", ") +
+  const participantText =
+    thread.participants.slice(0, 3).join(", ") +
     (thread.participants.length > 3 ? ` +${thread.participants.length - 3}` : "");
 
   return (
@@ -36,7 +37,12 @@ function ThreadItem({ thread, isSelected, onClick }: Props) {
       aria-selected={isSelected}
       tabIndex={0}
       onClick={onClick}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       style={{
         backgroundColor: isSelected ? "var(--color-sidebar-active)" : undefined,
         color: "var(--color-text-primary)",
@@ -50,7 +56,14 @@ function ThreadItem({ thread, isSelected, onClick }: Props) {
         transition: "background-color 0.12s ease",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2px" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "2px",
+        }}
+      >
         <span
           style={{
             display: "flex",
@@ -67,27 +80,60 @@ function ThreadItem({ thread, isSelected, onClick }: Props) {
           <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
             {participantText}
             {thread.message_count > 1 && (
-              <span style={{ color: "var(--color-text-secondary)", fontWeight: "normal", marginLeft: "4px" }}>
+              <span
+                style={{
+                  color: "var(--color-text-secondary)",
+                  fontWeight: "normal",
+                  marginLeft: "4px",
+                }}
+              >
                 ({thread.message_count})
               </span>
             )}
           </span>
           {hasUnread && (
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-accent)", flexShrink: 0 }} />
+            <span
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                background: "var(--color-accent)",
+                flexShrink: 0,
+              }}
+            />
           )}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
           {thread.is_starred && <Star size={13} fill="#f59e0b" color="#f59e0b" />}
           {thread.has_attachments && <Paperclip size={13} color="var(--color-text-secondary)" />}
-          <span style={{ fontSize: "11px", color: "var(--color-text-secondary)", fontWeight: "normal" }}>
+          <span
+            style={{ fontSize: "11px", color: "var(--color-text-secondary)", fontWeight: "normal" }}
+          >
             {formatDate(thread.last_date)}
           </span>
         </div>
       </div>
-      <div style={{ fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "2px" }}>
+      <div
+        style={{
+          fontSize: "12.5px",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          marginBottom: "2px",
+        }}
+      >
         {thread.subject || t("inbox.noSubject")}
       </div>
-      <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: "normal" }}>
+      <div
+        style={{
+          fontSize: "12px",
+          color: "var(--color-text-secondary)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          fontWeight: "normal",
+        }}
+      >
         {thread.snippet}
       </div>
     </div>

@@ -5,7 +5,9 @@ const LEGACY_STORAGE_KEY = "pebble-signatures";
 function clearLegacySignatures() {
   try {
     localStorage.removeItem(LEGACY_STORAGE_KEY);
-  } catch { /* ignored */ }
+  } catch {
+    /* ignored */
+  }
 }
 
 export async function getSignature(accountId: string): Promise<string> {

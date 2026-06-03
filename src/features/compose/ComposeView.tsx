@@ -1,10 +1,21 @@
 import { useState, useEffect, useRef } from "react";
 import { EditorContent } from "@tiptap/react";
 import {
-  ArrowLeft, Send, X, AlertCircle,
-  Type, FileCode2, Hash, Eye, EyeOff,
-  Paperclip, FileText, Trash2, BookTemplate,
-  ChevronDown, ChevronRight,
+  ArrowLeft,
+  Send,
+  X,
+  AlertCircle,
+  Type,
+  FileCode2,
+  Hash,
+  Eye,
+  EyeOff,
+  Paperclip,
+  FileText,
+  Trash2,
+  BookTemplate,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMailStore } from "@/stores/mail.store";
@@ -54,11 +65,23 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
 
   // ─── Recipients ──────────────────────────────────────────────────────────────
   const {
-    fromAccountId, setFromAccountId,
-    to, setTo, cc, setCc, bcc, setBcc,
-    showCc, setShowCc, showBcc, setShowBcc,
+    fromAccountId,
+    setFromAccountId,
+    to,
+    setTo,
+    cc,
+    setCc,
+    bcc,
+    setBcc,
+    showCc,
+    setShowCc,
+    showBcc,
+    setShowBcc,
   } = useComposeRecipients({
-    composeMode, composeReplyTo, accounts, activeAccountId,
+    composeMode,
+    composeReplyTo,
+    accounts,
+    activeAccountId,
     restoredDraft: restoredDraft.current,
     composePrefill,
   });
@@ -72,7 +95,8 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
     if (composePrefill?.subject) return composePrefill.subject;
     if (!composeReplyTo) return "";
     if (isReply) return `Re: ${composeReplyTo.subject.replace(/^(Re:\s*|Fwd:\s*)+/i, "")}`;
-    if (composeMode === "forward") return `Fwd: ${composeReplyTo.subject.replace(/^(Re:\s*|Fwd:\s*)+/i, "")}`;
+    if (composeMode === "forward")
+      return `Fwd: ${composeReplyTo.subject.replace(/^(Re:\s*|Fwd:\s*)+/i, "")}`;
     return "";
   });
   const [sendError, setSendError] = useState<string | null>(null);
@@ -80,11 +104,22 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
 
   // ─── Editor ──────────────────────────────────────────────────────────────────
   const {
-    editor, editorMode, rawSource, setRawSource,
-    richTextHtml, htmlPreview, setHtmlPreview,
-    switchMode, textareaRef, quotedReplyHtml,
+    editor,
+    editorMode,
+    rawSource,
+    setRawSource,
+    richTextHtml,
+    htmlPreview,
+    setHtmlPreview,
+    switchMode,
+    textareaRef,
+    quotedReplyHtml,
   } = useComposeEditor({
-    fromAccountId, composeMode, composeReplyTo, isReply, t,
+    fromAccountId,
+    composeMode,
+    composeReplyTo,
+    isReply,
+    t,
     restoredDraft: restoredDraft.current,
     prefillBody: composePrefill?.body,
   });
@@ -98,8 +133,8 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
   // Attachments are part of the draft snapshot and must be declared before
   // the draft persistence hook.
   const attachInputRef = useRef<HTMLInputElement>(null);
-  const [attachments, setAttachments] = useState<ComposeAttachment[]>(() =>
-    restoredDraft.current?.attachments ?? [],
+  const [attachments, setAttachments] = useState<ComposeAttachment[]>(
+    () => restoredDraft.current?.attachments ?? [],
   );
   const [isDragging, setIsDragging] = useState(false);
 
@@ -108,7 +143,15 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
     if (editor && !editorReady) setEditorReady(true);
   }, [editor, editorReady]);
   const { draftIdRef, draftIdsByAccountRef } = useComposeDraft({
-    to, cc, bcc, subject, rawSource, richTextHtml, editorMode, composeMode, fromAccountId,
+    to,
+    cc,
+    bcc,
+    subject,
+    rawSource,
+    richTextHtml,
+    editorMode,
+    composeMode,
+    fromAccountId,
     attachments,
     editorReady,
   });
@@ -202,9 +245,7 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
     const outgoingBodyHtml = appendReplyQuoteHtml(bodyHtml, quotedReplyHtml);
 
     const inReplyTo =
-      isReply && composeReplyTo?.message_id_header
-        ? composeReplyTo.message_id_header
-        : undefined;
+      isReply && composeReplyTo?.message_id_header ? composeReplyTo.message_id_header : undefined;
 
     sendMutation.mutate(
       {
@@ -266,7 +307,9 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
       {/* Header */}
       <div
         style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
           padding: "10px 20px",
           borderBottom: "1px solid var(--color-border)",
           flexShrink: 0,
@@ -276,8 +319,12 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
           <button
             onClick={closeCompose}
             style={composeStyles.backBtn}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-bg-hover, rgba(0,0,0,0.04))"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--color-bg-hover, rgba(0,0,0,0.04))";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
           >
             <ArrowLeft size={16} />
             {t("compose.back", "Back")}
@@ -290,13 +337,20 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
           onClick={handleSend}
           disabled={sendDisabled}
           style={{
-            display: "flex", alignItems: "center", gap: "6px",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
             padding: "7px 20px",
-            backgroundColor: sendMutation.isPending ? "var(--color-text-secondary)" : "var(--color-accent, #2563eb)",
-            color: "#fff", border: "none", borderRadius: "6px",
+            backgroundColor: sendMutation.isPending
+              ? "var(--color-text-secondary)"
+              : "var(--color-accent, #2563eb)",
+            color: "#fff",
+            border: "none",
+            borderRadius: "6px",
             cursor: sendDisabled ? "default" : "pointer",
             opacity: hasToRecipient ? 1 : 0.5,
-            fontSize: "13px", fontWeight: 500,
+            fontSize: "13px",
+            fontWeight: 500,
           }}
         >
           <Send size={14} />
@@ -306,20 +360,32 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
 
       {/* Error banner */}
       {sendError && (
-        <div role="alert" aria-live="assertive" style={{
-          display: "flex", alignItems: "center", gap: "8px",
-          padding: "8px 20px",
-          backgroundColor: "var(--color-error-bg, #fef2f2)",
-          color: "var(--color-error, #dc2626)",
-          fontSize: "13px",
-          borderBottom: "1px solid var(--color-border)",
-        }}>
+        <div
+          role="alert"
+          aria-live="assertive"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "8px 20px",
+            backgroundColor: "var(--color-error-bg, #fef2f2)",
+            color: "var(--color-error, #dc2626)",
+            fontSize: "13px",
+            borderBottom: "1px solid var(--color-border)",
+          }}
+        >
           <AlertCircle size={14} />
           <span style={{ flex: 1 }}>{sendError}</span>
           <button
             onClick={() => setSendError(null)}
             aria-label={t("common.close", "Close")}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", display: "flex" }}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "inherit",
+              display: "flex",
+            }}
           >
             <X size={14} />
           </button>
@@ -327,7 +393,16 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
       )}
 
       {/* Fields + Editor */}
-      <div className="scroll-region compose-scroll" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "auto" }}>
+      <div
+        className="scroll-region compose-scroll"
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+          overflow: "auto",
+        }}
+      >
         <div className="compose-form-shell">
           {/* From */}
           {accounts.length > 1 && (
@@ -341,9 +416,13 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
                 value={fromAccountId}
                 onChange={(e) => setFromAccountId(e.target.value)}
                 style={{
-                  flex: 1, padding: "6px 0", border: "none",
-                  backgroundColor: "transparent", fontSize: "13px",
-                  color: "var(--color-text-primary)", cursor: "pointer",
+                  flex: 1,
+                  padding: "6px 0",
+                  border: "none",
+                  backgroundColor: "transparent",
+                  fontSize: "13px",
+                  color: "var(--color-text-primary)",
+                  cursor: "pointer",
                 }}
               >
                 {accounts.map((acc) => (
@@ -357,7 +436,11 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
 
           {/* To */}
           <div style={composeStyles.fieldRow}>
-            <label id="compose-to-label" htmlFor="compose-to-input" style={composeStyles.fieldLabel}>
+            <label
+              id="compose-to-label"
+              htmlFor="compose-to-input"
+              style={composeStyles.fieldLabel}
+            >
               {t("compose.to", "To")}
             </label>
             <ContactAutocomplete
@@ -372,14 +455,26 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
               placeholder="recipient@example.com"
             />
             <div style={{ display: "flex", gap: "4px", padding: "0 8px", flexShrink: 0 }}>
-              {!showCc && <button onClick={() => setShowCc(true)} style={composeStyles.toggleBtn}>{t("compose.cc", "Cc")}</button>}
-              {!showBcc && <button onClick={() => setShowBcc(true)} style={composeStyles.toggleBtn}>{t("compose.bcc", "Bcc")}</button>}
+              {!showCc && (
+                <button onClick={() => setShowCc(true)} style={composeStyles.toggleBtn}>
+                  {t("compose.cc", "Cc")}
+                </button>
+              )}
+              {!showBcc && (
+                <button onClick={() => setShowBcc(true)} style={composeStyles.toggleBtn}>
+                  {t("compose.bcc", "Bcc")}
+                </button>
+              )}
             </div>
           </div>
 
           {showCc && (
             <div style={composeStyles.fieldRow}>
-              <label id="compose-cc-label" htmlFor="compose-cc-input" style={composeStyles.fieldLabel}>
+              <label
+                id="compose-cc-label"
+                htmlFor="compose-cc-input"
+                style={composeStyles.fieldLabel}
+              >
                 {t("compose.cc", "Cc")}
               </label>
               <ContactAutocomplete
@@ -398,7 +493,11 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
 
           {showBcc && (
             <div style={composeStyles.fieldRow}>
-              <label id="compose-bcc-label" htmlFor="compose-bcc-input" style={composeStyles.fieldLabel}>
+              <label
+                id="compose-bcc-label"
+                htmlFor="compose-bcc-input"
+                style={composeStyles.fieldLabel}
+              >
                 {t("compose.bcc", "Bcc")}
               </label>
               <ContactAutocomplete
@@ -420,14 +519,23 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
             <label htmlFor="compose-subject" style={composeStyles.fieldLabel}>
               {t("compose.subject", "Subject")}
             </label>
-              <input
-                id="compose-subject"
-                name="subject"
-                type="text" value={subject} onChange={(e) => setSubject(e.target.value)}
-                placeholder=""
-                autoComplete="off"
-                style={{ flex: 1, padding: "8px 0", border: "none", backgroundColor: "transparent", fontSize: "13px", color: "var(--color-text-primary)" }}
-              />
+            <input
+              id="compose-subject"
+              name="subject"
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder=""
+              autoComplete="off"
+              style={{
+                flex: 1,
+                padding: "8px 0",
+                border: "none",
+                backgroundColor: "transparent",
+                fontSize: "13px",
+                color: "var(--color-text-primary)",
+              }}
+            />
           </div>
 
           {/* Toolbar */}
@@ -447,7 +555,16 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
                   ref={attachInputRef}
                   type="file"
                   multiple
-                  style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0,0,0,0)", border: 0 }}
+                  style={{
+                    position: "absolute",
+                    width: 1,
+                    height: 1,
+                    padding: 0,
+                    margin: -1,
+                    overflow: "hidden",
+                    clip: "rect(0,0,0,0)",
+                    border: 0,
+                  }}
                   tabIndex={-1}
                   aria-hidden="true"
                   onChange={(e) => {
@@ -463,7 +580,10 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
                 <div style={{ position: "relative" }}>
                   <button
                     type="button"
-                    onClick={() => { void refreshTemplates(); setShowTemplates((v) => !v); }}
+                    onClick={() => {
+                      void refreshTemplates();
+                      setShowTemplates((v) => !v);
+                    }}
                     aria-haspopup="listbox"
                     aria-expanded={showTemplates}
                     aria-label={t("compose.templates", "Templates")}
@@ -473,24 +593,63 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
                     <BookTemplate size={13} />
                   </button>
                   {showTemplates && (
-                    <div className="scroll-region compose-template-scroll" style={{
-                      position: "absolute", top: "100%", left: 0, zIndex: 100,
-                      backgroundColor: "var(--color-bg)", border: "1px solid var(--color-border)",
-                      borderRadius: "8px", boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                      minWidth: "220px", maxHeight: "300px", overflowY: "auto",
-                    }}>
-                      <div style={{ padding: "8px", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span id="compose-templates-label" style={{ fontSize: "12px", fontWeight: 600 }}>{t("compose.templates", "Templates")}</span>
+                    <div
+                      className="scroll-region compose-template-scroll"
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        zIndex: 100,
+                        backgroundColor: "var(--color-bg)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: "8px",
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                        minWidth: "220px",
+                        maxHeight: "300px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: "8px",
+                          borderBottom: "1px solid var(--color-border)",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <span
+                          id="compose-templates-label"
+                          style={{ fontSize: "12px", fontWeight: 600 }}
+                        >
+                          {t("compose.templates", "Templates")}
+                        </span>
                         <button
                           type="button"
-                          onClick={() => { setShowSaveTemplate(true); setShowTemplates(false); }}
-                          style={{ fontSize: "11px", border: "none", background: "none", cursor: "pointer", color: "var(--color-accent)" }}
+                          onClick={() => {
+                            setShowSaveTemplate(true);
+                            setShowTemplates(false);
+                          }}
+                          style={{
+                            fontSize: "11px",
+                            border: "none",
+                            background: "none",
+                            cursor: "pointer",
+                            color: "var(--color-accent)",
+                          }}
                         >
                           {t("compose.saveAsTemplate", "Save current")}
                         </button>
                       </div>
                       {templates.length === 0 ? (
-                        <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--color-text-secondary)" }}>
+                        <div
+                          style={{
+                            padding: "16px",
+                            textAlign: "center",
+                            fontSize: "12px",
+                            color: "var(--color-text-secondary)",
+                          }}
+                        >
                           {t("compose.noTemplates", "No templates saved")}
                         </div>
                       ) : (
@@ -520,14 +679,26 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
                                   }
                                 }}
                                 style={{
-                                  display: "flex", alignItems: "center", padding: "8px",
-                                  borderBottom: "1px solid var(--color-border)", cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  padding: "8px",
+                                  borderBottom: "1px solid var(--color-border)",
+                                  cursor: "pointer",
                                   fontSize: "12px",
                                 }}
                               >
                                 <div style={{ flex: 1, overflow: "hidden" }}>
                                   <div style={{ fontWeight: 500 }}>{tpl.name}</div>
-                                  <div style={{ color: "var(--color-text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tpl.subject}</div>
+                                  <div
+                                    style={{
+                                      color: "var(--color-text-secondary)",
+                                      whiteSpace: "nowrap",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                    }}
+                                  >
+                                    {tpl.subject}
+                                  </div>
                                 </div>
                                 <button
                                   type="button"
@@ -535,7 +706,9 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
                                     e.stopPropagation();
                                     const confirmed = await useConfirmStore.getState().confirm({
                                       title: t("compose.deleteTemplate", "Delete template"),
-                                      message: t("compose.deleteTemplate", "Delete template") + ` "${tpl.name}"?`,
+                                      message:
+                                        t("compose.deleteTemplate", "Delete template") +
+                                        ` "${tpl.name}"?`,
                                       destructive: true,
                                     });
                                     if (confirmed) {
@@ -545,7 +718,13 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
                                   }}
                                   aria-label={t("compose.deleteTemplate", "Delete template")}
                                   title={t("compose.deleteTemplate", "Delete template")}
-                                  style={{ border: "none", background: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "2px" }}
+                                  style={{
+                                    border: "none",
+                                    background: "none",
+                                    cursor: "pointer",
+                                    color: "var(--color-text-secondary)",
+                                    padding: "2px",
+                                  }}
                                 >
                                   <Trash2 size={12} />
                                 </button>
@@ -562,31 +741,58 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
 
               {/* Formatting toolbar */}
               <div className="compose-format-toolbar-slot">
-                {editorMode === "rich" && editor && (
-                  <EditorToolbar editor={editor} />
-                )}
+                {editorMode === "rich" && editor && <EditorToolbar editor={editor} />}
                 {editorMode === "markdown" && (
-                  <MarkdownToolbar textareaRef={textareaRef} onInsert={setRawSource} source={rawSource} />
+                  <MarkdownToolbar
+                    textareaRef={textareaRef}
+                    onInsert={setRawSource}
+                    source={rawSource}
+                  />
                 )}
                 {editorMode === "html" && (
                   <button
                     type="button"
                     onClick={() => setHtmlPreview((v) => !v)}
-                    title={htmlPreview ? t("compose.mode.hidePreview", "Hide preview") : t("compose.mode.showPreview", "Show preview")}
+                    title={
+                      htmlPreview
+                        ? t("compose.mode.hidePreview", "Hide preview")
+                        : t("compose.mode.showPreview", "Show preview")
+                    }
                     className={`compose-toolbar-text-button${htmlPreview ? " is-active" : ""}`}
                   >
                     {htmlPreview ? <EyeOff size={13} /> : <Eye size={13} />}
-                    {htmlPreview ? t("compose.mode.hidePreview", "Hide preview") : t("compose.mode.showPreview", "Show preview")}
+                    {htmlPreview
+                      ? t("compose.mode.hidePreview", "Hide preview")
+                      : t("compose.mode.showPreview", "Show preview")}
                   </button>
                 )}
               </div>
             </div>
 
             {/* Mode tabs */}
-            <div className="compose-mode-tabs" role="group" aria-label={t("compose.mode.label", "Editor mode")}>
-              <ModeButton icon={Type} label={t("compose.mode.rich", "Rich Text")} active={editorMode === "rich"} onClick={() => switchMode("rich")} />
-              <ModeButton icon={Hash} label={t("compose.mode.markdown", "Markdown")} active={editorMode === "markdown"} onClick={() => switchMode("markdown")} />
-              <ModeButton icon={FileCode2} label={t("compose.mode.html", "HTML")} active={editorMode === "html"} onClick={() => switchMode("html")} />
+            <div
+              className="compose-mode-tabs"
+              role="group"
+              aria-label={t("compose.mode.label", "Editor mode")}
+            >
+              <ModeButton
+                icon={Type}
+                label={t("compose.mode.rich", "Rich Text")}
+                active={editorMode === "rich"}
+                onClick={() => switchMode("rich")}
+              />
+              <ModeButton
+                icon={Hash}
+                label={t("compose.mode.markdown", "Markdown")}
+                active={editorMode === "markdown"}
+                onClick={() => switchMode("markdown")}
+              />
+              <ModeButton
+                icon={FileCode2}
+                label={t("compose.mode.html", "HTML")}
+                active={editorMode === "html"}
+                onClick={() => switchMode("html")}
+              />
             </div>
           </div>
 
@@ -594,22 +800,50 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
           {attachments.length > 0 && (
             <div className="compose-inline-panel">
               {attachments.map((att, i) => (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", gap: "4px",
-                  padding: "4px 8px", borderRadius: "4px",
-                  backgroundColor: "var(--color-bg-hover)", fontSize: "12px",
-                }}>
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    backgroundColor: "var(--color-bg-hover)",
+                    fontSize: "12px",
+                  }}
+                >
                   <FileText size={12} />
-                  <span style={{ maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.name}</span>
+                  <span
+                    style={{
+                      maxWidth: "150px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {att.name}
+                  </span>
                   <span style={{ color: "var(--color-text-secondary)", fontSize: "11px" }}>
-                    {att.size < 1024 * 1024 ? `${(att.size / 1024).toFixed(0)} KB` : `${(att.size / (1024 * 1024)).toFixed(1)} MB`}
+                    {att.size < 1024 * 1024
+                      ? `${(att.size / 1024).toFixed(0)} KB`
+                      : `${(att.size / (1024 * 1024)).toFixed(1)} MB`}
                   </span>
                   <button
                     type="button"
                     onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
-                    aria-label={t("compose.removeAttachment", "Remove attachment {{name}}", { name: att.name })}
-                    title={t("compose.removeAttachment", "Remove attachment {{name}}", { name: att.name })}
-                    style={{ border: "none", background: "none", cursor: "pointer", padding: "0 2px", color: "var(--color-text-secondary)" }}
+                    aria-label={t("compose.removeAttachment", "Remove attachment {{name}}", {
+                      name: att.name,
+                    })}
+                    title={t("compose.removeAttachment", "Remove attachment {{name}}", {
+                      name: att.name,
+                    })}
+                    style={{
+                      border: "none",
+                      background: "none",
+                      cursor: "pointer",
+                      padding: "0 2px",
+                      color: "var(--color-text-secondary)",
+                    }}
                   >
                     <X size={12} />
                   </button>
@@ -622,13 +856,18 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
           {showSaveTemplate && (
             <div className="compose-inline-panel">
               <input
-                type="text" value={templateName} onChange={(e) => setTemplateName(e.target.value)}
+                type="text"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
                 placeholder={t("compose.templateName", "Template name")}
-                autoFocus
                 style={{
-                  flex: 1, padding: "6px 8px", fontSize: "12px",
-                  border: "1px solid var(--color-border)", borderRadius: "4px",
-                  backgroundColor: "var(--color-bg)", color: "var(--color-text-primary)",
+                  flex: 1,
+                  padding: "6px 8px",
+                  fontSize: "12px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "4px",
+                  backgroundColor: "var(--color-bg)",
+                  color: "var(--color-text-primary)",
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && templateName.trim()) {
@@ -644,9 +883,13 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
                   void handleSaveTemplate();
                 }}
                 style={{
-                  padding: "5px 12px", fontSize: "12px", border: "none",
-                  borderRadius: "4px", backgroundColor: "var(--color-accent)",
-                  color: "#fff", cursor: "pointer",
+                  padding: "5px 12px",
+                  fontSize: "12px",
+                  border: "none",
+                  borderRadius: "4px",
+                  backgroundColor: "var(--color-accent)",
+                  color: "#fff",
+                  cursor: "pointer",
                 }}
               >
                 {t("common.save")}
@@ -655,9 +898,13 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
                 type="button"
                 onClick={() => setShowSaveTemplate(false)}
                 style={{
-                  padding: "5px 8px", fontSize: "12px", border: "1px solid var(--color-border)",
-                  borderRadius: "4px", backgroundColor: "transparent",
-                  color: "var(--color-text-secondary)", cursor: "pointer",
+                  padding: "5px 8px",
+                  fontSize: "12px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "4px",
+                  backgroundColor: "transparent",
+                  color: "var(--color-text-secondary)",
+                  cursor: "pointer",
                 }}
               >
                 {t("common.cancel")}
@@ -668,7 +915,10 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
           {/* Editor area */}
           <div
             className="compose-editor-area"
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={async (e) => {
               e.preventDefault();
@@ -704,10 +954,7 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
           >
             <div className="compose-editor-surface">
               {editorMode === "rich" ? (
-                <EditorContent
-                  editor={editor}
-                  className="compose-editor-content"
-                />
+                <EditorContent editor={editor} className="compose-editor-content" />
               ) : editorMode === "html" && htmlPreview ? (
                 <div className="compose-preview-split">
                   <textarea
@@ -730,9 +977,11 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
                   ref={textareaRef}
                   value={rawSource}
                   onChange={(e) => setRawSource(e.target.value)}
-                  placeholder={editorMode === "markdown"
-                    ? t("compose.mode.markdownPlaceholder", "Write in Markdown...")
-                    : t("compose.mode.htmlPlaceholder", "Write HTML source...")}
+                  placeholder={
+                    editorMode === "markdown"
+                      ? t("compose.mode.markdownPlaceholder", "Write in Markdown...")
+                      : t("compose.mode.htmlPlaceholder", "Write HTML source...")
+                  }
                   spellCheck={editorMode === "markdown"}
                   className={`compose-source-input${editorMode === "html" ? " is-code" : ""}`}
                 />
@@ -773,17 +1022,35 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
       {showComposeLeaveConfirm && (
         <div
           style={{
-            position: "fixed", inset: 0, zIndex: 9999,
-            display: "flex", alignItems: "center", justifyContent: "center",
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             backgroundColor: "rgba(0,0,0,0.4)",
           }}
-          onClick={cancelCloseCompose}
+          role="presentation"
         >
+          <button
+            type="button"
+            aria-label={t("common.cancel")}
+            onClick={cancelCloseCompose}
+            style={{
+              position: "absolute",
+              inset: 0,
+              border: "none",
+              background: "transparent",
+              cursor: "default",
+            }}
+          />
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="compose-leave-title"
             style={{
+              position: "relative",
+              zIndex: 1,
               width: "380px",
               backgroundColor: "var(--color-sidebar-bg)",
               color: "var(--color-text-primary)",
@@ -795,22 +1062,34 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
               flexDirection: "column" as const,
               gap: "16px",
             }}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => { if (e.key === "Escape") cancelCloseCompose(); }}
           >
             <h3 id="compose-leave-title" style={{ margin: 0, fontSize: "15px", fontWeight: 600 }}>
               {t("compose.leaveTitle", "Discard draft?")}
             </h3>
-            <p style={{ margin: 0, fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-              {t("compose.leaveMessage", "You have unsaved changes. Are you sure you want to leave?")}
+            <p
+              style={{
+                margin: 0,
+                fontSize: "13px",
+                color: "var(--color-text-secondary)",
+                lineHeight: 1.5,
+              }}
+            >
+              {t(
+                "compose.leaveMessage",
+                "You have unsaved changes. Are you sure you want to leave?",
+              )}
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
               <button
                 onClick={cancelCloseCompose}
                 style={{
-                  padding: "7px 16px", borderRadius: "6px", fontSize: "13px",
-                  border: "1px solid var(--color-border)", cursor: "pointer",
-                  backgroundColor: "transparent", color: "var(--color-text-primary)",
+                  padding: "7px 16px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  border: "1px solid var(--color-border)",
+                  cursor: "pointer",
+                  backgroundColor: "transparent",
+                  color: "var(--color-text-primary)",
                 }}
               >
                 {t("compose.leaveCancel", "Keep editing")}
@@ -818,9 +1097,14 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
               <button
                 onClick={confirmCloseCompose}
                 style={{
-                  padding: "7px 16px", borderRadius: "6px", fontSize: "13px", fontWeight: 600,
-                  border: "none", cursor: "pointer",
-                  backgroundColor: "#ef4444", color: "#fff",
+                  padding: "7px 16px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  border: "none",
+                  cursor: "pointer",
+                  backgroundColor: "#ef4444",
+                  color: "#fff",
                 }}
               >
                 {t("compose.leaveConfirm", "Discard")}

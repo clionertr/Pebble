@@ -17,7 +17,9 @@ export function useBilingualTranslation(
 ) {
   const addToast = useToastStore((s) => s.addToast);
   const [bilingualMode, setBilingualMode] = useState(false);
-  const [bilingualResult, setBilingualResult] = useState<(TranslateResult & { _isHtml?: boolean }) | null>(null);
+  const [bilingualResult, setBilingualResult] = useState<
+    (TranslateResult & { _isHtml?: boolean }) | null
+  >(null);
   const [bilingualLoading, setBilingualLoading] = useState(false);
   const activeRunId = useRef(0);
 
@@ -71,7 +73,10 @@ export function useBilingualTranslation(
           if (!isCurrentRun()) return;
 
           // Split on separator; if the service preserved it, we get exact mapping
-          const parts = result.translated.split("⸻").map((s) => s.trim()).filter(Boolean);
+          const parts = result.translated
+            .split("⸻")
+            .map((s) => s.trim())
+            .filter(Boolean);
           if (parts.length === chunk.length) {
             // Exact 1:1 mapping
             for (let i = 0; i < chunk.length; i++) {
@@ -80,7 +85,10 @@ export function useBilingualTranslation(
           } else {
             // Fallback: replace the entire chunk's text with the translated result
             // Split by newlines and try positional matching
-            const lines = result.translated.split("\n").map((s) => s.trim()).filter(Boolean);
+            const lines = result.translated
+              .split("\n")
+              .map((s) => s.trim())
+              .filter(Boolean);
             for (let i = 0; i < Math.min(chunk.length, lines.length); i++) {
               chunk[i].textContent = lines[i];
             }
@@ -107,15 +115,17 @@ export function useBilingualTranslation(
         translationCache.set(cacheKey, final_);
       } else {
         // Plain text email
-        const textToTranslate = message.body_text
-          || new DOMParser().parseFromString(message.body_html_raw || "", "text/html").body.textContent
-          || "";
+        const textToTranslate =
+          message.body_text ||
+          new DOMParser().parseFromString(message.body_html_raw || "", "text/html").body
+            .textContent ||
+          "";
         const result = {
-          ...await translateTextStream(textToTranslate, "auto", uiLang, (translated) => {
+          ...(await translateTextStream(textToTranslate, "auto", uiLang, (translated) => {
             if (isCurrentRun()) {
               setBilingualResult({ translated, segments: [], _isHtml: false });
             }
-          }),
+          })),
           _isHtml: false,
         } as TranslateResult & { _isHtml?: boolean };
         if (!isCurrentRun()) return;
@@ -144,5 +154,11 @@ export function useBilingualTranslation(
     setBilingualLoading(false);
   }
 
-  return { bilingualMode, bilingualResult, bilingualLoading, handleBilingualToggle, resetBilingual };
+  return {
+    bilingualMode,
+    bilingualResult,
+    bilingualLoading,
+    handleBilingualToggle,
+    resetBilingual,
+  };
 }

@@ -28,13 +28,14 @@ const WINDOWS_RESERVED_NAMES = new Set([
   "LPT8",
   "LPT9",
 ]);
-
 export function sanitizeFilename(name: string, fallback = "download"): string {
   const base = name.split(/[/\\]/).pop() ?? name;
   const sanitized = base
     .replace(/\.\./g, "")
     .replace(/[<>:"|?*]/g, "_")
-    .replace(/[\u0000-\u001f]/g, "")
+    .split("")
+    .filter((char) => char.charCodeAt(0) > 31)
+    .join("")
     .trim()
     .replace(/^[.\s]+/, "")
     .replace(/[.\s]+$/g, "");

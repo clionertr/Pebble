@@ -64,9 +64,7 @@ export default function CloudSyncTab() {
       setStatusMsg(t("cloudSync.connectionSuccess"));
       setStatusType("success");
     } catch (err: unknown) {
-      setStatusMsg(
-        `${t("cloudSync.connectionFailed")}: ${errorMessage(err)}`,
-      );
+      setStatusMsg(`${t("cloudSync.connectionFailed")}: ${errorMessage(err)}`);
       setStatusType("error");
     } finally {
       setTesting(false);
@@ -84,9 +82,7 @@ export default function CloudSyncTab() {
       setStatusMsg(t("cloudSync.backupSuccess"));
       setStatusType("success");
     } catch (err: unknown) {
-      setStatusMsg(
-        t("cloudSync.backupFailed", { error: errorMessage(err) }),
-      );
+      setStatusMsg(t("cloudSync.backupFailed", { error: errorMessage(err) }));
       setStatusType("error");
     } finally {
       setBacking(false);
@@ -102,9 +98,7 @@ export default function CloudSyncTab() {
       const preview = await previewWebdavBackup(url, username, password);
       setRestorePreview(preview);
     } catch (err: unknown) {
-      setStatusMsg(
-        t("cloudSync.restoreFailed", { error: errorMessage(err) }),
-      );
+      setStatusMsg(t("cloudSync.restoreFailed", { error: errorMessage(err) }));
       setStatusType("error");
     } finally {
       setRestoring(false);
@@ -121,9 +115,7 @@ export default function CloudSyncTab() {
       // Refresh all cached data to reflect restored state
       await queryClient.invalidateQueries();
     } catch (err: unknown) {
-      setStatusMsg(
-        t("cloudSync.restoreFailed", { error: errorMessage(err) }),
-      );
+      setStatusMsg(t("cloudSync.restoreFailed", { error: errorMessage(err) }));
       setStatusType("error");
     } finally {
       setRestoring(false);
@@ -159,8 +151,7 @@ export default function CloudSyncTab() {
         {t(
           "cloudSync.description",
           "Back up rules, Kanban cards and notes, and account metadata to WebDAV. This does not sync mail data, attachments, or OAuth secrets.",
-        )}
-        {" "}
+        )}{" "}
         <span style={{ color: "var(--color-warning, #e67e22)" }}>
           {t(
             "cloudSync.encryptionWarning",
@@ -190,7 +181,9 @@ export default function CloudSyncTab() {
       </p>
 
       <div style={fieldGroupStyle}>
-        <label htmlFor="settings-backup-webdav-url" style={labelStyle}>{t("cloudSync.webdavUrl")}</label>
+        <label htmlFor="settings-backup-webdav-url" style={labelStyle}>
+          {t("cloudSync.webdavUrl")}
+        </label>
         <input
           id="settings-backup-webdav-url"
           name="webdav_url"
@@ -204,7 +197,9 @@ export default function CloudSyncTab() {
       </div>
 
       <div style={fieldGroupStyle}>
-        <label htmlFor="settings-backup-username" style={labelStyle}>{t("cloudSync.username")}</label>
+        <label htmlFor="settings-backup-username" style={labelStyle}>
+          {t("cloudSync.username")}
+        </label>
         <input
           id="settings-backup-username"
           name="webdav_username"
@@ -217,7 +212,9 @@ export default function CloudSyncTab() {
       </div>
 
       <div style={fieldGroupStyle}>
-        <label htmlFor="settings-backup-password" style={labelStyle}>{t("cloudSync.password")}</label>
+        <label htmlFor="settings-backup-password" style={labelStyle}>
+          {t("cloudSync.password")}
+        </label>
         <input
           id="settings-backup-password"
           name="webdav_password"
@@ -292,21 +289,33 @@ export default function CloudSyncTab() {
           message={
             t("cloudSync.restorePreviewHeader", "Backup contents to restore:") +
             "\n" +
-            t("cloudSync.restorePreviewSchema", "Schema version: {{version}}", { version: restorePreview.version }) +
+            t("cloudSync.restorePreviewSchema", "Schema version: {{version}}", {
+              version: restorePreview.version,
+            }) +
             "\n" +
             t("cloudSync.restorePreviewExported", "Exported: {{date}}", {
               date: new Date(restorePreview.exported_at * 1000).toLocaleString(),
             }) +
             "\n" +
-            t("cloudSync.restorePreviewAccounts", "Accounts: {{count}}", { count: restorePreview.account_count }) +
+            t("cloudSync.restorePreviewAccounts", "Accounts: {{count}}", {
+              count: restorePreview.account_count,
+            }) +
             "\n" +
-            t("cloudSync.restorePreviewRules", "Rules: {{count}}", { count: restorePreview.rule_count }) +
+            t("cloudSync.restorePreviewRules", "Rules: {{count}}", {
+              count: restorePreview.rule_count,
+            }) +
             "\n" +
-            t("cloudSync.restorePreviewKanban", "Kanban cards: {{count}}", { count: restorePreview.kanban_card_count }) +
+            t("cloudSync.restorePreviewKanban", "Kanban cards: {{count}}", {
+              count: restorePreview.kanban_card_count,
+            }) +
             "\n" +
-            t("cloudSync.restorePreviewKanbanNotes", "Kanban notes: {{count}}", { count: restorePreview.kanban_note_count }) +
+            t("cloudSync.restorePreviewKanbanNotes", "Kanban notes: {{count}}", {
+              count: restorePreview.kanban_note_count,
+            }) +
             "\n" +
-            t("cloudSync.restorePreviewSize", "Size: {{kb}} KB", { kb: (restorePreview.size_bytes / 1024).toFixed(1) }) +
+            t("cloudSync.restorePreviewSize", "Size: {{kb}} KB", {
+              kb: (restorePreview.size_bytes / 1024).toFixed(1),
+            }) +
             "\n\n" +
             t(
               "cloudSync.restoreConfirm",
@@ -346,13 +355,8 @@ export default function CloudSyncTab() {
             borderRadius: "6px",
             fontSize: "13px",
             background:
-              statusType === "success"
-                ? "var(--color-bg-hover)"
-                : "rgba(220, 53, 69, 0.1)",
-            color:
-              statusType === "success"
-                ? "var(--color-text-primary)"
-                : "#dc3545",
+              statusType === "success" ? "var(--color-bg-hover)" : "rgba(220, 53, 69, 0.1)",
+            color: statusType === "success" ? "var(--color-text-primary)" : "#dc3545",
             border: `1px solid ${statusType === "success" ? "var(--color-border)" : "rgba(220, 53, 69, 0.3)"}`,
           }}
         >

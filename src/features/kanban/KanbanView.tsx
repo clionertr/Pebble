@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DndContext, DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import {
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import type { KanbanColumnType, Message } from "@/lib/api";
 import { getMessagesBatch, moveToKanban } from "@/lib/api";
@@ -47,7 +54,9 @@ export default function KanbanView() {
         return next;
       });
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [cards]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleOpenMessage(messageId: string) {
@@ -115,23 +124,31 @@ export default function KanbanView() {
   }
 
   return (
-    <div style={{
-      display: "flex", gap: "8px", padding: isMobile ? "12px 8px" : "16px", height: "100%",
-      overflowX: isMobile ? "auto" : "hidden",
-      overflowY: "hidden",
-      scrollSnapType: isMobile ? "x mandatory" : "none",
-    }}>
+    <div
+      style={{
+        display: "flex",
+        gap: "8px",
+        padding: isMobile ? "12px 8px" : "16px",
+        height: "100%",
+        overflowX: isMobile ? "auto" : "hidden",
+        overflowY: "hidden",
+        scrollSnapType: isMobile ? "x mandatory" : "none",
+      }}
+    >
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         {COLUMN_IDS.map((col) => (
-          <div key={col.id} style={{
-            flex: isMobile ? "0 0 85%" : 1,
-            minWidth: isMobile ? "280px" : "240px",
-            maxWidth: isMobile ? "none" : "380px",
-            scrollSnapAlign: "center",
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-          }}>
+          <div
+            key={col.id}
+            style={{
+              flex: isMobile ? "0 0 85%" : 1,
+              minWidth: isMobile ? "280px" : "240px",
+              maxWidth: isMobile ? "none" : "380px",
+              scrollSnapAlign: "center",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             <KanbanColumn
               id={col.id}
               title={t(col.titleKey)}

@@ -21,9 +21,10 @@ export function getCurrentWebPushDeviceId(): string {
   const existing = getStoredWebPushDeviceId();
   if (existing) return existing;
 
-  const generated = typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `device-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const generated =
+    typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `device-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   localStorage.setItem(DEVICE_ID_KEY, generated);
   return generated;
 }
@@ -59,10 +60,12 @@ async function subscribeCurrentDevice(): Promise<NotificationDevice> {
   const publicKey = await getWebPushPublicKey();
   const applicationServerKey = urlBase64ToUint8Array(publicKey);
   const existing = await registration.pushManager.getSubscription();
-  const subscription = existing ?? await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey,
-  });
+  const subscription =
+    existing ??
+    (await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey,
+    }));
 
   return upsertWebPushSubscription({
     deviceId: getCurrentWebPushDeviceId(),
@@ -72,8 +75,9 @@ async function subscribeCurrentDevice(): Promise<NotificationDevice> {
 
 async function unsubscribeBrowserPush(): Promise<void> {
   if (!("serviceWorker" in navigator)) return;
-  const registration = await navigator.serviceWorker.getRegistration(SERVICE_WORKER_URL)
-    ?? await navigator.serviceWorker.getRegistration();
+  const registration =
+    (await navigator.serviceWorker.getRegistration(SERVICE_WORKER_URL)) ??
+    (await navigator.serviceWorker.getRegistration());
   const subscription = await registration?.pushManager.getSubscription();
   await subscription?.unsubscribe();
 }

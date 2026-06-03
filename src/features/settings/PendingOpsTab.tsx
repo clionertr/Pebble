@@ -115,33 +115,52 @@ export default function PendingOpsTab() {
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const handleCancel = useCallback(async (opId: string) => {
-    if (!window.confirm(t("pendingOps.cancelConfirm", "Cancel this pending operation? It will no longer be retried."))) return;
-    setActionLoading(opId);
-    try {
-      await cancelPendingMailOp(opId);
-      queryClient.invalidateQueries({ queryKey: pendingMailOpsSummaryQueryKey(selectedAccountId) });
-      queryClient.invalidateQueries({ queryKey: pendingMailOpsQueryKey(selectedAccountId) });
-    } catch {
-      // error handled by caller
-    } finally {
-      setActionLoading(null);
-    }
-  }, [queryClient, selectedAccountId, t]);
+  const handleCancel = useCallback(
+    async (opId: string) => {
+      if (
+        !window.confirm(
+          t(
+            "pendingOps.cancelConfirm",
+            "Cancel this pending operation? It will no longer be retried.",
+          ),
+        )
+      )
+        return;
+      setActionLoading(opId);
+      try {
+        await cancelPendingMailOp(opId);
+        queryClient.invalidateQueries({
+          queryKey: pendingMailOpsSummaryQueryKey(selectedAccountId),
+        });
+        queryClient.invalidateQueries({ queryKey: pendingMailOpsQueryKey(selectedAccountId) });
+      } catch {
+        // error handled by caller
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [queryClient, selectedAccountId, t],
+  );
 
-  const handleDelete = useCallback(async (opId: string) => {
-    if (!window.confirm(t("pendingOps.deleteConfirm", "Delete this pending operation record?"))) return;
-    setActionLoading(opId);
-    try {
-      await deletePendingMailOp(opId);
-      queryClient.invalidateQueries({ queryKey: pendingMailOpsSummaryQueryKey(selectedAccountId) });
-      queryClient.invalidateQueries({ queryKey: pendingMailOpsQueryKey(selectedAccountId) });
-    } catch {
-      // error handled by caller
-    } finally {
-      setActionLoading(null);
-    }
-  }, [queryClient, selectedAccountId, t]);
+  const handleDelete = useCallback(
+    async (opId: string) => {
+      if (!window.confirm(t("pendingOps.deleteConfirm", "Delete this pending operation record?")))
+        return;
+      setActionLoading(opId);
+      try {
+        await deletePendingMailOp(opId);
+        queryClient.invalidateQueries({
+          queryKey: pendingMailOpsSummaryQueryKey(selectedAccountId),
+        });
+        queryClient.invalidateQueries({ queryKey: pendingMailOpsQueryKey(selectedAccountId) });
+      } catch {
+        // error handled by caller
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [queryClient, selectedAccountId, t],
+  );
 
   async function refresh() {
     await Promise.all([summaryQuery.refetch(), opsQuery.refetch()]);
@@ -323,7 +342,14 @@ export default function PendingOpsTab() {
           <span>{t("pendingOps.empty", "No pending remote writes.")}</span>
         </div>
       ) : (
-        <div className="scroll-region pending-ops-table-scroll" style={{ overflowX: "auto", border: "1px solid var(--color-border)", borderRadius: "6px" }}>
+        <div
+          className="scroll-region pending-ops-table-scroll"
+          style={{
+            overflowX: "auto",
+            border: "1px solid var(--color-border)",
+            borderRadius: "6px",
+          }}
+        >
           <table style={{ width: "100%", minWidth: "840px", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "var(--color-bg-secondary)" }}>
@@ -334,7 +360,9 @@ export default function PendingOpsTab() {
                 <th style={tableHeaderStyle}>{t("pendingOps.account", "Account")}</th>
                 <th style={tableHeaderStyle}>{t("pendingOps.updated", "Updated")}</th>
                 <th style={tableHeaderStyle}>{t("pendingOps.lastError", "Last error")}</th>
-                <th style={{ ...tableHeaderStyle, textAlign: "center" }}>{t("common.actions", "Actions")}</th>
+                <th style={{ ...tableHeaderStyle, textAlign: "center" }}>
+                  {t("common.actions", "Actions")}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -366,7 +394,14 @@ export default function PendingOpsTab() {
                     </td>
                     <td style={tableCellStyle}>{accountLabel(op.account_id)}</td>
                     <td style={tableCellStyle}>{formatTimestamp(op.updated_at)}</td>
-                    <td style={{ ...tableCellStyle, color: op.last_error ? "var(--color-warning, #d97706)" : "var(--color-text-secondary)" }}>
+                    <td
+                      style={{
+                        ...tableCellStyle,
+                        color: op.last_error
+                          ? "var(--color-warning, #d97706)"
+                          : "var(--color-text-secondary)",
+                      }}
+                    >
                       {op.last_error ?? "-"}
                     </td>
                     <td style={{ ...tableCellStyle, textAlign: "center", whiteSpace: "nowrap" }}>

@@ -131,6 +131,8 @@ vi.mock("../../../src/components/ContactAutocomplete", () => ({
       name={name}
       role="combobox"
       aria-labelledby={ariaLabelledBy}
+      aria-controls="mock-contact-options"
+      aria-expanded="false"
       value={inputValue ?? ""}
       placeholder={placeholder}
       onChange={(event) => onInputValueChange?.(event.currentTarget.value)}

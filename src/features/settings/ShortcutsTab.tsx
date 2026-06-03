@@ -15,9 +15,9 @@ const ACTION_I18N_MAP: Record<string, string> = {
   "toggle-view-inbox": "shortcuts.toggleView",
   "toggle-view-kanban": "shortcuts.moveToKanban",
   "compose-new": "shortcuts.composeNew",
-  "reply": "shortcuts.reply",
+  reply: "shortcuts.reply",
   "reply-all": "shortcuts.replyAll",
-  "forward": "shortcuts.forward",
+  forward: "shortcuts.forward",
   "open-search": "shortcuts.openSearch",
   "focus-search": "shortcuts.focusSearch",
   "open-cloud-settings": "shortcuts.openCloudSettings",
@@ -25,9 +25,27 @@ const ACTION_I18N_MAP: Record<string, string> = {
 };
 
 const SHORTCUT_GROUPS = [
-  { categoryKey: "shortcuts.general", actions: ["command-palette", "close-modal", "open-cloud-settings", "toggle-notifications"] },
-  { categoryKey: "shortcuts.navigation", actions: ["next-message", "prev-message", "open-message", "open-search", "focus-search"] },
-  { categoryKey: "shortcuts.mailActions", actions: ["compose-new", "reply", "reply-all", "forward", "toggle-star", "archive-message", "toggle-view-inbox", "toggle-view-kanban"] },
+  {
+    categoryKey: "shortcuts.general",
+    actions: ["command-palette", "close-modal", "open-cloud-settings", "toggle-notifications"],
+  },
+  {
+    categoryKey: "shortcuts.navigation",
+    actions: ["next-message", "prev-message", "open-message", "open-search", "focus-search"],
+  },
+  {
+    categoryKey: "shortcuts.mailActions",
+    actions: [
+      "compose-new",
+      "reply",
+      "reply-all",
+      "forward",
+      "toggle-star",
+      "archive-message",
+      "toggle-view-inbox",
+      "toggle-view-kanban",
+    ],
+  },
 ];
 
 function ShortcutRow({ actionId }: { actionId: string }) {
@@ -131,7 +149,9 @@ function ShortcutRow({ actionId }: { actionId: string }) {
             aria-label={
               isRecording
                 ? t("shortcuts.recording")
-                : t("shortcuts.editBinding", { keys: currentKeys || t("shortcuts.unbound", "Unbound") })
+                : t("shortcuts.editBinding", {
+                    keys: currentKeys || t("shortcuts.unbound", "Unbound"),
+                  })
             }
             onClick={() => {
               if (isRecording) {
@@ -154,9 +174,7 @@ function ShortcutRow({ actionId }: { actionId: string }) {
                 : "var(--color-bg-secondary)",
               fontSize: "12px",
               fontFamily: "monospace",
-              color: isRecording
-                ? "var(--color-accent, #3b82f6)"
-                : "var(--color-text-secondary)",
+              color: isRecording ? "var(--color-accent, #3b82f6)" : "var(--color-text-secondary)",
               cursor: "pointer",
               minWidth: "60px",
               textAlign: "center",
@@ -194,9 +212,7 @@ export default function ShortcutsTab() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <Keyboard size={18} />
-          <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>
-            {t("shortcuts.title")}
-          </h3>
+          <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>{t("shortcuts.title")}</h3>
         </div>
         <button
           onClick={handleReset}

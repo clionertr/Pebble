@@ -13,17 +13,21 @@ export interface EmailTemplate {
 function clearLegacyTemplates() {
   try {
     localStorage.removeItem(LEGACY_STORAGE_KEY);
-  } catch { /* ignored */ }
+  } catch {
+    /* ignored */
+  }
 }
 
 export async function listTemplates(): Promise<EmailTemplate[]> {
-  const templates = await client.listEmailTemplates() as EmailTemplate[];
+  const templates = (await client.listEmailTemplates()) as EmailTemplate[];
   clearLegacyTemplates();
   return templates;
 }
 
-export async function saveTemplate(template: Omit<EmailTemplate, "id" | "createdAt">): Promise<EmailTemplate> {
-  const saved = await client.saveEmailTemplate(template) as EmailTemplate;
+export async function saveTemplate(
+  template: Omit<EmailTemplate, "id" | "createdAt">,
+): Promise<EmailTemplate> {
+  const saved = (await client.saveEmailTemplate(template)) as EmailTemplate;
   clearLegacyTemplates();
   return saved;
 }

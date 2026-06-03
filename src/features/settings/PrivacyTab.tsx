@@ -5,11 +5,7 @@ import { useToastStore } from "@/stores/toast.store";
 import { listTrustedSenders, removeTrustedSender } from "@/lib/api";
 import type { TrustedSender } from "@/lib/api";
 import { useAccountsQuery } from "@/hooks/queries/useAccountsQuery";
-import {
-  PRIVACY_MODE_KEY,
-  readStoredPrivacyMode,
-  type StoredPrivacyMode,
-} from "@/lib/privacyMode";
+import { PRIVACY_MODE_KEY, readStoredPrivacyMode, type StoredPrivacyMode } from "@/lib/privacyMode";
 import { Trash2 } from "lucide-react";
 
 export default function PrivacyTab() {
@@ -17,9 +13,7 @@ export default function PrivacyTab() {
   const activeAccountId = useMailStore((s) => s.activeAccountId);
   const accountsQuery = useAccountsQuery();
   const [trustedSenders, setTrustedSenders] = useState<TrustedSender[]>([]);
-  const [privacyMode, setPrivacyMode] = useState<StoredPrivacyMode>(() =>
-    readStoredPrivacyMode(),
-  );
+  const [privacyMode, setPrivacyMode] = useState<StoredPrivacyMode>(() => readStoredPrivacyMode());
 
   const accountsById = useMemo(
     () => new Map((accountsQuery.data ?? []).map((account) => [account.id, account])),
@@ -41,7 +35,9 @@ export default function PrivacyTab() {
         });
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [activeAccountId, t]);
 
   function handlePrivacyModeChange(mode: StoredPrivacyMode) {
@@ -101,7 +97,8 @@ export default function PrivacyTab() {
               padding: "8px 16px",
               borderRadius: "6px",
               border: "1px solid var(--color-border)",
-              backgroundColor: privacyMode === "relaxed" ? "var(--color-accent)" : "var(--color-bg)",
+              backgroundColor:
+                privacyMode === "relaxed" ? "var(--color-accent)" : "var(--color-bg)",
               color: privacyMode === "relaxed" ? "#fff" : "var(--color-text-primary)",
               cursor: "pointer",
               fontSize: "13px",
@@ -126,26 +123,43 @@ export default function PrivacyTab() {
         </div>
         <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "6px" }}>
           {privacyMode === "strict"
-            ? t("privacy.strictDesc", "Block all external images and trackers by default. You can load images per-message.")
+            ? t(
+                "privacy.strictDesc",
+                "Block all external images and trackers by default. You can load images per-message.",
+              )
             : privacyMode === "relaxed"
-            ? t("privacy.relaxedDesc", "Load external images by default. Trackers are still blocked.")
-            : t("privacy.offDesc", "No blocking. All external images and trackers are loaded directly.")}
+              ? t(
+                  "privacy.relaxedDesc",
+                  "Load external images by default. Trackers are still blocked.",
+                )
+              : t(
+                  "privacy.offDesc",
+                  "No blocking. All external images and trackers are loaded directly.",
+                )}
         </p>
       </div>
 
       {/* Tracker blocking info */}
-      <div style={{
-        padding: "12px 16px",
-        borderRadius: "6px",
-        backgroundColor: "var(--color-bg-hover)",
-        marginBottom: "24px",
-        fontSize: "13px",
-      }}>
+      <div
+        style={{
+          padding: "12px 16px",
+          borderRadius: "6px",
+          backgroundColor: "var(--color-bg-hover)",
+          marginBottom: "24px",
+          fontSize: "13px",
+        }}
+      >
         <strong>{t("privacy.trackerBlocking", "Tracker blocking")}</strong>
         <p style={{ margin: "4px 0 0", color: "var(--color-text-secondary)", fontSize: "12px" }}>
           {privacyMode === "off"
-            ? t("privacy.trackerBlockingOff", "Tracker blocking is disabled in Off mode. All images and trackers are loaded directly.")
-            : t("privacy.trackerBlockingDesc", "Known tracking pixels and tracker domains are blocked unless privacy is Off or the sender is fully trusted.")}
+            ? t(
+                "privacy.trackerBlockingOff",
+                "Tracker blocking is disabled in Off mode. All images and trackers are loaded directly.",
+              )
+            : t(
+                "privacy.trackerBlockingDesc",
+                "Known tracking pixels and tracker domains are blocked unless privacy is Off or the sender is fully trusted.",
+              )}
         </p>
       </div>
 
@@ -156,7 +170,10 @@ export default function PrivacyTab() {
         </h3>
         {trustedSenders.length === 0 ? (
           <p style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
-            {t("privacy.noTrustedSenders", "No trusted senders yet. Trust a sender from the privacy banner in a message.")}
+            {t(
+              "privacy.noTrustedSenders",
+              "No trusted senders yet. Trust a sender from the privacy banner in a message.",
+            )}
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -176,22 +193,29 @@ export default function PrivacyTab() {
                 <div>
                   <span>{sender.email}</span>
                   {!activeAccountId && (
-                    <span style={{
-                      marginLeft: "8px",
-                      fontSize: "11px",
-                      color: "var(--color-text-secondary)",
-                    }}>
+                    <span
+                      style={{
+                        marginLeft: "8px",
+                        fontSize: "11px",
+                        color: "var(--color-text-secondary)",
+                      }}
+                    >
                       {accountLabel(sender.account_id)}
                     </span>
                   )}
-                  <span style={{
-                    marginLeft: "8px",
-                    fontSize: "11px",
-                    padding: "2px 6px",
-                    borderRadius: "4px",
-                    backgroundColor: sender.trust_type === "all" ? "var(--color-accent)" : "var(--color-bg-hover)",
-                    color: sender.trust_type === "all" ? "#fff" : "var(--color-text-secondary)",
-                  }}>
+                  <span
+                    style={{
+                      marginLeft: "8px",
+                      fontSize: "11px",
+                      padding: "2px 6px",
+                      borderRadius: "4px",
+                      backgroundColor:
+                        sender.trust_type === "all"
+                          ? "var(--color-accent)"
+                          : "var(--color-bg-hover)",
+                      color: sender.trust_type === "all" ? "#fff" : "var(--color-text-secondary)",
+                    }}
+                  >
                     {sender.trust_type === "all"
                       ? t("privacy.trustAll", "Trust sender")
                       : t("privacy.trustImages", "Trust images")}

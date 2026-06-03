@@ -104,7 +104,18 @@ vi.mock("../../../src/components/ThreadItem", () => ({
     isSelected: boolean;
     onClick: () => void;
   }) => (
-    <div role="option" aria-selected={isSelected} onClick={onClick}>
+    <div
+      role="option"
+      aria-selected={isSelected}
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+    >
       {thread.subject}
     </div>
   ),

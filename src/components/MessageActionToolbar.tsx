@@ -1,4 +1,13 @@
-import { Reply, ReplyAll, Forward, Star, Archive, Trash2, LayoutGrid, RotateCcw } from "lucide-react";
+import {
+  Reply,
+  ReplyAll,
+  Forward,
+  Star,
+  Archive,
+  Trash2,
+  LayoutGrid,
+  RotateCcw,
+} from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useKanbanStore } from "@/stores/kanban.store";
 import { useToastStore } from "@/stores/toast.store";
@@ -7,11 +16,7 @@ import { useUpdateFlagsMutation } from "@/hooks/mutations/useUpdateFlagsMutation
 import { useComposeStore } from "@/stores/compose.store";
 import { archiveMessage, deleteMessage, restoreMessage } from "@/lib/api";
 import type { Message } from "@/lib/api";
-import {
-  patchMessagesCache,
-  snapshotMessagesCache,
-  restoreMessagesCache,
-} from "@/hooks/queries";
+import { patchMessagesCache, snapshotMessagesCache, restoreMessagesCache } from "@/hooks/queries";
 import { useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 
@@ -46,7 +51,9 @@ export default function MessageActionToolbar({
 
   useEffect(() => {
     if (!showKanbanPicker) return;
-    function handleClick() { setShowKanbanPicker(false); }
+    function handleClick() {
+      setShowKanbanPicker(false);
+    }
     // Delay to avoid catching the same click that opened the picker
     const timer = setTimeout(() => {
       document.addEventListener("click", handleClick);
@@ -81,8 +88,16 @@ export default function MessageActionToolbar({
     disabled?: boolean;
   }> = [
     { icon: Reply, label: t("messageActions.reply"), action: () => openCompose("reply", message) },
-    { icon: ReplyAll, label: t("messageActions.replyAll"), action: () => openCompose("reply-all", message) },
-    { icon: Forward, label: t("messageActions.forward"), action: () => openCompose("forward", message) },
+    {
+      icon: ReplyAll,
+      label: t("messageActions.replyAll"),
+      action: () => openCompose("reply-all", message),
+    },
+    {
+      icon: Forward,
+      label: t("messageActions.forward"),
+      action: () => openCompose("forward", message),
+    },
     {
       icon: Star,
       label: message.is_starred ? t("messageActions.unstar") : t("messageActions.star"),
@@ -96,9 +111,10 @@ export default function MessageActionToolbar({
     },
     {
       icon: folderRole === "archive" ? RotateCcw : Archive,
-      label: folderRole === "archive"
-        ? t("messageActions.unarchive", "Unarchive")
-        : t("messageActions.archive"),
+      label:
+        folderRole === "archive"
+          ? t("messageActions.unarchive", "Unarchive")
+          : t("messageActions.archive"),
       action: async () => {
         const previousLists = snapshotMessagesCache(queryClient);
         patchMessagesCache(queryClient, (page) => page.filter((m) => m.id !== message.id));
@@ -121,37 +137,42 @@ export default function MessageActionToolbar({
         } catch {
           restoreMessagesCache(queryClient, previousLists);
           useToastStore.getState().addToast({
-            message: folderRole === "archive"
-              ? t("messageActions.unarchiveFailed", "Failed to unarchive")
-              : t("messageActions.archiveFailed", "Failed to archive message"),
+            message:
+              folderRole === "archive"
+                ? t("messageActions.unarchiveFailed", "Failed to unarchive")
+                : t("messageActions.archiveFailed", "Failed to archive message"),
             type: "error",
           });
         }
       },
     },
-    ...(folderRole === "trash" ? [{
-      icon: RotateCcw,
-      label: t("messageActions.restore", "Restore"),
-      action: async () => {
-        const previousLists = snapshotMessagesCache(queryClient);
-        patchMessagesCache(queryClient, (page) => page.filter((m) => m.id !== message.id));
-        try {
-          await restoreMessage(message.id);
-          invalidateMessageViews(true);
-          useToastStore.getState().addToast({
-            message: t("messageActions.restoreSuccess", "Message restored to inbox"),
-            type: "success",
-          });
-          onBack();
-        } catch {
-          restoreMessagesCache(queryClient, previousLists);
-          useToastStore.getState().addToast({
-            message: t("messageActions.restoreFailed", "Failed to restore message"),
-            type: "error",
-          });
-        }
-      },
-    }] : []),
+    ...(folderRole === "trash"
+      ? [
+          {
+            icon: RotateCcw,
+            label: t("messageActions.restore", "Restore"),
+            action: async () => {
+              const previousLists = snapshotMessagesCache(queryClient);
+              patchMessagesCache(queryClient, (page) => page.filter((m) => m.id !== message.id));
+              try {
+                await restoreMessage(message.id);
+                invalidateMessageViews(true);
+                useToastStore.getState().addToast({
+                  message: t("messageActions.restoreSuccess", "Message restored to inbox"),
+                  type: "success",
+                });
+                onBack();
+              } catch {
+                restoreMessagesCache(queryClient, previousLists);
+                useToastStore.getState().addToast({
+                  message: t("messageActions.restoreFailed", "Failed to restore message"),
+                  type: "error",
+                });
+              }
+            },
+          },
+        ]
+      : []),
     {
       icon: Trash2,
       label: t("messageActions.delete"),
@@ -161,7 +182,9 @@ export default function MessageActionToolbar({
 
   return (
     <>
-      <div style={{ display: "flex", gap: "2px", padding: "4px 16px 4px 48px", position: "relative" }}>
+      <div
+        style={{ display: "flex", gap: "2px", padding: "4px 16px 4px 48px", position: "relative" }}
+      >
         {actions.map(({ icon: Icon, label, action, active, disabled }, i) => (
           <button
             key={i}
@@ -180,8 +203,21 @@ export default function MessageActionToolbar({
               transition: "background-color 0.12s ease, color 0.12s ease",
               opacity: disabled ? 0.35 : 1,
             }}
-            onMouseEnter={disabled ? undefined : (e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--color-bg-hover)"; }}
-            onMouseLeave={disabled ? undefined : (e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
+            onMouseEnter={
+              disabled
+                ? undefined
+                : (e) => {
+                    (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                      "var(--color-bg-hover)";
+                  }
+            }
+            onMouseLeave={
+              disabled
+                ? undefined
+                : (e) => {
+                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
+                  }
+            }
           >
             <Icon size={16} />
           </button>
@@ -203,14 +239,20 @@ export default function MessageActionToolbar({
               alignItems: "center",
               transition: "background-color 0.12s ease, color 0.12s ease",
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--color-bg-hover)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                "var(--color-bg-hover)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
+            }}
           >
             <LayoutGrid size={16} />
           </button>
           {showKanbanPicker && (
             <div
-              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              role="presentation"
               style={{
                 position: "absolute",
                 right: "0px",
@@ -225,11 +267,11 @@ export default function MessageActionToolbar({
                 minWidth: "140px",
               }}
             >
-              {([
+              {[
                 { col: "todo" as const, label: t("kanban.todo", "To Do") },
                 { col: "waiting" as const, label: t("kanban.waiting", "Waiting") },
                 { col: "done" as const, label: t("kanban.done", "Done") },
-              ]).map(({ col, label }) => (
+              ].map(({ col, label }) => (
                 <button
                   key={col}
                   onClick={() => handleAddToKanban(col)}
@@ -245,8 +287,12 @@ export default function MessageActionToolbar({
                     borderRadius: "4px",
                     textAlign: "left",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-bg-hover)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
                 >
                   {label}
                 </button>

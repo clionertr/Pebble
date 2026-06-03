@@ -4,7 +4,7 @@
 
 import type { Account, Folder, GmailRealtimeConfig } from "./api-types";
 
-const BASE = '/api';
+const BASE = "/api";
 
 export class ApiError extends Error {
   constructor(
@@ -12,7 +12,7 @@ export class ApiError extends Error {
     public body: { error: string },
   ) {
     super(body.error);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
@@ -30,8 +30,8 @@ async function request<T>(
   const url = new URL(path, window.location.origin);
   const init: RequestInit = {
     method,
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
   };
   if (body !== undefined) {
     init.body = JSON.stringify(body);
@@ -72,7 +72,10 @@ export function parseServerSentEventBlock(block: string): ServerSentEventBlock |
   return { event, data: data.join("\n") };
 }
 
-export function parseServerSentEvents(buffer: string): { events: ServerSentEventBlock[]; rest: string } {
+export function parseServerSentEvents(buffer: string): {
+  events: ServerSentEventBlock[];
+  rest: string;
+} {
   const blocks = buffer.split(/\r?\n\r?\n/);
   const rest = blocks.pop() ?? "";
   const events = blocks
@@ -134,9 +137,7 @@ export function extractTranslateStreamFullText(value: unknown): string {
   }
 
   const output = Array.isArray(root.output) ? root.output : [];
-  return output
-    .map((item) => contentText(objectValue(item)?.content))
-    .join("");
+  return output.map((item) => contentText(objectValue(item)?.content)).join("");
 }
 
 function extractTranslateStreamError(value: unknown): string {
@@ -182,10 +183,7 @@ function applyTranslateStreamEvent(
   return { translated: currentText, done: false };
 }
 
-export async function readTranslateStream(
-  res: Response,
-  options: TranslateStreamOptions = {},
-) {
+export async function readTranslateStream(res: Response, options: TranslateStreamOptions = {}) {
   if (!res.body) throw new Error("Translate stream response has no body");
 
   const reader = res.body.getReader();
@@ -227,24 +225,26 @@ export async function readTranslateStream(
 }
 
 export function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
-  return request<T>('GET', path, undefined, signal);
+  return request<T>("GET", path, undefined, signal);
 }
 
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {
-  return request<T>('POST', path, body);
+  return request<T>("POST", path, body);
 }
 
 export function apiPatch<T>(path: string, body?: unknown): Promise<T> {
-  return request<T>('PATCH', path, body);
+  return request<T>("PATCH", path, body);
 }
 
 export function apiDelete<T>(path: string): Promise<T> {
-  return request<T>('DELETE', path);
+  return request<T>("DELETE", path);
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────
 
-export interface AuthStatus { authenticated: boolean }
+export interface AuthStatus {
+  authenticated: boolean;
+}
 
 export function login(password: string): Promise<AuthStatus> {
   return apiPost<AuthStatus>(`${BASE}/auth/login`, { password });
@@ -289,23 +289,23 @@ export interface InboxParams {
 
 export function getInbox(params: InboxParams) {
   const qs = new URLSearchParams();
-  if (params.accountId) qs.set('accountId', params.accountId);
-  qs.set('folderId', params.folderId);
-  if (params.limit) qs.set('limit', String(params.limit));
-  if (params.offset) qs.set('offset', String(params.offset));
-  if (params.folderIds?.length) qs.set('folderIds', params.folderIds.join(','));
+  if (params.accountId) qs.set("accountId", params.accountId);
+  qs.set("folderId", params.folderId);
+  if (params.limit) qs.set("limit", String(params.limit));
+  if (params.offset) qs.set("offset", String(params.offset));
+  if (params.folderIds?.length) qs.set("folderIds", params.folderIds.join(","));
   return apiGet<{ messages: unknown[]; total: number; hasMore: boolean }>(
     `${BASE}/inbox?${qs}`,
-  ).then(r => r.messages);
+  ).then((r) => r.messages);
 }
 
 export function getStarred(accountId: string, limit?: number, offset?: number) {
   const qs = new URLSearchParams({ accountId });
-  if (limit) qs.set('limit', String(limit));
-  if (offset) qs.set('offset', String(offset));
+  if (limit) qs.set("limit", String(limit));
+  if (offset) qs.set("offset", String(offset));
   return apiGet<{ messages: unknown[]; total: number; hasMore: boolean }>(
     `${BASE}/starred?${qs}`,
-  ).then(r => r.messages);
+  ).then((r) => r.messages);
 }
 
 export function getMessage(id: string) {
@@ -318,11 +318,16 @@ export function getMessagesBatch(messageIds: string[]) {
 
 // ── Threads ───────────────────────────────────────────────────────────
 
-export function listThreads(folderId: string, limit?: number, offset?: number, folderIds?: string[]) {
+export function listThreads(
+  folderId: string,
+  limit?: number,
+  offset?: number,
+  folderIds?: string[],
+) {
   const qs = new URLSearchParams({ folderId });
-  if (limit) qs.set('limit', String(limit));
-  if (offset) qs.set('offset', String(offset));
-  if (folderIds?.length) qs.set('folderIds', folderIds.join(','));
+  if (limit) qs.set("limit", String(limit));
+  if (offset) qs.set("offset", String(offset));
+  if (folderIds?.length) qs.set("folderIds", folderIds.join(","));
   return apiGet<unknown[]>(`${BASE}/threads?${qs}`);
 }
 
@@ -334,15 +339,17 @@ export function listThreadMessages(threadId: string) {
 
 export function searchMessages(q: string, limit?: number) {
   const qs = new URLSearchParams({ q });
-  if (limit) qs.set('limit', String(limit));
-  return apiGet<{ hits: unknown[]; total: number }>(`${BASE}/search?${qs}`).then(r => r.hits);
+  if (limit) qs.set("limit", String(limit));
+  return apiGet<{ hits: unknown[]; total: number }>(`${BASE}/search?${qs}`).then((r) => r.hits);
 }
 
 // ── Kanban ────────────────────────────────────────────────────────────
 
 export function getKanban(column?: string) {
-  const qs = column ? `?column=${encodeURIComponent(column)}` : '';
-  return apiGet<{ cards: unknown[]; notes: Record<string, string> }>(`${BASE}/kanban${qs}`).then(r => r.cards);
+  const qs = column ? `?column=${encodeURIComponent(column)}` : "";
+  return apiGet<{ cards: unknown[]; notes: Record<string, string> }>(`${BASE}/kanban${qs}`).then(
+    (r) => r.cards,
+  );
 }
 
 // ── Snooze ────────────────────────────────────────────────────────────
@@ -378,7 +385,10 @@ export function getMessageWithHtml(messageId: string, privacyMode: string, signa
 // ── Messages (mutations) ───────────────────────────────────────────────
 
 export function updateMessageFlags(messageId: string, isRead?: boolean, isStarred?: boolean) {
-  return apiPatch<void>(`${BASE}/messages/${encodeURIComponent(messageId)}/flags`, { isRead, isStarred });
+  return apiPatch<void>(`${BASE}/messages/${encodeURIComponent(messageId)}/flags`, {
+    isRead,
+    isStarred,
+  });
 }
 
 export function archiveMessage(messageId: string) {
@@ -394,7 +404,9 @@ export function restoreMessage(messageId: string) {
 }
 
 export function moveToFolder(messageId: string, targetFolderId: string) {
-  return apiPost<void>(`${BASE}/messages/${encodeURIComponent(messageId)}/move`, { targetFolderId });
+  return apiPost<void>(`${BASE}/messages/${encodeURIComponent(messageId)}/move`, {
+    targetFolderId,
+  });
 }
 
 export function emptyTrash(accountId: string) {
@@ -438,7 +450,9 @@ export function addMessageLabel(messageId: string, labelName: string) {
 }
 
 export function removeMessageLabel(messageId: string, labelName: string) {
-  return apiDelete<void>(`${BASE}/messages/${encodeURIComponent(messageId)}/labels/${encodeURIComponent(labelName)}`);
+  return apiDelete<void>(
+    `${BASE}/messages/${encodeURIComponent(messageId)}/labels/${encodeURIComponent(labelName)}`,
+  );
 }
 
 // ── Snooze mutations ───────────────────────────────────────────────────
@@ -454,20 +468,23 @@ export function unsnoozeMessage(messageId: string) {
 // ── Advanced Search ────────────────────────────────────────────────────
 
 export function advancedSearch(query: unknown, limit?: number) {
-  return apiPost<{ hits: unknown[]; total: number }>(`${BASE}/search/advanced`, { query, limit }).then(r => r.hits);
+  return apiPost<{ hits: unknown[]; total: number }>(`${BASE}/search/advanced`, {
+    query,
+    limit,
+  }).then((r) => r.hits);
 }
 
 // ── Pending Ops ────────────────────────────────────────────────────────
 
 export function getPendingMailOpsSummary(accountId: string | null) {
-  const qs = accountId ? `?accountId=${encodeURIComponent(accountId)}` : '';
+  const qs = accountId ? `?accountId=${encodeURIComponent(accountId)}` : "";
   return apiGet<unknown>(`${BASE}/pending-ops/summary${qs}`);
 }
 
 export function listPendingMailOps(accountId: string | null, limit?: number) {
   const qs = new URLSearchParams();
-  if (accountId) qs.set('accountId', accountId);
-  if (limit) qs.set('limit', String(limit));
+  if (accountId) qs.set("accountId", accountId);
+  if (limit) qs.set("limit", String(limit));
   return apiGet<unknown[]>(`${BASE}/pending-ops?${qs}`);
 }
 
@@ -490,7 +507,9 @@ export function removeFromKanban(messageId: string) {
 }
 
 export function setKanbanContextNote(messageId: string, note: string) {
-  return apiPut<Record<string, string>>(`${BASE}/kanban/notes/${encodeURIComponent(messageId)}`, { note });
+  return apiPut<Record<string, string>>(`${BASE}/kanban/notes/${encodeURIComponent(messageId)}`, {
+    note,
+  });
 }
 
 export function mergeKanbanContextNotes(notes: Record<string, string>) {
@@ -519,17 +538,21 @@ export function trustSender(accountId: string, email: string, trustType: string)
 }
 
 export function removeTrustedSender(accountId: string, email: string) {
-  return apiDelete<void>(`${BASE}/trusted-senders?accountId=${encodeURIComponent(accountId)}&email=${encodeURIComponent(email)}`);
+  return apiDelete<void>(
+    `${BASE}/trusted-senders?accountId=${encodeURIComponent(accountId)}&email=${encodeURIComponent(email)}`,
+  );
 }
 
 export function isTrustedSender(accountId: string, email: string) {
-  return apiGet<boolean>(`${BASE}/trusted-senders/check?accountId=${encodeURIComponent(accountId)}&email=${encodeURIComponent(email)}`);
+  return apiGet<boolean>(
+    `${BASE}/trusted-senders/check?accountId=${encodeURIComponent(accountId)}&email=${encodeURIComponent(email)}`,
+  );
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
 export function apiPut<T>(path: string, body?: unknown): Promise<T> {
-  return request<T>('PUT', path, body);
+  return request<T>("PUT", path, body);
 }
 
 // ── Compose / Send ────────────────────────────────────────────────────
@@ -567,7 +590,9 @@ export function saveDraft(params: {
 }
 
 export function deleteDraft(accountId: string, draftId: string) {
-  return apiDelete<void>(`${BASE}/drafts/${encodeURIComponent(draftId)}?accountId=${encodeURIComponent(accountId)}`);
+  return apiDelete<void>(
+    `${BASE}/drafts/${encodeURIComponent(draftId)}?accountId=${encodeURIComponent(accountId)}`,
+  );
 }
 
 // ── Attachments ────────────────────────────────────────────────────────
@@ -582,11 +607,11 @@ export function getAttachmentDownloadUrl(attachmentId: string) {
 
 export async function stageAttachment(file: File): Promise<string> {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append("file", file);
   const url = new URL(`${BASE}/attachments/stage`, window.location.origin);
   const res = await fetch(url.toString(), {
-    method: 'POST',
-    credentials: 'same-origin',
+    method: "POST",
+    credentials: "same-origin",
     body: formData,
   });
   if (!res.ok) {
@@ -597,7 +622,7 @@ export async function stageAttachment(file: File): Promise<string> {
   const staged = data as { attachments?: Array<{ path?: string }> };
   const path = staged.attachments?.[0]?.path;
   if (!path) {
-    throw new ApiError(500, { error: 'Attachment upload response did not include a path' });
+    throw new ApiError(500, { error: "Attachment upload response did not include a path" });
   }
   return path;
 }
@@ -606,7 +631,7 @@ export async function stageAttachment(file: File): Promise<string> {
 
 export function searchContacts(accountId: string, query: string, limit?: number) {
   const qs = new URLSearchParams({ accountId, q: query });
-  if (limit) qs.set('limit', String(limit));
+  if (limit) qs.set("limit", String(limit));
   return apiGet<unknown[]>(`${BASE}/contacts?${qs}`);
 }
 
@@ -796,9 +821,12 @@ export function deleteWebPushSubscription(deviceId: string) {
 }
 
 export function renameNotificationDevice(deviceId: string, deviceName: string) {
-  return apiPatch<NotificationDevice>(`${BASE}/notifications/devices/${encodeURIComponent(deviceId)}`, {
-    device_name: deviceName,
-  });
+  return apiPatch<NotificationDevice>(
+    `${BASE}/notifications/devices/${encodeURIComponent(deviceId)}`,
+    {
+      device_name: deviceName,
+    },
+  );
 }
 
 export function deleteNotificationDevice(deviceId: string) {
@@ -838,25 +866,41 @@ export function getAccountProxy(accountId: string) {
 }
 
 export function updateAccountProxy(accountId: string, proxyHost?: string, proxyPort?: number) {
-  return apiPut<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy`, { proxy_host: proxyHost, proxy_port: proxyPort });
+  return apiPut<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy`, {
+    proxy_host: proxyHost,
+    proxy_port: proxyPort,
+  });
 }
 
 export function getAccountProxySetting(accountId: string) {
   return apiGet<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy-setting`);
 }
 
-export function updateAccountProxySetting(accountId: string, mode: string, proxyHost?: string, proxyPort?: number) {
-  return apiPut<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy-setting`, { mode, proxy_host: proxyHost, proxy_port: proxyPort });
+export function updateAccountProxySetting(
+  accountId: string,
+  mode: string,
+  proxyHost?: string,
+  proxyPort?: number,
+) {
+  return apiPut<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/proxy-setting`, {
+    mode,
+    proxy_host: proxyHost,
+    proxy_port: proxyPort,
+  });
 }
 
 // ── Sync commands ──────────────────────────────────────────────────────
 
 export function startSync(accountId: string, pollIntervalSecs?: number) {
-  return apiPost<string>(`${BASE}/accounts/${encodeURIComponent(accountId)}/sync/start`, { poll_interval_secs: pollIntervalSecs });
+  return apiPost<string>(`${BASE}/accounts/${encodeURIComponent(accountId)}/sync/start`, {
+    poll_interval_secs: pollIntervalSecs,
+  });
 }
 
 export function triggerSync(accountId: string, reason: string) {
-  return apiPost<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/sync/trigger`, { reason });
+  return apiPost<void>(`${BASE}/accounts/${encodeURIComponent(accountId)}/sync/trigger`, {
+    reason,
+  });
 }
 
 export interface WakeSyncRequest {
@@ -886,13 +930,20 @@ export function getGmailRealtimeConfig(accountId: string) {
 }
 
 export function enableGmailRealtime(accountId: string, fallbackIntervalMinutes?: number) {
-  return apiPost<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime/enable`, { fallback_interval_minutes: fallbackIntervalMinutes });
+  return apiPost<unknown>(
+    `${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime/enable`,
+    { fallback_interval_minutes: fallbackIntervalMinutes },
+  );
 }
 
 export function disableGmailRealtime(accountId: string) {
-  return apiPost<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime/disable`);
+  return apiPost<unknown>(
+    `${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime/disable`,
+  );
 }
 
 export function updateGmailRealtimeConfig(accountId: string, fallbackIntervalMinutes: number) {
-  return apiPut<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime`, { fallback_interval_minutes: fallbackIntervalMinutes });
+  return apiPut<unknown>(`${BASE}/accounts/${encodeURIComponent(accountId)}/gmail-realtime`, {
+    fallback_interval_minutes: fallbackIntervalMinutes,
+  });
 }

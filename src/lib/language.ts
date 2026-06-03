@@ -18,5 +18,7 @@ export function getInitialLanguage(
   storage: LanguageStorage = localStorage,
   source: NavigatorLanguageSource = navigator,
 ): Language {
-  return normalizeSavedLanguage(storage.getItem(LANGUAGE_STORAGE_KEY)) ?? detectSystemLanguage(source);
+  return (
+    normalizeSavedLanguage(storage.getItem(LANGUAGE_STORAGE_KEY)) ?? detectSystemLanguage(source)
+  );
 }

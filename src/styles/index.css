@@ -12,8 +12,8 @@
   --color-text-secondary: #6b6b6b;
   --color-accent: #d4714e;
   --color-bg: #ffffff;
-  --color-bg-hover: rgba(0,0,0,0.05);
-  --color-bg-secondary: rgba(0,0,0,0.06);
+  --color-bg-hover: rgba(0, 0, 0, 0.05);
+  --color-bg-secondary: rgba(0, 0, 0, 0.06);
   --color-scrollbar-track: transparent;
   --color-scrollbar-thumb: rgba(26, 26, 26, 0.22);
   --color-scrollbar-thumb-hover: rgba(26, 26, 26, 0.38);
@@ -31,14 +31,16 @@
   --color-text-secondary: #aaaaaa;
   --color-accent: #d4714e;
   --color-bg: #1a1a1a;
-  --color-bg-hover: rgba(255,255,255,0.06);
-  --color-bg-secondary: rgba(255,255,255,0.08);
+  --color-bg-hover: rgba(255, 255, 255, 0.06);
+  --color-bg-secondary: rgba(255, 255, 255, 0.08);
   --color-scrollbar-track: transparent;
   --color-scrollbar-thumb: rgba(255, 255, 255, 0.22);
   --color-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   margin: 0;
   overflow: hidden;
@@ -160,8 +162,12 @@ option {
 /* ─── Animations ──────────────────────────────────────────── */
 
 @keyframes slideInFromLeft {
-  from { transform: translateX(-100%); }
-  to   { transform: translateX(0); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .animate-slide-in-left {
@@ -169,18 +175,32 @@ option {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes shimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .fade-in {
@@ -224,27 +244,57 @@ option {
 }
 
 /* Staggered fade-in for list items */
-.fade-in-item { animation: fadeIn 0.25s ease-out both; }
-.fade-in-item:nth-child(1)  { animation-delay: 0ms; }
-.fade-in-item:nth-child(2)  { animation-delay: 30ms; }
-.fade-in-item:nth-child(3)  { animation-delay: 60ms; }
-.fade-in-item:nth-child(4)  { animation-delay: 90ms; }
-.fade-in-item:nth-child(5)  { animation-delay: 120ms; }
-.fade-in-item:nth-child(6)  { animation-delay: 150ms; }
-.fade-in-item:nth-child(7)  { animation-delay: 180ms; }
-.fade-in-item:nth-child(8)  { animation-delay: 210ms; }
-.fade-in-item:nth-child(9)  { animation-delay: 240ms; }
-.fade-in-item:nth-child(10) { animation-delay: 270ms; }
+.fade-in-item {
+  animation: fadeIn 0.25s ease-out both;
+}
+.fade-in-item:nth-child(1) {
+  animation-delay: 0ms;
+}
+.fade-in-item:nth-child(2) {
+  animation-delay: 30ms;
+}
+.fade-in-item:nth-child(3) {
+  animation-delay: 60ms;
+}
+.fade-in-item:nth-child(4) {
+  animation-delay: 90ms;
+}
+.fade-in-item:nth-child(5) {
+  animation-delay: 120ms;
+}
+.fade-in-item:nth-child(6) {
+  animation-delay: 150ms;
+}
+.fade-in-item:nth-child(7) {
+  animation-delay: 180ms;
+}
+.fade-in-item:nth-child(8) {
+  animation-delay: 210ms;
+}
+.fade-in-item:nth-child(9) {
+  animation-delay: 240ms;
+}
+.fade-in-item:nth-child(10) {
+  animation-delay: 270ms;
+}
 
 /* Toast animation */
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(12px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Respect reduced-motion preferences (WCAG 2.1 AA — SC 2.3.3) */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -339,7 +389,10 @@ textarea:focus-visible {
   cursor: pointer;
   font: inherit;
   line-height: 1;
-  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+  transition:
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease;
 }
 
 .compose-format-button,
@@ -434,7 +487,9 @@ textarea:focus-visible {
   border: 1px solid color-mix(in srgb, var(--color-border) 86%, transparent);
   border-radius: 8px;
   background: var(--color-bg);
-  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
 }
 
 .compose-editor-surface:focus-within {
@@ -557,7 +612,9 @@ textarea:focus-visible {
   font-size: 12px;
   font-weight: 500;
   text-align: left;
-  transition: background-color 0.14s ease, color 0.14s ease;
+  transition:
+    background-color 0.14s ease,
+    color 0.14s ease;
 }
 
 .compose-quoted-reply-toggle:hover {
@@ -647,7 +704,10 @@ textarea:focus-visible {
   border-radius: 7px;
   background: var(--color-bg);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
-  transition: border-color 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    background-color 0.14s ease;
 }
 
 .search-input-shell:focus-within {
@@ -718,7 +778,10 @@ textarea:focus-visible {
   cursor: pointer;
   font: inherit;
   line-height: 1;
-  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+  transition:
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease;
 }
 
 .inbox-toolbar-button:hover {
@@ -750,7 +813,10 @@ textarea:focus-visible {
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
-  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+  transition:
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease;
 }
 
 .search-toolbar-button:hover {
@@ -804,7 +870,10 @@ textarea:focus-visible {
   background: color-mix(in srgb, var(--color-bg) 82%, var(--color-bg-secondary));
   box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
   cursor: pointer;
-  transition: background-color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+  transition:
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
 }
 
 .batch-checkbox::before {
@@ -881,7 +950,10 @@ textarea:focus-visible {
   font: inherit;
   font-size: 13px;
   line-height: 20px;
-  transition: border-color 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    background-color 0.14s ease;
 }
 
 .search-filter-control:focus-visible {
@@ -905,7 +977,10 @@ textarea:focus-visible {
   cursor: pointer;
   font-size: 13px;
   line-height: 1;
-  transition: border-color 0.14s ease, background-color 0.14s ease, color 0.14s ease;
+  transition:
+    border-color 0.14s ease,
+    background-color 0.14s ease,
+    color 0.14s ease;
 }
 
 .search-filter-toggle:hover {
@@ -941,7 +1016,10 @@ textarea:focus-visible {
   font: inherit;
   font-size: 12px;
   font-weight: 500;
-  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+  transition:
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease;
 }
 
 .search-filters-clear:hover {

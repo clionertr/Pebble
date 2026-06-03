@@ -34,9 +34,7 @@ export const useCommandStore = create<CommandState>((set, get) => ({
     const lower = q.toLowerCase();
     const filtered = lower
       ? get().commands.filter(
-          (c) =>
-            c.name.toLowerCase().includes(lower) ||
-            c.category.toLowerCase().includes(lower),
+          (c) => c.name.toLowerCase().includes(lower) || c.category.toLowerCase().includes(lower),
         )
       : get().commands;
     set({ query: q, filteredCommands: filtered });
@@ -50,6 +48,5 @@ export const useCommandStore = create<CommandState>((set, get) => ({
     }
   },
 
-  registerCommands: (cmds: Command[]) =>
-    set({ commands: cmds, filteredCommands: cmds }),
+  registerCommands: (cmds: Command[]) => set({ commands: cmds, filteredCommands: cmds }),
 }));

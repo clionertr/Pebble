@@ -55,18 +55,32 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
     mode: PrivacyMode;
   } | null>(null);
   const [showSnooze, setShowSnooze] = useState(false);
-  const [showSelectionActions, setShowSelectionActions] = useState<{ text: string; position: { x: number; y: number } } | null>(null);
-  const [showTranslate, setShowTranslate] = useState<{ text: string; position: { x: number; y: number } } | null>(null);
+  const [showSelectionActions, setShowSelectionActions] = useState<{
+    text: string;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [showTranslate, setShowTranslate] = useState<{
+    text: string;
+    position: { x: number; y: number };
+  } | null>(null);
 
   const snoozeRef = useRef<HTMLDivElement>(null);
   const selectionActionsRef = useRef<HTMLDivElement>(null);
   const translateRef = useRef<HTMLDivElement>(null);
 
-  const privacyMode = privacyOverride?.messageId === messageId
-    ? privacyOverride.mode
-    : defaultPrivacyMode();
-  const { message, setMessage, rendered, loading, error } = useMessageLoader(messageId, privacyMode);
-  const { bilingualMode, bilingualResult, bilingualLoading, handleBilingualToggle, resetBilingual } = useBilingualTranslation(messageId, rendered, message);
+  const privacyMode =
+    privacyOverride?.messageId === messageId ? privacyOverride.mode : defaultPrivacyMode();
+  const { message, setMessage, rendered, loading, error } = useMessageLoader(
+    messageId,
+    privacyMode,
+  );
+  const {
+    bilingualMode,
+    bilingualResult,
+    bilingualLoading,
+    handleBilingualToggle,
+    resetBilingual,
+  } = useBilingualTranslation(messageId, rendered, message);
   const { data: accounts } = useAccountsQuery();
   const receivingAccount = accounts?.find((a) => a.id === message?.account_id);
 
@@ -112,7 +126,10 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
     return { x, y };
   }
 
-  function openSelectionActionsForSelection(position?: { x: number; y: number }, selectedText = getCurrentSelectedText()) {
+  function openSelectionActionsForSelection(
+    position?: { x: number; y: number },
+    selectedText = getCurrentSelectedText(),
+  ) {
     if (selectedText.length <= 5) return false;
     setShowTranslate(null);
     setShowSelectionActions({
@@ -182,7 +199,10 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
     if (e.key !== "t" && e.key !== "T") return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const target = e.target as HTMLElement | null;
-    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+    if (
+      target &&
+      (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+    ) {
       return;
     }
     openTranslateForSelection();
@@ -336,17 +356,23 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
           onMessageUpdate={setMessage}
         />
         <div style={{ paddingLeft: "32px" }}>
-          <div style={{ fontSize: "13px", color: "var(--color-text-primary)", marginBottom: "2px" }}>
-            <span style={{ fontWeight: "500" }}>
-              {message.from_name || message.from_address}
-            </span>
+          <div
+            style={{ fontSize: "13px", color: "var(--color-text-primary)", marginBottom: "2px" }}
+          >
+            <span style={{ fontWeight: "500" }}>{message.from_name || message.from_address}</span>
             {message.from_name && (
               <span style={{ color: "var(--color-text-secondary)", marginLeft: "6px" }}>
                 &lt;{message.from_address}&gt;
               </span>
             )}
             {toRecipientDisplay && (
-              <span style={{ color: "var(--color-text-secondary)", marginLeft: "6px", fontSize: "12px" }}>
+              <span
+                style={{
+                  color: "var(--color-text-secondary)",
+                  marginLeft: "6px",
+                  fontSize: "12px",
+                }}
+              >
                 to&nbsp;{toRecipientDisplay}
               </span>
             )}
@@ -367,9 +393,9 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
       )}
 
       {/* Body */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className="scroll-region message-body-scroll"
-        tabIndex={0}
         role="region"
         aria-label={t("messageDetail.body", "Message body")}
         style={{ flex: 1, overflow: "auto", padding: "16px" }}
@@ -379,7 +405,13 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
         {bilingualMode && bilingualResult ? (
           <>
             {bilingualLoading && (
-              <div style={{ fontSize: "13px", color: "var(--color-text-secondary)", marginBottom: "8px" }}>
+              <div
+                style={{
+                  fontSize: "13px",
+                  color: "var(--color-text-secondary)",
+                  marginBottom: "8px",
+                }}
+              >
                 {t("common.translating", "Translating...")}
               </div>
             )}
@@ -402,9 +434,13 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
             )}
           </>
         ) : bilingualMode && bilingualLoading ? (
-          <div style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>{t("common.translating", "Translating...")}</div>
+          <div style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
+            {t("common.translating", "Translating...")}
+          </div>
         ) : bilingualMode && !bilingualLoading ? (
-            <div style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>{t("common.translationFailed", "Translation failed")}</div>
+          <div style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
+            {t("common.translationFailed", "Translation failed")}
+          </div>
         ) : rendered && rendered.html ? (
           <ShadowDomEmail html={rendered.html} />
         ) : (

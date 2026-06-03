@@ -51,11 +51,11 @@ export default function LoginView() {
             src={iconUrl}
             alt="Pebble"
             className="w-16 h-16 mx-auto mb-4 rounded-xl"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
           />
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
-            Pebble
-          </h1>
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">Pebble</h1>
           <p className="text-sm text-[var(--color-text-secondary)] mt-1">
             {t("login.subtitle", "Sign in to your self-hosted mailbox")}
           </p>
@@ -67,7 +67,10 @@ export default function LoginView() {
               ref={inputRef}
               type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(e) => { setPassword(e.target.value); setError(null); }}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError(null);
+              }}
               placeholder={t("login.passwordPlaceholder", "Enter password")}
               disabled={submitting}
               className="w-full px-3 py-2.5 pr-10 text-sm rounded-lg border
@@ -87,9 +90,7 @@ export default function LoginView() {
             </button>
           </div>
 
-          {error && (
-            <p className="text-xs text-red-500 text-center">{error}</p>
-          )}
+          {error && <p className="text-xs text-red-500 text-center">{error}</p>}
 
           <button
             type="submit"

@@ -19,18 +19,20 @@ function hasNonEmptyAddress(addresses: string[]): boolean {
 }
 
 function hasVisibleText(html: string): boolean {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/<[^>]+>/g, "")
-    .trim().length > 0;
+  return (
+    html
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<br\s*\/?>/gi, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/<[^>]+>/g, "")
+      .trim().length > 0
+  );
 }
 
 function hasAttachment(attachments: ComposeAttachment[] = []): boolean {
-  return attachments.some((attachment) =>
-    attachment.path.trim().length > 0 || attachment.name.trim().length > 0,
+  return attachments.some(
+    (attachment) => attachment.path.trim().length > 0 || attachment.name.trim().length > 0,
   );
 }
 

@@ -1,5 +1,11 @@
 import { useMailStore } from "@/stores/mail.store";
-import { useAccountsQuery, useMessagesQuery, useThreadsQuery, useFoldersForAccountsQuery, patchMessagesCache } from "@/hooks/queries";
+import {
+  useAccountsQuery,
+  useMessagesQuery,
+  useThreadsQuery,
+  useFoldersForAccountsQuery,
+  patchMessagesCache,
+} from "@/hooks/queries";
 import { useUIStore } from "@/stores/ui.store";
 import { useToastStore } from "@/stores/toast.store";
 import MessageList from "@/components/MessageList";
@@ -14,7 +20,11 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { List, MessageSquare, Mail, Trash2, Inbox, CheckSquare } from "lucide-react";
 import { MessageListSkeleton } from "@/components/Skeleton";
 import { emptyTrash } from "@/lib/api";
-import { buildAllAccountsFolders, folderIdsForSelection, roleForSelection } from "@/lib/folderAggregation";
+import {
+  buildAllAccountsFolders,
+  folderIdsForSelection,
+  roleForSelection,
+} from "@/lib/folderAggregation";
 import type { ThreadSummary } from "@/lib/api";
 
 const EMPTY_THREADS: ThreadSummary[] = [];
@@ -33,13 +43,13 @@ export default function InboxView() {
   const setSelectedThreadId = useMailStore((s) => s.setSelectedThreadId);
   const { data: accounts = [] } = useAccountsQuery();
   const folderAccountIds = useMemo(
-    () => activeAccountId ? [activeAccountId] : accounts.map((account) => account.id),
+    () => (activeAccountId ? [activeAccountId] : accounts.map((account) => account.id)),
     [accounts, activeAccountId],
   );
   const { data: folders = [] } = useFoldersForAccountsQuery(folderAccountIds);
   const allAccountsMode = accounts.length > 1 && !activeAccountId;
   const displayedFolders = useMemo(
-    () => allAccountsMode ? buildAllAccountsFolders(folders) : folders,
+    () => (allAccountsMode ? buildAllAccountsFolders(folders) : folders),
     [allAccountsMode, folders],
   );
   const defaultFolderId = useMemo(() => {
@@ -71,10 +81,7 @@ export default function InboxView() {
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
-  } = useMessagesQuery(
-    threadView ? null : queryFolderId,
-    threadView ? undefined : queryFolderIds,
-  );
+  } = useMessagesQuery(threadView ? null : queryFolderId, threadView ? undefined : queryFolderIds);
   const { data: threads = EMPTY_THREADS, isLoading: loadingThreads } = useThreadsQuery(
     threadView ? queryFolderId : null,
     50,
@@ -84,11 +91,14 @@ export default function InboxView() {
   const handleLoadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-  const handleToggleStar = useCallback((messageId: string, newStarred: boolean) => {
-    patchMessagesCache(queryClient, (page) =>
-      page.map((m) => (m.id === messageId ? { ...m, is_starred: newStarred } : m)),
-    );
-  }, [queryClient]);
+  const handleToggleStar = useCallback(
+    (messageId: string, newStarred: boolean) => {
+      patchMessagesCache(queryClient, (page) =>
+        page.map((m) => (m.id === messageId ? { ...m, is_starred: newStarred } : m)),
+      );
+    },
+    [queryClient],
+  );
 
   const detailOpen = threadView ? selectedThreadId !== null : selectedMessageId !== null;
 
@@ -99,12 +109,27 @@ export default function InboxView() {
   // No accounts or no folder selected — show welcome / setup prompt
   if (accounts.length === 0 || !effectiveFolderId) {
     return (
-      <div className="fade-in" style={{
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        height: "100%", gap: "16px", color: "var(--color-text-secondary)",
-      }}>
+      <div
+        className="fade-in"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          gap: "16px",
+          color: "var(--color-text-secondary)",
+        }}
+      >
         <Mail size={48} strokeWidth={1.2} />
-        <p style={{ fontSize: "16px", fontWeight: 500, color: "var(--color-text-primary)", margin: 0 }}>
+        <p
+          style={{
+            fontSize: "16px",
+            fontWeight: 500,
+            color: "var(--color-text-primary)",
+            margin: 0,
+          }}
+        >
           {t("inbox.welcome", "Welcome to Pebble")}
         </p>
         <p style={{ fontSize: "13px", margin: 0 }}>
@@ -113,9 +138,15 @@ export default function InboxView() {
         <button
           onClick={() => setActiveView("settings")}
           style={{
-            marginTop: "8px", padding: "8px 20px", borderRadius: "6px",
-            border: "none", backgroundColor: "var(--color-accent)", color: "#fff",
-            fontSize: "13px", fontWeight: 600, cursor: "pointer",
+            marginTop: "8px",
+            padding: "8px 20px",
+            borderRadius: "6px",
+            border: "none",
+            backgroundColor: "var(--color-accent)",
+            color: "#fff",
+            fontSize: "13px",
+            fontWeight: 600,
+            cursor: "pointer",
           }}
         >
           {t("settings.addAccount", "Add Account")}
@@ -132,9 +163,17 @@ export default function InboxView() {
             <button
               onClick={() => setShowTrashConfirm(true)}
               style={{
-                background: "none", border: "1px solid var(--color-border)", cursor: "pointer",
-                padding: "4px 10px", borderRadius: "4px", color: "var(--color-text-secondary)",
-                display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", marginRight: "4px",
+                background: "none",
+                border: "1px solid var(--color-border)",
+                cursor: "pointer",
+                padding: "4px 10px",
+                borderRadius: "4px",
+                color: "var(--color-text-secondary)",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                fontSize: "12px",
+                marginRight: "4px",
               }}
               title={t("messageActions.emptyTrash", "Empty Trash")}
             >
@@ -144,17 +183,27 @@ export default function InboxView() {
             {showTrashConfirm && (
               <ConfirmDialog
                 title={t("messageActions.emptyTrash", "Empty Trash")}
-                message={t("messageActions.emptyTrashConfirm", "Permanently delete all messages in Trash?")}
+                message={t(
+                  "messageActions.emptyTrashConfirm",
+                  "Permanently delete all messages in Trash?",
+                )}
                 destructive
                 onCancel={() => setShowTrashConfirm(false)}
                 onConfirm={async () => {
                   setShowTrashConfirm(false);
                   try {
-                    const targetAccountIds = activeAccountId ? [activeAccountId] : accounts.map((account) => account.id);
-                    const counts = await Promise.all(targetAccountIds.map((accountId) => emptyTrash(accountId)));
+                    const targetAccountIds = activeAccountId
+                      ? [activeAccountId]
+                      : accounts.map((account) => account.id);
+                    const counts = await Promise.all(
+                      targetAccountIds.map((accountId) => emptyTrash(accountId)),
+                    );
                     const count = counts.reduce((sum, current) => sum + current, 0);
                     queryClient.invalidateQueries({ queryKey: ["messages"] });
-                    addToast({ message: t("messageActions.emptyTrashSuccess", { count }), type: "success" });
+                    addToast({
+                      message: t("messageActions.emptyTrashSuccess", { count }),
+                      type: "success",
+                    });
                   } catch {
                     addToast({ message: t("messageActions.emptyTrashFailed"), type: "error" });
                   }
@@ -239,8 +288,23 @@ export default function InboxView() {
 }
 
 // Inline ThreadList component using virtualizer
-function ThreadList({ threads, selectedThreadId, onSelectThread, loading }: {
-  threads: { thread_id: string; subject: string; snippet: string; last_date: number; message_count: number; unread_count: number; is_starred: boolean; participants: string[]; has_attachments: boolean }[];
+function ThreadList({
+  threads,
+  selectedThreadId,
+  onSelectThread,
+  loading,
+}: {
+  threads: {
+    thread_id: string;
+    subject: string;
+    snippet: string;
+    last_date: number;
+    message_count: number;
+    unread_count: number;
+    is_starred: boolean;
+    participants: string[];
+    has_attachments: boolean;
+  }[];
   selectedThreadId: string | null;
   onSelectThread: (id: string) => void;
   loading: boolean;
@@ -270,7 +334,19 @@ function ThreadList({ threads, selectedThreadId, onSelectThread, loading }: {
 
   if (threads.length === 0) {
     return (
-      <div className="fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--color-text-secondary)", fontSize: "14px", gap: "8px" }}>
+      <div
+        className="fade-in"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          color: "var(--color-text-secondary)",
+          fontSize: "14px",
+          gap: "8px",
+        }}
+      >
         <Inbox size={32} strokeWidth={1.2} />
         {t("common.noThreads")}
       </div>
@@ -278,7 +354,11 @@ function ThreadList({ threads, selectedThreadId, onSelectThread, loading }: {
   }
 
   return (
-    <div ref={parentRef} className="scroll-region thread-list-scroll" style={{ height: "100%", overflow: "auto" }}>
+    <div
+      ref={parentRef}
+      className="scroll-region thread-list-scroll"
+      style={{ height: "100%", overflow: "auto" }}
+    >
       <div
         role="listbox"
         aria-label={t("inbox.threadList", "Threads")}
@@ -292,7 +372,10 @@ function ThreadList({ threads, selectedThreadId, onSelectThread, loading }: {
               ref={virtualizer.measureElement}
               data-index={virtualItem.index}
               style={{
-                position: "absolute", top: 0, left: 0, width: "100%",
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
                 transform: `translateY(${virtualItem.start}px)`,
               }}
             >

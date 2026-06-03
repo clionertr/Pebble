@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { Check, Copy, Languages, LayoutGrid, MoreHorizontal, Search, ShieldCheck, X } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Languages,
+  LayoutGrid,
+  MoreHorizontal,
+  Search,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface Props {
@@ -53,16 +62,20 @@ export default function SelectionActionPopover({
         zIndex: 1000,
         color: "var(--color-text-primary)",
       }}
-      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <button
         onClick={handleCopy}
-        aria-label={copied
-          ? t("selection.copiedSelectedText", "Copied selected text")
-          : t("selection.copySelectedText", "Copy selected text")}
-        title={copied
-          ? t("selection.copiedSelectedText", "Copied selected text")
-          : t("selection.copySelectedText", "Copy selected text")}
+        aria-label={
+          copied
+            ? t("selection.copiedSelectedText", "Copied selected text")
+            : t("selection.copySelectedText", "Copy selected text")
+        }
+        title={
+          copied
+            ? t("selection.copiedSelectedText", "Copied selected text")
+            : t("selection.copySelectedText", "Copy selected text")
+        }
         style={primaryButtonStyle}
       >
         {copied ? <Check size={14} /> : <Copy size={14} />}

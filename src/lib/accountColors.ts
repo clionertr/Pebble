@@ -72,7 +72,10 @@ export function assignAccountColors(accounts: AccountColorSource[]): Map<string,
   return colorsByAccountId;
 }
 
-export function getAccountLabel(account: AccountColorSource | null | undefined, fallback = ""): string {
+export function getAccountLabel(
+  account: AccountColorSource | null | undefined,
+  fallback = "",
+): string {
   if (!account) return fallback;
   const name = account.display_name?.trim();
   const email = account.email?.trim();

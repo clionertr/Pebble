@@ -12,10 +12,7 @@ export const messagesQueryKey = (folderId: string, folderIds?: string[]) =>
  * Each page is a MessageSummary[] fetched by offset; `data` flattens them
  * so render code keeps the flat-array shape it already expects.
  */
-export function useMessagesQuery(
-  folderId: string | null,
-  folderIds?: string[],
-) {
+export function useMessagesQuery(folderId: string | null, folderIds?: string[]) {
   const query = useInfiniteQuery({
     queryKey: messagesQueryKey(folderId ?? "", folderIds),
     queryFn: ({ pageParam }) =>
@@ -48,13 +45,10 @@ export function patchMessagesCache(
   queryClient: QueryClient,
   transform: (messages: MessageSummary[]) => MessageSummary[],
 ) {
-  queryClient.setQueriesData<MessagesInfiniteData>(
-    { queryKey: ["messages"] },
-    (old) => {
-      if (!old) return old;
-      return { ...old, pages: old.pages.map(transform) };
-    },
-  );
+  queryClient.setQueriesData<MessagesInfiniteData>({ queryKey: ["messages"] }, (old) => {
+    if (!old) return old;
+    return { ...old, pages: old.pages.map(transform) };
+  });
 }
 
 /** Find the first cached message matching `predicate` across all pages. */

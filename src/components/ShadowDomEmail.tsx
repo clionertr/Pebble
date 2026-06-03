@@ -13,8 +13,7 @@ export function ShadowDomEmail({ html, className }: ShadowDomEmailProps) {
   // from the fallback text into the sanitized HTML a frame later.
   useLayoutEffect(() => {
     if (!hostRef.current) return;
-    const shadow = hostRef.current.shadowRoot
-      || hostRef.current.attachShadow({ mode: "open" });
+    const shadow = hostRef.current.shadowRoot || hostRef.current.attachShadow({ mode: "open" });
 
     const safeHtml = sanitizeHtml(html);
     shadow.innerHTML = `
@@ -110,7 +109,7 @@ export function ShadowDomEmail({ html, className }: ShadowDomEmailProps) {
 
       if (/^https?:\/\//i.test(href)) {
         event.preventDefault();
-        window.open(href, '_blank', 'noopener,noreferrer');
+        window.open(href, "_blank", "noopener,noreferrer");
       }
     };
 

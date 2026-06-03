@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { listen } from "../lib/sse-client";
@@ -79,12 +79,15 @@ export default function StatusBar() {
     syncStatusRef.current = syncStatus;
   }, [syncStatus]);
 
-  function updateSyncStatus(status: typeof syncStatus) {
-    syncStatusRef.current = status;
-    setSyncStatus(status);
-  }
+  const updateSyncStatus = useCallback(
+    (status: typeof syncStatus) => {
+      syncStatusRef.current = status;
+      setSyncStatus(status);
+    },
+    [setSyncStatus],
+  );
 
-  function scheduleSearchRefresh() {
+  const scheduleSearchRefresh = useCallback(() => {
     if (searchRefreshTimerRef.current) {
       clearTimeout(searchRefreshTimerRef.current);
     }
@@ -92,9 +95,9 @@ export default function StatusBar() {
       queryClient.invalidateQueries({ queryKey: ["search"] });
       searchRefreshTimerRef.current = null;
     }, SEARCH_INDEX_REFRESH_DELAY_MS);
-  }
+  }, [queryClient]);
 
-  function flushPendingMailRefreshes() {
+  const flushPendingMailRefreshes = useCallback(() => {
     const accountIds = Array.from(pendingMailRefreshAccountIdsRef.current);
     pendingMailRefreshAccountIdsRef.current.clear();
     mailRefreshTimerRef.current = null;
@@ -112,17 +115,20 @@ export default function StatusBar() {
     }
     queryClient.invalidateQueries({ queryKey: ["messages"] });
     queryClient.invalidateQueries({ queryKey: ["threads"] });
-  }
+  }, [queryClient]);
 
-  function scheduleMailQueriesRefresh(accountId?: string | null) {
-    pendingMailRefreshAccountIdsRef.current.add(accountId ?? null);
-    if (mailRefreshTimerRef.current) return;
+  const scheduleMailQueriesRefresh = useCallback(
+    (accountId?: string | null) => {
+      pendingMailRefreshAccountIdsRef.current.add(accountId ?? null);
+      if (mailRefreshTimerRef.current) return;
 
-    mailRefreshTimerRef.current = setTimeout(
-      flushPendingMailRefreshes,
-      MAIL_QUERY_REFRESH_DEBOUNCE_MS,
-    );
-  }
+      mailRefreshTimerRef.current = setTimeout(
+        flushPendingMailRefreshes,
+        MAIL_QUERY_REFRESH_DEBOUNCE_MS,
+      );
+    },
+    [flushPendingMailRefreshes],
+  );
 
   useEffect(() => {
     return () => {
@@ -147,22 +153,28 @@ export default function StatusBar() {
     };
   }, [setLastMailError]);
 
-  function refreshMailQueries(accountId?: string | null) {
-    queryClient.invalidateQueries({ queryKey: shellQueryKey });
-    if (accountId) {
-      queryClient.invalidateQueries({ queryKey: ["folders", accountId] });
-      queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] });
-    } else {
-      queryClient.invalidateQueries({ queryKey: ["folders"] });
-      queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
-    }
-    queryClient.invalidateQueries({ queryKey: ["messages"] });
-    queryClient.invalidateQueries({ queryKey: ["threads"] });
-  }
+  const refreshMailQueries = useCallback(
+    (accountId?: string | null) => {
+      queryClient.invalidateQueries({ queryKey: shellQueryKey });
+      if (accountId) {
+        queryClient.invalidateQueries({ queryKey: ["folders", accountId] });
+        queryClient.invalidateQueries({ queryKey: ["folder-unread-counts", accountId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["folders"] });
+        queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      queryClient.invalidateQueries({ queryKey: ["threads"] });
+    },
+    [queryClient],
+  );
 
-  function isActiveAccountEvent(accountId?: string | null) {
-    return !accountId || !activeAccountId || accountId === activeAccountId;
-  }
+  const isActiveAccountEvent = useCallback(
+    (accountId?: string | null) => {
+      return !accountId || !activeAccountId || accountId === activeAccountId;
+    },
+    [activeAccountId],
+  );
 
   // Listen for sync-complete: legacy worker-exit event used by one-shot syncs.
   useEffect(() => {
@@ -173,8 +185,10 @@ export default function StatusBar() {
       }
       refreshMailQueries(event.payload?.account_id);
     });
-    return () => { unlisten.then((fn) => fn()); };
-  }, [activeAccountId, setSyncStatus, queryClient]);
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [isActiveAccountEvent, refreshMailQueries, updateSyncStatus]);
 
   // Listen for per-pass sync progress. Background workers are long-lived, so
   // UI "syncing" must track a concrete pass rather than worker lifetime.
@@ -198,8 +212,10 @@ export default function StatusBar() {
         }
       }
     });
-    return () => { unlisten.then((fn) => fn()); };
-  }, [activeAccountId, setLastMailError, setSyncStatus, queryClient]);
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [isActiveAccountEvent, refreshMailQueries, setLastMailError, updateSyncStatus]);
 
   // Listen for new mail events: incremental data refresh
   useEffect(() => {
@@ -209,8 +225,10 @@ export default function StatusBar() {
       scheduleMailQueriesRefresh(aid);
       scheduleSearchRefresh();
     });
-    return () => { unlisten.then((fn) => fn()); };
-  }, [queryClient]);
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [scheduleMailQueriesRefresh, scheduleSearchRefresh]);
 
   useEffect(() => {
     const unlisten = listen("mail:pending-ops-changed", () => {
@@ -219,20 +237,28 @@ export default function StatusBar() {
       });
       refreshMailQueries(activeAccountId);
     });
-    return () => { unlisten.then((fn) => fn()); };
-  }, [activeAccountId, queryClient]);
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [activeAccountId, queryClient, refreshMailQueries]);
 
   useEffect(() => {
     const unlisten = listen<RealtimeStatus>("mail:realtime-status", (event) => {
       setRealtimeStatus(event.payload.account_id, event.payload);
     });
-    return () => { unlisten.then((fn) => fn()); };
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, [setRealtimeStatus]);
 
   async function handleSync() {
     if (!activeAccountId) return;
     if (syncStatus === "syncing") {
-      try { await stopSync(activeAccountId); } catch {}
+      try {
+        await stopSync(activeAccountId);
+      } catch {
+        // 停止同步是用户主动取消操作；失败时仍把本地状态切回 idle，避免按钮卡死。
+      }
       updateSyncStatus("idle");
     } else {
       updateSyncStatus("syncing");
@@ -255,11 +281,18 @@ export default function StatusBar() {
   const pendingRemoteWrites = pendingOpsSummary?.total_active_count ?? 0;
   const failedRemoteWrites = pendingOpsSummary?.failed_count ?? 0;
   const retryingRemoteWrites = pendingOpsSummary?.in_progress_count ?? 0;
-  const pendingRemoteText = retryingRemoteWrites > 0
-    ? t("status.remoteWritesRetrying", "{{count}} remote writes retrying", { count: retryingRemoteWrites })
-    : failedRemoteWrites > 0
-      ? t("status.remoteWritesPending", "{{count}} remote writes pending", { count: pendingRemoteWrites })
-      : t("status.remoteWritesQueued", "{{count}} remote writes queued", { count: pendingRemoteWrites });
+  const pendingRemoteText =
+    retryingRemoteWrites > 0
+      ? t("status.remoteWritesRetrying", "{{count}} remote writes retrying", {
+          count: retryingRemoteWrites,
+        })
+      : failedRemoteWrites > 0
+        ? t("status.remoteWritesPending", "{{count}} remote writes pending", {
+            count: pendingRemoteWrites,
+          })
+        : t("status.remoteWritesQueued", "{{count}} remote writes queued", {
+            count: pendingRemoteWrites,
+          });
 
   return (
     <footer
@@ -278,7 +311,16 @@ export default function StatusBar() {
           className="flex items-center gap-1"
           style={{ color: "var(--color-error, #ef4444)" }}
         >
-          <svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            aria-hidden="true"
+            focusable="false"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <line x1="1" y1="1" x2="23" y2="23" />
             <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
             <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
@@ -291,7 +333,9 @@ export default function StatusBar() {
         </span>
       ) : (
         <>
-          <span role="status" aria-live="polite" aria-atomic="true">{syncText}</span>
+          <span role="status" aria-live="polite" aria-atomic="true">
+            {syncText}
+          </span>
           {!isMobile && realtimeStatusText && (
             <span
               role="status"
@@ -337,13 +381,18 @@ export default function StatusBar() {
               className="flex items-center gap-1 truncate"
               title={pendingOpsSummary?.last_error ?? pendingRemoteText}
               style={{
-                color: failedRemoteWrites > 0
-                  ? "var(--color-warning, #d97706)"
-                  : "var(--color-text-secondary)",
+                color:
+                  failedRemoteWrites > 0
+                    ? "var(--color-warning, #d97706)"
+                    : "var(--color-text-secondary)",
                 maxWidth: "220px",
               }}
             >
-              {failedRemoteWrites > 0 ? <AlertCircle aria-hidden="true" size={13} /> : <Clock aria-hidden="true" size={13} />}
+              {failedRemoteWrites > 0 ? (
+                <AlertCircle aria-hidden="true" size={13} />
+              ) : (
+                <Clock aria-hidden="true" size={13} />
+              )}
               <span className="truncate">{pendingRemoteText}</span>
             </span>
           )}
@@ -363,19 +412,25 @@ export default function StatusBar() {
       )}
 
       {!isMobile && notificationsEnabled && (
-            <svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-          )}
+        <svg
+          aria-hidden="true"
+          focusable="false"
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+      )}
     </footer>
   );
 }
 
-function getRealtimeStatusText(
-  status: RealtimeStatus | undefined,
-  t: TFunction,
-) {
+function getRealtimeStatusText(status: RealtimeStatus | undefined, t: TFunction) {
   if (!status) return null;
 
   if (status.message) {

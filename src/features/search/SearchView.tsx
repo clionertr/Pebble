@@ -41,7 +41,12 @@ export default function SearchView() {
   const filtersActive = hasActiveFilters(filters);
   const searchEnabled = hasSearched && (trimmed.length > 0 || filtersActive);
 
-  const { data: results = [], isLoading: loading, error: queryError, refetch } = useQuery({
+  const {
+    data: results = [],
+    isLoading: loading,
+    error: queryError,
+    refetch,
+  } = useQuery({
     queryKey: ["search", trimmed, filters],
     queryFn: () => {
       if (filtersActive) {
@@ -99,7 +104,9 @@ export default function SearchView() {
     debounceRef.current = setTimeout(() => {
       doSearch();
     }, 300);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [query]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSubmit(e: React.FormEvent) {
@@ -123,14 +130,10 @@ export default function SearchView() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("inbox.searchPlaceholder")}
             aria-label={t("search.title", "Search")}
-            autoFocus
             className="search-input"
           />
         </div>
-        <button
-          type="submit"
-          className="search-toolbar-button search-toolbar-button--primary"
-        >
+        <button type="submit" className="search-toolbar-button search-toolbar-button--primary">
           <Search size={14} aria-hidden="true" />
           {t("search.searchButton")}
         </button>
@@ -149,11 +152,7 @@ export default function SearchView() {
 
       {/* Filters panel */}
       {showFilters && (
-        <SearchFilters
-          filters={filters}
-          onChange={setFilters}
-          onClear={handleClearFilters}
-        />
+        <SearchFilters filters={filters} onChange={setFilters} onClear={handleClearFilters} />
       )}
 
       {/* Results + Detail split layout */}
@@ -171,139 +170,140 @@ export default function SearchView() {
               transition: "width 0.15s ease",
             }}
           >
-          {loading && (
-            <div
-              className="fade-in"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "40px",
-                color: "var(--color-text-secondary)",
-                fontSize: "13px",
-                gap: "10px",
-              }}
-            >
-              <Loader size={20} className="spinner" />
-              <span>{t("common.loading")}</span>
-            </div>
-          )}
-
-          {!loading && queryError && (
-            <div
-              className="fade-in"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "40px",
-                color: "var(--color-text-secondary)",
-                fontSize: "14px",
-                gap: "8px",
-              }}
-            >
-              <p style={{ color: "var(--color-error, #e53e3e)", margin: 0 }}>
-                {t("search.error", "Search failed")}
-              </p>
-              <p style={{ fontSize: "13px", margin: 0 }}>{queryError?.message}</p>
-              <button
-                onClick={() => refetch()}
+            {loading && (
+              <div
+                className="fade-in"
                 style={{
-                  marginTop: "8px",
-                  padding: "6px 16px",
-                  borderRadius: "4px",
-                  border: "1px solid var(--color-border)",
-                  backgroundColor: "transparent",
-                  color: "var(--color-accent)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "40px",
+                  color: "var(--color-text-secondary)",
                   fontSize: "13px",
-                  cursor: "pointer",
+                  gap: "10px",
                 }}
               >
-                {t("common.retry", "Retry")}
-              </button>
-            </div>
-          )}
+                <Loader size={20} className="spinner" />
+                <span>{t("common.loading")}</span>
+              </div>
+            )}
 
-          {!loading && !queryError && hasSearched && results.length === 0 && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "40px",
-                color: "var(--color-text-secondary)",
-                fontSize: "14px",
-                gap: "8px",
-              }}
-            >
-              <Search size={28} strokeWidth={1.2} />
-              {t("search.noResults")}
-            </div>
-          )}
+            {!loading && queryError && (
+              <div
+                className="fade-in"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "40px",
+                  color: "var(--color-text-secondary)",
+                  fontSize: "14px",
+                  gap: "8px",
+                }}
+              >
+                <p style={{ color: "var(--color-error, #e53e3e)", margin: 0 }}>
+                  {t("search.error", "Search failed")}
+                </p>
+                <p style={{ fontSize: "13px", margin: 0 }}>{queryError?.message}</p>
+                <button
+                  onClick={() => refetch()}
+                  style={{
+                    marginTop: "8px",
+                    padding: "6px 16px",
+                    borderRadius: "4px",
+                    border: "1px solid var(--color-border)",
+                    backgroundColor: "transparent",
+                    color: "var(--color-accent)",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                  }}
+                >
+                  {t("common.retry", "Retry")}
+                </button>
+              </div>
+            )}
 
-          {!loading && !hasSearched && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "60px 20px",
-                color: "var(--color-text-tertiary)",
-                fontSize: "14px",
-                gap: "8px",
-              }}
-            >
-              <Search size={32} />
-              <span>{t("search.title")}</span>
-            </div>
-          )}
+            {!loading && !queryError && hasSearched && results.length === 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "40px",
+                  color: "var(--color-text-secondary)",
+                  fontSize: "14px",
+                  gap: "8px",
+                }}
+              >
+                <Search size={28} strokeWidth={1.2} />
+                {t("search.noResults")}
+              </div>
+            )}
 
-          {!loading && results.length > 0 && (
-            <div
-              role="listbox"
-              aria-label={t("search.results", "Search results")}
-              style={{ height: `${virtualizer.getTotalSize()}px`, width: "100%", position: "relative" }}
-            >
-              {virtualizer.getVirtualItems().map((virtualItem) => {
-                const hit = results[virtualItem.index];
-                return (
-                  <div
-                    key={hit.message_id}
-                    ref={virtualizer.measureElement}
-                    data-index={virtualItem.index}
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "100%",
-                      transform: `translateY(${virtualItem.start}px)`,
-                    }}
-                  >
-                    <SearchResultItem
-                      hit={hit}
-                      isSelected={hit.message_id === selectedId}
-                      onClick={() => setSelectedId(hit.message_id)}
-                      query={query}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+            {!loading && !hasSearched && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "60px 20px",
+                  color: "var(--color-text-tertiary)",
+                  fontSize: "14px",
+                  gap: "8px",
+                }}
+              >
+                <Search size={32} />
+                <span>{t("search.title")}</span>
+              </div>
+            )}
+
+            {!loading && results.length > 0 && (
+              <div
+                role="listbox"
+                aria-label={t("search.results", "Search results")}
+                style={{
+                  height: `${virtualizer.getTotalSize()}px`,
+                  width: "100%",
+                  position: "relative",
+                }}
+              >
+                {virtualizer.getVirtualItems().map((virtualItem) => {
+                  const hit = results[virtualItem.index];
+                  return (
+                    <div
+                      key={hit.message_id}
+                      ref={virtualizer.measureElement}
+                      data-index={virtualItem.index}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${virtualItem.start}px)`,
+                      }}
+                    >
+                      <SearchResultItem
+                        hit={hit}
+                        isSelected={hit.message_id === selectedId}
+                        onClick={() => setSelectedId(hit.message_id)}
+                        query={query}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Detail panel */}
         {showDetail && selectedId && (
           <div style={{ flex: 1, overflow: "hidden" }}>
-            <MessageDetail
-              messageId={selectedId}
-              onBack={() => setSelectedId(null)}
-            />
+            <MessageDetail messageId={selectedId} onBack={() => setSelectedId(null)} />
           </div>
         )}
       </div>

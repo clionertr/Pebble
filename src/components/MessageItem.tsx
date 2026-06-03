@@ -38,15 +38,29 @@ function formatDate(timestamp: number): string {
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, batchMode, batchSelected, onToggleBatchSelect, spamFolderId, folderRole, accountColor, accountLabel }: Props) {
+function MessageItem({
+  message,
+  labels = [],
+  isSelected,
+  onClick,
+  onToggleStar,
+  batchMode,
+  batchSelected,
+  onToggleBatchSelect,
+  spamFolderId,
+  folderRole,
+  accountColor,
+  accountLabel,
+}: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [showActions, setShowActions] = useState(false);
   const fontWeight = message.is_read ? "normal" : "600";
   const inKanban = useKanbanStore((s) => s.cardIdSet.has(message.id));
-  const archiveActionLabel = folderRole === "archive"
-    ? t("messageActions.unarchive", "Unarchive")
-    : t("messageActions.archive", "Archive");
+  const archiveActionLabel =
+    folderRole === "archive"
+      ? t("messageActions.unarchive", "Unarchive")
+      : t("messageActions.archive", "Archive");
   const ArchiveActionIcon = folderRole === "archive" ? RotateCcw : Archive;
 
   function invalidateMessageViews(includeUnreadCounts = false) {
@@ -114,7 +128,14 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
           }}
         />
       )}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2px" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "2px",
+        }}
+      >
         {batchMode && (
           <input
             type="checkbox"
@@ -125,7 +146,7 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
               e.stopPropagation();
               onToggleBatchSelect?.(message.id);
             }}
-            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           />
         )}
         <span
@@ -145,19 +166,21 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
             {message.from_name || message.from_address}
           </span>
           {!message.is_read && (
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-accent)", flexShrink: 0 }} />
+            <span
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                background: "var(--color-accent)",
+                flexShrink: 0,
+              }}
+            />
           )}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
-          {inKanban && (
-            <LayoutGrid size={13} color="var(--color-accent)" />
-          )}
-          {message.is_starred && (
-            <Star size={13} fill="#f59e0b" color="#f59e0b" />
-          )}
-          {message.has_attachments && (
-            <Paperclip size={13} color="var(--color-text-secondary)" />
-          )}
+          {inKanban && <LayoutGrid size={13} color="var(--color-accent)" />}
+          {message.is_starred && <Star size={13} fill="#f59e0b" color="#f59e0b" />}
+          {message.has_attachments && <Paperclip size={13} color="var(--color-text-secondary)" />}
           <span
             style={{
               fontSize: "11px",
@@ -191,30 +214,32 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
         }}
       >
         {message.snippet}
-        {labels.length > 0 && labels.map((l) => (
-          <span
-            key={l.id}
-            style={{
-              display: "inline-block",
-              fontSize: "10px",
-              padding: "0 5px",
-              borderRadius: "3px",
-              backgroundColor: l.color + "22",
-              color: l.color,
-              border: `1px solid ${l.color}44`,
-              marginLeft: "6px",
-              verticalAlign: "middle",
-              lineHeight: "16px",
-              fontWeight: 500,
-            }}
-          >
-            {l.name}
-          </span>
-        ))}
+        {labels.length > 0 &&
+          labels.map((l) => (
+            <span
+              key={l.id}
+              style={{
+                display: "inline-block",
+                fontSize: "10px",
+                padding: "0 5px",
+                borderRadius: "3px",
+                backgroundColor: l.color + "22",
+                color: l.color,
+                border: `1px solid ${l.color}44`,
+                marginLeft: "6px",
+                verticalAlign: "middle",
+                lineHeight: "16px",
+                fontWeight: 500,
+              }}
+            >
+              {l.name}
+            </span>
+          ))}
       </div>
       {showActions && (
         <div
-          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          role="presentation"
           style={{
             position: "absolute",
             right: "8px",
@@ -242,17 +267,19 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
                     return;
                   }
                   invalidateMessageViews(true);
-                  const msg = result === "unarchived"
-                    ? t("messageActions.unarchiveSuccess", "Message moved to inbox")
-                    : t("messageActions.archiveSuccess", "Message archived");
+                  const msg =
+                    result === "unarchived"
+                      ? t("messageActions.unarchiveSuccess", "Message moved to inbox")
+                      : t("messageActions.archiveSuccess", "Message archived");
                   useToastStore.getState().addToast({ message: msg, type: "success" });
                 })
                 .catch(() => {
                   restoreMessagesCache(queryClient, previousLists);
                   queryClient.invalidateQueries({ queryKey: ["messages"] });
-                  const msg = folderRole === "archive"
-                    ? t("messageActions.unarchiveFailed", "Failed to unarchive")
-                    : t("messageActions.archiveFailed", "Failed to archive");
+                  const msg =
+                    folderRole === "archive"
+                      ? t("messageActions.unarchiveFailed", "Failed to unarchive")
+                      : t("messageActions.archiveFailed", "Failed to archive");
                   useToastStore.getState().addToast({ message: msg, type: "error" });
                 });
             }}
@@ -280,12 +307,18 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
                 moveToFolder(message.id, spamFolderId)
                   .then(() => {
                     invalidateMessageViews(true);
-                    useToastStore.getState().addToast({ message: t("messageActions.spamSuccess", "Marked as spam"), type: "success" });
+                    useToastStore.getState().addToast({
+                      message: t("messageActions.spamSuccess", "Marked as spam"),
+                      type: "success",
+                    });
                   })
                   .catch(() => {
                     restoreMessagesCache(queryClient, previousLists);
                     queryClient.invalidateQueries({ queryKey: ["messages"] });
-                    useToastStore.getState().addToast({ message: t("messageActions.spamFailed", "Failed to mark as spam"), type: "error" });
+                    useToastStore.getState().addToast({
+                      message: t("messageActions.spamFailed", "Failed to mark as spam"),
+                      type: "error",
+                    });
                   });
               }}
               aria-label={t("messageActions.reportSpam", "Report spam")}
@@ -307,12 +340,20 @@ function MessageItem({ message, labels = [], isSelected, onClick, onToggleStar, 
           <button
             onClick={(e) => {
               e.stopPropagation();
-              useKanbanStore.getState().addCard(message.id, "todo")
+              useKanbanStore
+                .getState()
+                .addCard(message.id, "todo")
                 .then(() => {
-                  useToastStore.getState().addToast({ message: t("messageActions.kanbanSuccess", "Added to kanban board"), type: "success" });
+                  useToastStore.getState().addToast({
+                    message: t("messageActions.kanbanSuccess", "Added to kanban board"),
+                    type: "success",
+                  });
                 })
                 .catch(() => {
-                  useToastStore.getState().addToast({ message: t("messageActions.kanbanFailed", "Failed to add to kanban"), type: "error" });
+                  useToastStore.getState().addToast({
+                    message: t("messageActions.kanbanFailed", "Failed to add to kanban"),
+                    type: "error",
+                  });
                 });
             }}
             aria-label={t("messageActions.addToKanban")}

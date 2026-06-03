@@ -37,7 +37,11 @@ export function useNotificationClickRouting() {
       routeNotification({ messageId: messageId ?? undefined });
       url.searchParams.delete("messageId");
       url.searchParams.delete("pebbleNotification");
-      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${url.pathname}${url.search}${url.hash}`,
+      );
     };
 
     const handleMessage = (event: MessageEvent<NotificationClickMessage>) => {

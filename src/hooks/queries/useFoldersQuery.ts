@@ -2,8 +2,7 @@ import { useMemo } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchShellSnapshot } from "./useShellQuery";
 
-export const foldersQueryKey = (accountId: string) =>
-  ["folders", accountId] as const;
+export const foldersQueryKey = (accountId: string) => ["folders", accountId] as const;
 
 export function useFoldersQuery(accountId: string | null) {
   const queryClient = useQueryClient();

@@ -69,10 +69,11 @@ export default function Sidebar() {
   const { data: accounts = EMPTY_ACCOUNTS } = useAccountsQuery();
   const allAccountsMode = accounts.length > 1 && !activeAccountId;
   const folderAccountIds = useMemo(
-    () => activeAccountId ? [activeAccountId] : accounts.map((account) => account.id),
+    () => (activeAccountId ? [activeAccountId] : accounts.map((account) => account.id)),
     [accounts, activeAccountId],
   );
-  const { data: folders = EMPTY_FOLDERS, isFetched: foldersFetched } = useFoldersForAccountsQuery(folderAccountIds);
+  const { data: folders = EMPTY_FOLDERS, isFetched: foldersFetched } =
+    useFoldersForAccountsQuery(folderAccountIds);
   const { data: unreadCounts = {} } = useFolderUnreadCountsForAccounts(folderAccountIds);
 
   const ROLE_LABELS: Record<string, string> = {
@@ -83,10 +84,11 @@ export default function Sidebar() {
     archive: t("sidebar.archive"),
     spam: t("sidebar.spam"),
   };
-  const folderLabel = (folder: FolderType) => (folder.role && ROLE_LABELS[folder.role]) || folder.name;
+  const folderLabel = (folder: FolderType) =>
+    (folder.role && ROLE_LABELS[folder.role]) || folder.name;
 
   const displayedFolders = useMemo(
-    () => allAccountsMode ? buildAllAccountsFolders(folders) : folders,
+    () => (allAccountsMode ? buildAllAccountsFolders(folders) : folders),
     [allAccountsMode, folders],
   );
   const hasRealFolders = displayedFolders.length > 0;
@@ -110,14 +112,29 @@ export default function Sidebar() {
     if (displayedFolders.length > 0 && !activeFolderId) {
       const inbox = displayedFolders.find((f) => f.role === "inbox");
       setActiveFolderId((inbox ?? displayedFolders[0]).id);
-    } else if (!allAccountsMode && foldersFetched && displayedFolders.length === 0 && activeAccountId && accounts.length > 1) {
+    } else if (
+      !allAccountsMode &&
+      foldersFetched &&
+      displayedFolders.length === 0 &&
+      activeAccountId &&
+      accounts.length > 1
+    ) {
       const idx = accounts.findIndex((a) => a.id === activeAccountId);
       const next = accounts[idx + 1] ?? accounts.find((a) => a.id !== activeAccountId);
       if (next) {
         setActiveAccountId(next.id);
       }
     }
-  }, [displayedFolders, foldersFetched, activeFolderId, setActiveFolderId, accounts, activeAccountId, setActiveAccountId, allAccountsMode]);
+  }, [
+    displayedFolders,
+    foldersFetched,
+    activeFolderId,
+    setActiveFolderId,
+    accounts,
+    activeAccountId,
+    setActiveAccountId,
+    allAccountsMode,
+  ]);
 
   async function confirmDiscardDraft() {
     if (isComposeDirty()) {
@@ -183,7 +200,10 @@ export default function Sidebar() {
       }}
     >
       {/* Search button */}
-      <nav aria-label={t("sidebar.search", "Search")} style={{ padding: "8px 6px 0", display: "flex", flexDirection: "column", gap: "1px" }}>
+      <nav
+        aria-label={t("sidebar.search", "Search")}
+        style={{ padding: "8px 6px 0", display: "flex", flexDirection: "column", gap: "1px" }}
+      >
         <SidebarButton
           icon={<Search size={16} />}
           label={t("search.title", "Search")}
@@ -196,14 +216,16 @@ export default function Sidebar() {
 
       {/* Section label */}
       {!sidebarCollapsed && (
-        <div style={{
-          padding: "12px 10px 4px 10px",
-          fontSize: "11px",
-          fontWeight: 600,
-          color: "var(--color-text-secondary)",
-          textTransform: "uppercase",
-          letterSpacing: "0.5px",
-        }}>
+        <div
+          style={{
+            padding: "12px 10px 4px 10px",
+            fontSize: "11px",
+            fontWeight: 600,
+            color: "var(--color-text-secondary)",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+          }}
+        >
           {t("sidebar.mail", "Mail")}
         </div>
       )}
@@ -215,7 +237,9 @@ export default function Sidebar() {
             aria-label={t("settings.emailAccounts", "Email Accounts")}
             value={activeAccountId || ALL_ACCOUNTS_SELECT_VALUE}
             onChange={(e) => {
-              setActiveAccountId(e.target.value === ALL_ACCOUNTS_SELECT_VALUE ? null : e.target.value);
+              setActiveAccountId(
+                e.target.value === ALL_ACCOUNTS_SELECT_VALUE ? null : e.target.value,
+              );
               setActiveFolderId(null);
             }}
             style={{
@@ -267,7 +291,7 @@ export default function Sidebar() {
                     collapsed={sidebarCollapsed}
                     style={buttonBase}
                     onClick={() => safeSetActiveView("starred")}
-                  />
+                  />,
                 );
               }
               const isActive = folder.id === activeFolderId && activeView === "inbox";
@@ -276,12 +300,14 @@ export default function Sidebar() {
                   key={folder.id}
                   icon={folderIcon(folder.role)}
                   label={folderLabel(folder)}
-                  badge={showUnread ? unreadCountForFolder(folder.id, folders, unreadCounts) : undefined}
+                  badge={
+                    showUnread ? unreadCountForFolder(folder.id, folders, unreadCounts) : undefined
+                  }
                   isActive={isActive}
                   collapsed={sidebarCollapsed}
                   style={buttonBase}
                   onClick={() => handleFolderClick(folder.id)}
-                />
+                />,
               );
               return items;
             })
@@ -297,7 +323,7 @@ export default function Sidebar() {
                     collapsed={sidebarCollapsed}
                     style={buttonBase}
                     onClick={() => safeSetActiveView("starred")}
-                  />
+                  />,
                 );
               }
               items.push(
@@ -309,7 +335,7 @@ export default function Sidebar() {
                   collapsed={sidebarCollapsed}
                   style={buttonBase}
                   onClick={() => safeSetActiveView("inbox")}
-                />
+                />,
               );
               return items;
             })}
@@ -365,7 +391,14 @@ export default function Sidebar() {
 
 // Reusable sidebar button to avoid repetitive hover logic
 function SidebarButton({
-  icon, label, badge, isActive, collapsed, style, disabled, onClick,
+  icon,
+  label,
+  badge,
+  isActive,
+  collapsed,
+  style,
+  disabled,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -388,7 +421,7 @@ function SidebarButton({
         ...style,
         backgroundColor: isActive
           ? "var(--color-sidebar-active)"
-          : style.backgroundColor ?? "transparent",
+          : (style.backgroundColor ?? "transparent"),
         color: style.color ?? "var(--color-text-primary)",
         opacity: disabled ? 0.45 : 1,
         cursor: disabled ? "default" : "pointer",
@@ -405,18 +438,22 @@ function SidebarButton({
     >
       {icon}
       {!collapsed && (
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+        <span
+          style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}
+        >
           {label}
         </span>
       )}
       {!collapsed && badge != null && badge > 0 && (
-        <span style={{
-          fontSize: "11px",
-          fontWeight: 600,
-          color: "var(--color-accent)",
-          minWidth: "18px",
-          textAlign: "right",
-        }}>
+        <span
+          style={{
+            fontSize: "11px",
+            fontWeight: 600,
+            color: "var(--color-accent)",
+            minWidth: "18px",
+            textAlign: "right",
+          }}
+        >
           {badge}
         </span>
       )}

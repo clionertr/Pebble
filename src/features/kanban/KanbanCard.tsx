@@ -13,7 +13,9 @@ interface Props {
 
 export default function KanbanCard({ id, note, message, onRemove, onOpen }: Props) {
   const { t } = useTranslation();
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -64,26 +66,57 @@ export default function KanbanCard({ id, note, message, onRemove, onOpen }: Prop
       {...attributes}
       {...listeners}
       onKeyDown={handleKeyDown}
-      aria-label={t("kanban.cardAriaLabel", "{{subject}} from {{sender}}. Enter to open, Space to drag.", { subject, sender })}
+      role="button"
+      tabIndex={0}
+      aria-label={t(
+        "kanban.cardAriaLabel",
+        "{{subject}} from {{sender}}. Enter to open, Space to drag.",
+        { subject, sender },
+      )}
     >
-      <div
+      <button
+        type="button"
         onClick={() => onOpen(id)}
-        style={{ cursor: "pointer" }}
+        style={{
+          width: "100%",
+          border: "none",
+          background: "transparent",
+          padding: 0,
+          textAlign: "left",
+          cursor: "pointer",
+        }}
         title={t("kanban.clickToOpen", "Click to open message")}
       >
-        <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div
+          style={{
+            fontWeight: 600,
+            color: "var(--color-text-primary)",
+            marginBottom: "4px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
           {subject}
         </div>
-      </div>
+      </button>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ color: "var(--color-text-secondary)", fontSize: "12px" }}>
-          {sender}
-        </span>
-        <span style={{ color: "var(--color-text-secondary)", fontSize: "11px", marginRight: "auto", marginLeft: "8px" }}>
+        <span style={{ color: "var(--color-text-secondary)", fontSize: "12px" }}>{sender}</span>
+        <span
+          style={{
+            color: "var(--color-text-secondary)",
+            fontSize: "11px",
+            marginRight: "auto",
+            marginLeft: "8px",
+          }}
+        >
           {new Date(message.date * 1000).toLocaleDateString()}
         </span>
         <button
-          onClick={(e) => { e.stopPropagation(); onRemove(id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(id);
+          }}
           onPointerDown={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
           style={{

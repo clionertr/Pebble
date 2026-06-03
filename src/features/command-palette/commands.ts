@@ -113,11 +113,17 @@ export function buildCommands(t: (key: string, defaultValue: string) => string):
           queryClient.invalidateQueries({ queryKey: ["messages"] });
           queryClient.invalidateQueries({ queryKey: ["threads"] });
           queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
-          const msg = result === "unarchived" ? t("messageActions.unarchiveSuccess", "Message moved to inbox") : t("messageActions.archiveSuccess", "Message archived");
+          const msg =
+            result === "unarchived"
+              ? t("messageActions.unarchiveSuccess", "Message moved to inbox")
+              : t("messageActions.archiveSuccess", "Message archived");
           useToastStore.getState().addToast({ message: msg, type: "success" });
         } catch {
           queryClient.invalidateQueries({ queryKey: ["messages"] });
-          useToastStore.getState().addToast({ message: t("messageActions.archiveFailed", "Failed to archive"), type: "error" });
+          useToastStore.getState().addToast({
+            message: t("messageActions.archiveFailed", "Failed to archive"),
+            type: "error",
+          });
         }
       },
     },
@@ -130,9 +136,15 @@ export function buildCommands(t: (key: string, defaultValue: string) => string):
         if (!id) return;
         try {
           await useKanbanStore.getState().addCard(id, "todo");
-          useToastStore.getState().addToast({ message: t("messageActions.kanbanSuccess", "Added to kanban board"), type: "success" });
+          useToastStore.getState().addToast({
+            message: t("messageActions.kanbanSuccess", "Added to kanban board"),
+            type: "success",
+          });
         } catch {
-          useToastStore.getState().addToast({ message: t("messageActions.kanbanFailed", "Failed to add to kanban"), type: "error" });
+          useToastStore.getState().addToast({
+            message: t("messageActions.kanbanFailed", "Failed to add to kanban"),
+            type: "error",
+          });
         }
       },
     },

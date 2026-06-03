@@ -4,13 +4,27 @@ import type { SearchHit, Message } from "@/lib/api";
 /** Highlight all occurrences of `terms` in `text` by wrapping in <mark>. */
 function highlightTerms(text: string, query: string): React.ReactNode {
   if (!query.trim()) return text;
-  const terms = query.trim().split(/\s+/).filter(Boolean).map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const terms = query
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   if (terms.length === 0) return text;
   const regex = new RegExp(`(${terms.join("|")})`, "gi");
   const parts = text.split(regex);
   return parts.map((part, i) =>
     regex.test(part) ? (
-      <mark key={i} style={{ background: "var(--color-accent)", color: "#fff", borderRadius: "2px", padding: "0 1px" }}>{part}</mark>
+      <mark
+        key={i}
+        style={{
+          background: "var(--color-accent)",
+          color: "#fff",
+          borderRadius: "2px",
+          padding: "0 1px",
+        }}
+      >
+        {part}
+      </mark>
     ) : (
       part
     ),
@@ -29,7 +43,10 @@ export default function SearchResultItem({ hit, message, isSelected, onClick, qu
   const { t } = useTranslation();
   const subject = hit.subject || message?.subject || hit.snippet || t("common.noSubject");
   const from = hit.from_address || message?.from_address || "";
-  const date = (hit.date || message?.date) ? new Date((hit.date || message!.date) * 1000).toLocaleDateString() : "";
+  const date =
+    hit.date || message?.date
+      ? new Date((hit.date || message!.date) * 1000).toLocaleDateString()
+      : "";
 
   return (
     <div
@@ -37,7 +54,12 @@ export default function SearchResultItem({ hit, message, isSelected, onClick, qu
       aria-selected={isSelected}
       tabIndex={0}
       onClick={onClick}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       style={{
         padding: "10px 14px",
         cursor: "pointer",

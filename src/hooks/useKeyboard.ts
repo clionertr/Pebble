@@ -122,16 +122,22 @@ export function useKeyboard() {
           if (useCommandStore.getState().isOpen) {
             useCommandStore.getState().close();
           } else if (useUIStore.getState().activeView === "compose") {
-            confirmLeaveCompose().then((ok) => { if (ok) closeComposeAfterConfirm(); });
+            confirmLeaveCompose().then((ok) => {
+              if (ok) closeComposeAfterConfirm();
+            });
           } else if (useUIStore.getState().activeView === "search") {
             useUIStore.getState().setActiveView("inbox");
           }
           break;
         case "toggle-view-inbox":
-          confirmLeaveCompose().then((ok) => { if (ok) navigateAfterComposeConfirm("inbox"); });
+          confirmLeaveCompose().then((ok) => {
+            if (ok) navigateAfterComposeConfirm("inbox");
+          });
           break;
         case "toggle-view-kanban":
-          confirmLeaveCompose().then((ok) => { if (ok) navigateAfterComposeConfirm("kanban"); });
+          confirmLeaveCompose().then((ok) => {
+            if (ok) navigateAfterComposeConfirm("kanban");
+          });
           break;
         case "toggle-star": {
           const { selectedMessageId } = useMailStore.getState();
@@ -174,13 +180,19 @@ export function useKeyboard() {
                 queryClient.invalidateQueries({ queryKey: ["messages"] });
                 queryClient.invalidateQueries({ queryKey: ["threads"] });
                 queryClient.invalidateQueries({ queryKey: ["folder-unread-counts"] });
-                const msg = result === "unarchived" ? i18n.t("messageActions.unarchiveSuccess", "Message moved to inbox") : i18n.t("messageActions.archiveSuccess", "Message archived");
+                const msg =
+                  result === "unarchived"
+                    ? i18n.t("messageActions.unarchiveSuccess", "Message moved to inbox")
+                    : i18n.t("messageActions.archiveSuccess", "Message archived");
                 useToastStore.getState().addToast({ message: msg, type: "success" });
               })
               .catch(() => {
                 queryClient.invalidateQueries({ queryKey: ["messages"] });
                 useMailStore.getState().setSelectedMessage(selectedMessageId);
-                useToastStore.getState().addToast({ message: i18n.t("messageActions.archiveFailed", "Failed to archive"), type: "error" });
+                useToastStore.getState().addToast({
+                  message: i18n.t("messageActions.archiveFailed", "Failed to archive"),
+                  type: "error",
+                });
               });
           }
           break;
@@ -250,7 +262,9 @@ export function useKeyboard() {
           break;
         }
         case "focus-search":
-          confirmLeaveCompose().then((ok) => { if (ok) navigateAfterComposeConfirm("search"); });
+          confirmLeaveCompose().then((ok) => {
+            if (ok) navigateAfterComposeConfirm("search");
+          });
           break;
         case "open-message": {
           const state = useMailStore.getState();
@@ -272,10 +286,14 @@ export function useKeyboard() {
           break;
         }
         case "open-search":
-          confirmLeaveCompose().then((ok) => { if (ok) navigateAfterComposeConfirm("search"); });
+          confirmLeaveCompose().then((ok) => {
+            if (ok) navigateAfterComposeConfirm("search");
+          });
           break;
         case "open-cloud-settings":
-          confirmLeaveCompose().then((ok) => { if (ok) navigateAfterComposeConfirm("settings"); });
+          confirmLeaveCompose().then((ok) => {
+            if (ok) navigateAfterComposeConfirm("settings");
+          });
           break;
         case "toggle-notifications": {
           const { notificationsEnabled, setNotificationsEnabled } = useSyncStore.getState();

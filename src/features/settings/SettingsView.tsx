@@ -13,7 +13,19 @@ import TranslateTab from "./TranslateTab";
 import PrivacyTab from "./PrivacyTab";
 import AboutTab from "./AboutTab";
 
-const TAB_IDS = ["accounts", "general", "proxy", "appearance", "privacy", "rules", "remoteWrites", "translation", "shortcuts", "cloudSync", "about"] as const;
+const TAB_IDS = [
+  "accounts",
+  "general",
+  "proxy",
+  "appearance",
+  "privacy",
+  "rules",
+  "remoteWrites",
+  "translation",
+  "shortcuts",
+  "cloudSync",
+  "about",
+] as const;
 
 const TAB_LABEL_KEYS: Record<string, string> = {
   accounts: "settings.accounts",
@@ -77,11 +89,17 @@ export default function SettingsView() {
               onKeyDown={(e) => {
                 if (isMobile) return;
                 let nextIndex = index;
-                if (e.key === "ArrowDown") { nextIndex = (index + 1) % TAB_IDS.length; }
-                else if (e.key === "ArrowUp") { nextIndex = (index - 1 + TAB_IDS.length) % TAB_IDS.length; }
-                else if (e.key === "Home") { nextIndex = 0; }
-                else if (e.key === "End") { nextIndex = TAB_IDS.length - 1; }
-                else { return; }
+                if (e.key === "ArrowDown") {
+                  nextIndex = (index + 1) % TAB_IDS.length;
+                } else if (e.key === "ArrowUp") {
+                  nextIndex = (index - 1 + TAB_IDS.length) % TAB_IDS.length;
+                } else if (e.key === "Home") {
+                  nextIndex = 0;
+                } else if (e.key === "End") {
+                  nextIndex = TAB_IDS.length - 1;
+                } else {
+                  return;
+                }
                 e.preventDefault();
                 handleTabChange(TAB_IDS[nextIndex]);
                 document.getElementById(`settings-tab-${TAB_IDS[nextIndex]}`)?.focus();
@@ -94,13 +112,19 @@ export default function SettingsView() {
                 padding: isMobile ? "8px 16px" : "8px 20px",
                 border: "none",
                 background: activeTab === id ? "var(--color-bg-hover)" : "none",
-                color: activeTab === id ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                color:
+                  activeTab === id ? "var(--color-text-primary)" : "var(--color-text-secondary)",
                 fontWeight: activeTab === id ? 600 : 400,
                 fontSize: "13px",
                 cursor: "pointer",
-                borderRight: !isMobile && activeTab === id ? "2px solid var(--color-accent)" : "2px solid transparent",
-                borderBottom: isMobile && activeTab === id ? "2px solid var(--color-accent)" : "none",
-                transition: "background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease",
+                borderRight:
+                  !isMobile && activeTab === id
+                    ? "2px solid var(--color-accent)"
+                    : "2px solid transparent",
+                borderBottom:
+                  isMobile && activeTab === id ? "2px solid var(--color-accent)" : "none",
+                transition:
+                  "background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease",
               }}
             >
               {t(TAB_LABEL_KEYS[id])}
@@ -119,7 +143,8 @@ export default function SettingsView() {
             flex: 1,
             minWidth: 0,
             padding: isMobile ? "16px" : "32px",
-            maxWidth: !isMobile && activeTab === "remoteWrites" ? "980px" : !isMobile ? "640px" : "100%",
+            maxWidth:
+              !isMobile && activeTab === "remoteWrites" ? "980px" : !isMobile ? "640px" : "100%",
             boxSizing: "border-box",
             overflowY: "auto",
             overflowX: "hidden",
@@ -146,17 +171,17 @@ export default function SettingsView() {
             </button>
           )}
           {activeTab === "accounts" && <AccountsTab />}
-        {activeTab === "general" && <GeneralTab />}
-        {activeTab === "proxy" && <ProxyTab />}
-        {activeTab === "appearance" && <AppearanceTab />}
-        {activeTab === "rules" && <RulesTab />}
-        {activeTab === "remoteWrites" && <PendingOpsTab />}
-        {activeTab === "translation" && <TranslateTab />}
-        {activeTab === "shortcuts" && <ShortcutsTab />}
-        {activeTab === "privacy" && <PrivacyTab />}
-        {activeTab === "cloudSync" && <CloudSyncTab />}
-        {activeTab === "about" && <AboutTab />}
-      </div>
+          {activeTab === "general" && <GeneralTab />}
+          {activeTab === "proxy" && <ProxyTab />}
+          {activeTab === "appearance" && <AppearanceTab />}
+          {activeTab === "rules" && <RulesTab />}
+          {activeTab === "remoteWrites" && <PendingOpsTab />}
+          {activeTab === "translation" && <TranslateTab />}
+          {activeTab === "shortcuts" && <ShortcutsTab />}
+          {activeTab === "privacy" && <PrivacyTab />}
+          {activeTab === "cloudSync" && <CloudSyncTab />}
+          {activeTab === "about" && <AboutTab />}
+        </div>
       )}
     </div>
   );

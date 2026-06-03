@@ -80,10 +80,10 @@ export default function CommandPalette() {
 
   return (
     <div
-      onClick={close}
       role="dialog"
       aria-modal="true"
       aria-label={t("commandPalette.title", "Command Palette")}
+      tabIndex={-1}
       style={{
         position: "fixed",
         inset: 0,
@@ -95,11 +95,25 @@ export default function CommandPalette() {
         zIndex: 1000,
       }}
     >
+      <button
+        type="button"
+        aria-label={t("common.close", "Close")}
+        onClick={close}
+        style={{
+          position: "absolute",
+          inset: 0,
+          border: "none",
+          background: "transparent",
+          cursor: "default",
+        }}
+      />
       <div
         ref={dialogRef}
-        onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
+        role="presentation"
         style={{
+          position: "relative",
+          zIndex: 1,
           width: "100%",
           maxWidth: "480px",
           backgroundColor: "var(--color-bg)",
@@ -148,14 +162,22 @@ export default function CommandPalette() {
               id={`cmd-${cmd.id}`}
               role="option"
               aria-selected={i === selectedIndex}
+              tabIndex={-1}
               onClick={() => execute(cmd.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  execute(cmd.id);
+                }
+              }}
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "10px 16px",
                 cursor: "pointer",
-                backgroundColor: i === selectedIndex ? "var(--color-bg-hover, rgba(0,0,0,0.05))" : "transparent",
+                backgroundColor:
+                  i === selectedIndex ? "var(--color-bg-hover, rgba(0,0,0,0.05))" : "transparent",
                 color: "var(--color-text-primary)",
               }}
             >

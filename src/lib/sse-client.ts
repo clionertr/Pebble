@@ -6,9 +6,11 @@ export interface Event<T> {
   payload: T;
 }
 
+type SsePayload = unknown;
+
 class SseClient {
   private source: EventSource | null = null;
-  private listeners: Map<string, Set<(event: Event<any>) => void>> = new Map();
+  private listeners: Map<string, Set<(event: Event<SsePayload>) => void>> = new Map();
   private reconnectListeners: Set<() => void> = new Set();
   private reconnectAttempt = 0;
   private maxReconnectAttempts = 10;
@@ -24,20 +26,20 @@ class SseClient {
 
   connect() {
     if (this.source) return;
-    if (typeof EventSource === 'undefined') return;
+    if (typeof EventSource === "undefined") return;
     this.reconnectAttempt = 0;
     this.doConnect();
   }
 
   private doConnect() {
-    if (typeof EventSource === 'undefined') return;
+    if (typeof EventSource === "undefined") return;
 
     if (this.source) {
       this.source.close();
       this.source = null;
     }
 
-    this.source = new EventSource('/events');
+    this.source = new EventSource("/events");
 
     this.source.onopen = () => {
       this.reconnectAttempt = 0;
@@ -54,12 +56,12 @@ class SseClient {
         this.reconnectingAfterOpen = this.hasOpened;
         this.reconnectAttempt++;
         if (this.reconnectAttempt > this.maxReconnectAttempts) {
-          console.error('[SSE] Max reconnect attempts reached, giving up');
+          console.error("[SSE] Max reconnect attempts reached, giving up");
           return;
         }
         const delay = this.computeReconnectDelay();
         console.warn(
-          `[SSE] Connection closed, reconnecting in ${Math.round(delay)}ms (attempt ${this.reconnectAttempt}/${this.maxReconnectAttempts})`
+          `[SSE] Connection closed, reconnecting in ${Math.round(delay)}ms (attempt ${this.reconnectAttempt}/${this.maxReconnectAttempts})`,
         );
         setTimeout(() => this.doConnect(), delay);
       }
@@ -77,20 +79,20 @@ class SseClient {
           const payload = JSON.parse(e.data);
           const callbacks = this.listeners.get(event);
           if (callbacks) {
-            callbacks.forEach(cb => cb({ event, payload }));
+            callbacks.forEach((cb) => cb({ event, payload }));
           }
         } catch (err) {
-          console.error('Failed to parse SSE event data', err);
+          console.error("Failed to parse SSE event data", err);
         }
       });
     }
 
-    this.listeners.get(event)!.add(handler);
+    this.listeners.get(event)!.add(handler as (event: Event<SsePayload>) => void);
 
     return () => {
       const callbacks = this.listeners.get(event);
       if (callbacks) {
-        callbacks.delete(handler);
+        callbacks.delete(handler as (event: Event<SsePayload>) => void);
       }
     };
   }
@@ -108,7 +110,7 @@ const sseClient = new SseClient();
 
 export const listen = async <T>(
   event: string,
-  handler: (event: Event<T>) => void
+  handler: (event: Event<T>) => void,
 ): Promise<() => void> => {
   return sseClient.listen(event, handler);
 };
