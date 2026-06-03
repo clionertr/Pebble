@@ -13,6 +13,7 @@ use std::sync::Arc;
 use tokio_util::io::ReaderStream;
 
 const MAX_ATTACHMENT_SIZE: usize = 25 * 1024 * 1024;
+const ATTACHMENT_OVERLOAD_MESSAGE: &str = "Too many concurrent attachment requests";
 
 pub fn attachment_routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -44,6 +45,11 @@ async fn stage_handler(
     State(state): State<Arc<AppState>>,
     mut multipart: Multipart,
 ) -> Result<axum::Json<serde_json::Value>, crate::api::error::ApiError> {
+    let _permit = state
+        .rpc_semaphore
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| crate::api::error::ApiError::too_many_requests(ATTACHMENT_OVERLOAD_MESSAGE))?;
     let mut uploaded = Vec::new();
 
     while let Some(field) = multipart

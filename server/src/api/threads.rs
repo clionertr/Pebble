@@ -12,6 +12,7 @@ use crate::state::AppState;
 
 const MAX_PAGE_LIMIT: usize = 500;
 const MAX_SEARCH_QUERY_LEN: usize = 500;
+const SEARCH_OVERLOAD_MESSAGE: &str = "Too many concurrent search requests";
 
 #[derive(Deserialize)]
 pub struct SearchQuery {
@@ -109,6 +110,11 @@ async fn search_messages(
         )));
     }
     let limit = query.limit.map(|l| l.min(MAX_PAGE_LIMIT));
+    let _permit = state
+        .rpc_semaphore
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| crate::api::error::ApiError::too_many_requests(SEARCH_OVERLOAD_MESSAGE))?;
     let hits =
         crate::rpc::search::search_messages(axum::extract::State(state), query.q, limit).await?;
 
@@ -132,6 +138,11 @@ async fn advanced_search_handler(
         .get("limit")
         .and_then(|v| v.as_u64().map(|n| n as usize))
         .map(|l| l.min(MAX_PAGE_LIMIT));
+    let _permit = state
+        .rpc_semaphore
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| crate::api::error::ApiError::too_many_requests(SEARCH_OVERLOAD_MESSAGE))?;
     let hits =
         crate::rpc::advanced_search::advanced_search(axum::extract::State(state), query, limit)
             .await?;

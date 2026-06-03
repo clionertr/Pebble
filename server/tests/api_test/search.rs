@@ -71,3 +71,28 @@ async fn advanced_search_rejects_invalid_query_shape() {
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
+
+#[tokio::test]
+async fn search_returns_429_when_concurrency_limit_is_exhausted() {
+    let (app, _dir, state) = test_app().await;
+    let cookie = login(&app).await;
+    let _permits = state
+        .rpc_semaphore
+        .clone()
+        .acquire_many_owned(64)
+        .await
+        .unwrap();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/search?q=test")
+                .header(header::COOKIE, cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+}

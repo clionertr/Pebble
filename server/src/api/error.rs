@@ -38,6 +38,13 @@ impl ApiError {
         }
     }
 
+    pub fn too_many_requests(msg: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::TOO_MANY_REQUESTS,
+            message: msg.into(),
+        }
+    }
+
     pub fn internal(msg: impl Into<String>) -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
