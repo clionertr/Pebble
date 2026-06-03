@@ -236,7 +236,7 @@ cargo audit   # 或 cargo deny check
 
 | 优先级 | 任务 | 当前状态 | 下一步验收标准 |
 |---|---|---|---|
-| P1 | 更新问题状态总表 | **部分完成**：已新增本当前状态表，避免直接把附录 A 基线当作最新事实；后续还需按 36 个问题 ID 做逐项状态映射 | 每个问题 ID 都能映射到“已修复 / 部分完成 / 剩余 / 延期 / 不建议修”；已修复项不再误导后续执行 |
+| P1 | 更新问题状态总表 | **已完成当前映射**：附录 C.1 已按 36 个问题 ID 逐项映射到“已完成 / 部分完成 / 剩余”等当前状态，避免直接把附录 A 基线当作最新事实 | 后续执行每完成一项即更新 C.1；已修复项不再误导后续执行 |
 | P1 | OpenAPI 路由 diff 自动测试 | **已完成**：已新增 `api::docs::tests::openapi_paths_match_public_routes`，用于扫描真实路由并比较 OpenAPI paths | `cargo test -p pebble openapi_paths_match_public_routes -- --nocapture` 通过；后续新增公开路由缺文档会失败 |
 | P1 | Rust 依赖安全/许可证检查进入 CI | **已完成 CI 接入**：`deny.toml` 存在，CI 已加入 SHA pin 的 `EmbarkStudios/cargo-deny-action`；本机当前未安装 `cargo-deny`，无法直接跑本地复核 | CI cargo-deny job 通过；已知例外写入 `deny.toml` |
 | P1 | 错误类型统一 | **部分完成**：`rpc/health.rs`、`rpc/diagnostics.rs` 已迁到 `PebbleError`，`auth_api` 已改走 `ApiError`，`record_timing` 不再向客户端拼接内部错误；仍需持续审视新 handler 边界 | 客户端只见安全文案，日志保留内部细节；新增 handler 不再绕过 `ApiError` |
