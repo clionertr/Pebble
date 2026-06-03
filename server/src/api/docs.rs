@@ -695,7 +695,9 @@ mod tests {
         let entries = fs::read_dir(dir).expect("read api dir");
         for entry in entries {
             let path = entry.expect("read api entry").path();
-            if path.extension().is_some_and(|ext| ext == "rs") {
+            if path.is_dir() {
+                collect_routes_from_dir(&path, routes);
+            } else if path.extension().is_some_and(|ext| ext == "rs") {
                 collect_routes_from_file(&path, routes);
             }
         }

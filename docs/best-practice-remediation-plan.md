@@ -242,7 +242,7 @@ cargo audit   # 或 cargo deny check
 | P1 | 错误类型统一 | **已完成当前 API 边界**：`rpc/health.rs`、`rpc/diagnostics.rs` 已迁到 `PebbleError`，`auth_api` 已改走 `ApiError`，`record_timing` 不再向客户端拼接内部错误；新增静态测试防止 `/api` handler 回退到 `Result<..., String>` 或裸 `StatusCode + Json` | `cargo test -p pebble --test api_baseline api_handlers_do_not_bypass_api_error_boundary -- --nocapture` 通过；客户端只见安全文案，日志保留内部细节 |
 | P1 | IMAP 错误保留上下文 | **已完成当前范围**：IMAP 测试连接的 TCP/SOCKS5/TLS/greeting 超时错误带目标地址；深层 SELECT/FETCH/STORE/MOVE/IDLE 等命令统一经 `with_imap_timeout()` 保留操作名和原始错误；IMAP UID 解析错误也保留 `ParseIntError` 上下文 | `rg 'map_err\(\|_\|' crates/pebble-mail/src/imap.rs server/src/rpc/messages/provider_dispatch.rs` 无输出；相关单测通过 |
 | P1 | 关键 API 测试补齐 | **已完成 API 范围**：已有 API baseline、auth、OAuth callback、Compose send、messages、shell、snooze、trusted_senders、搜索、通知测试；OpenAPI diff 测试已补入 | 端到端覆盖继续作为 P3 E2E 项推进 |
-| P2 | 拆 `api/resources.rs` | **剩余** | 建立 route snapshot/OpenAPI diff 保护后，按 rules/translate/cloud_sync/trusted_senders/templates/diagnostics/proxy 拆分 |
+| P2 | 拆 `api/resources.rs` | **已完成**：`resources.rs` 已改为聚合路由，rules/translate/contacts/cloud_sync/trusted_senders/templates/preferences/diagnostics/proxy 已拆到 `server/src/api/resources/` 子模块 | 递归 OpenAPI route diff、API 测试、全量 Rust 测试通过；路由行为不变 |
 | P2 | 拆 `api/threads.rs` | **剩余** | 先抽 `parse_folder_ids` 和搜索请求类型，再拆 search/kanban/snooze；路由行为不变 |
 | P2 | 继续收敛 `spawn_blocking` 样板 | **已完成 RPC 层收敛**：已新增 `Store::with_blocking_async()` 和 `rpc::blocking::run_blocking()`；search/advanced_search、messages flags/rendering、batch、attachments、accounts cleanup、reindex 等旧 join-error 样板已迁移 | `rg 'tokio::task::spawn_blocking|Task join error' server/src/rpc` 仅剩统一 helper；全量 Rust 质量门通过 |
 | P2 | 纯透传 RPC 分类和可见性收敛 | **已完成当前清单**：薄 RPC 已按“保留边界 / 收窄可见性 / 删除遗留透传”分类；labels/rules/kanban/snooze/threads/messages query 等仅 crate 内调用的函数已改 `pub(crate)`，未使用的 `get_global_proxy()` 已删除 | `cargo clippy --workspace --all-targets -- -D warnings` 与 API 测试通过；分类结果见 C.2 |
@@ -275,7 +275,7 @@ cargo audit   # 或 cargo deny check
 | C-ASSET-01 | **已完成** | 根目录 `icon.png` 已从 20MB 压缩到约 703KB。 |
 | C-DOC-02 | **已完成** | README 中 `curl | bash` 已补校验替代方案，中英文 README 已同步。 |
 | D-ARCH-01 | **已完成当前清单** | 已写入 API/RPC/store 边界规范；纯透传 RPC 已完成分类和可见性收敛，保留的薄函数作为 API → service 边界存在。 |
-| D-ARCH-02 | **部分完成** | 通知业务已下沉到 service；`api/resources.rs`、`api/threads.rs` 等胖 handler 仍需拆分。 |
+| D-ARCH-02 | **部分完成** | 通知业务已下沉到 service；`api/resources.rs` 已按资源域拆分；`api/threads.rs` 等胖 handler 仍需继续拆分。 |
 | D-DEAD-01 | **已完成** | Tauri 遗留引用已清理，API/RPC inventory 测试覆盖无 `/rpc` 暴露。 |
 | D-ERR-01 | **已完成** | 请求可达 `.unwrap()` 已清理到安全位置或测试代码；质量门包含 clippy 和全量测试。 |
 | D-ERR-02 | **已完成服务端审视** | 关键搜索 pending、账号回滚、归档文件夹种子、IMAP 断开、Gmail realtime 错误记录等业务路径已有日志或显式错误传播；服务端剩余 `let _ =` 仅为事件广播、临时文件/测试目录清理。 |
