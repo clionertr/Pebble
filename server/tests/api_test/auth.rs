@@ -1,7 +1,14 @@
 use crate::test_app;
 use axum::body::Body;
-use axum::http::{header, Request, StatusCode};
+use axum::http::{header, Request, Response, StatusCode};
 use tower::ServiceExt;
+
+async fn response_text(response: Response<Body>) -> String {
+    let body = axum::body::to_bytes(response.into_body(), 4096)
+        .await
+        .unwrap();
+    String::from_utf8(body.to_vec()).unwrap()
+}
 
 #[tokio::test]
 async fn unauthenticated_api_returns_401() {
@@ -373,6 +380,64 @@ async fn auth_exempt_routes_are_accessible() {
 
     // Redirect or error from missing config, but NOT 401 from auth middleware
     assert_ne!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn oauth_callback_error_is_accessible_and_escapes_html() {
+    let (app, _dir, _state) = test_app().await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/callback?error=%3Cscript%3Ealert(1)%3C/script%3E")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response_text(response).await;
+    assert!(body.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
+    assert!(!body.contains("<script>alert(1)</script>"));
+}
+
+#[tokio::test]
+async fn oauth_callback_missing_code_returns_error_page() {
+    let (app, _dir, _state) = test_app().await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/callback?state=csrf-state")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response_text(response).await;
+    assert!(body.contains("Missing code"));
+}
+
+#[tokio::test]
+async fn oauth_callback_invalid_state_returns_expired_session_page() {
+    let (app, _dir, _state) = test_app().await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/callback?code=auth-code&state=unknown-state")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response_text(response).await;
+    assert!(body.contains("Invalid or expired session"));
 }
 
 #[tokio::test]

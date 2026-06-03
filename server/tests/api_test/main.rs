@@ -17,6 +17,7 @@ use axum::{
 };
 use pebble::api::api_routes;
 use pebble::api::auth_api;
+use pebble::auth as oauth_auth;
 use pebble::middleware;
 use pebble::state::AppState;
 use std::sync::Arc;
@@ -57,8 +58,8 @@ pub async fn test_app() -> (Router, TempDir, Arc<AppState>) {
         .route("/__test_state_marker", get(__state_marker))
         .route("/events", get(|| async { "events" }))
         .route("/webhook/gmail", post(|| async { "ok" }))
-        .route("/auth/login", get(|| async { "login page" }))
-        .route("/auth/callback", get(|| async { "callback" }))
+        .route("/auth/login", get(oauth_auth::login_handler))
+        .route("/auth/callback", get(oauth_auth::callback_handler))
         .merge(api_routes())
         .merge(auth_api::auth_routes())
         .layer(axum::middleware::from_fn_with_state(
