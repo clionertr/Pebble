@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Mail, Pencil, Plug, PowerOff, RadioTower } from "lucide-react";
+import { Plus, Mail } from "lucide-react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   deleteAccount,
@@ -19,13 +18,14 @@ import {
 import type { Account, AccountProxyMode, ConnectionSecurity, GmailRealtimeConfig } from "@/lib/api";
 import { useAccountsQuery, accountsQueryKey, shellQueryKey, useShellQuery } from "@/hooks/queries";
 import { useMailStore } from "@/stores/mail.store";
-import { useSyncStore, type RealtimeStatus } from "@/stores/sync.store";
+import { useSyncStore } from "@/stores/sync.store";
 import { useToastStore } from "@/stores/toast.store";
 import AccountSetup from "@/components/AccountSetup";
 import { extractErrorMessage } from "@/lib/extractErrorMessage";
 import { getSignature, setSignature } from "@/lib/signatures";
 import { ACCOUNT_COLOR_PRESETS, assignAccountColors, getAccountColor } from "@/lib/accountColors";
 import { inputStyle, labelStyle } from "../../styles/form";
+import { AccountsList, getGmailRealtimeStatusText } from "./AccountsList";
 
 export default function AccountsTab() {
   const { t } = useTranslation();
@@ -212,248 +212,19 @@ export default function AccountsTab() {
           </button>
         </div>
       ) : (
-        /* Account list */
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "1px",
-            borderRadius: "8px",
-            overflow: "hidden",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          {accounts.map((account, index) => {
-            const realtimeStatus = realtimeStatusByAccount[account.id];
-            const realtimeLabel = getAccountRealtimeStatusText(realtimeStatus, t);
-            const gmailRealtimeConfig = gmailRealtimeByAccount[account.id];
-            const gmailRealtimeLabel =
-              account.provider === "gmail"
-                ? getGmailRealtimeStatusText(
-                    gmailRealtimeConfig,
-                    gmailRealtimeActionId === account.id && !gmailRealtimeConfig?.enabled
-                      ? "enabling"
-                      : null,
-                    t,
-                  )
-                : null;
-            const accountColor = accountColorsById.get(account.id) ?? getAccountColor(account);
-
-            return (
-              <div
-                key={account.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "14px 16px",
-                  backgroundColor: "var(--color-bg)",
-                  borderTop: index > 0 ? "1px solid var(--color-border)" : "none",
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        width: "8px",
-                        height: "8px",
-                        borderRadius: "50%",
-                        backgroundColor: accountColor,
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span style={{ fontSize: "13px", fontWeight: 500 }}>
-                      {account.display_name}
-                    </span>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      color: "var(--color-text-secondary)",
-                    }}
-                  >
-                    {account.email}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      color: "var(--color-text-secondary)",
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {account.provider}
-                  </span>
-                  {realtimeLabel && (
-                    <span
-                      aria-label={realtimeLabel}
-                      title={realtimeStatus?.message ?? realtimeLabel}
-                      style={{
-                        fontSize: "11px",
-                        color: "var(--color-text-secondary)",
-                      }}
-                    >
-                      {realtimeLabel}
-                    </span>
-                  )}
-                  {gmailRealtimeLabel && (
-                    <span
-                      aria-label={gmailRealtimeLabel}
-                      title={gmailRealtimeConfig?.lastError ?? gmailRealtimeLabel}
-                      style={{
-                        fontSize: "11px",
-                        color: "var(--color-text-secondary)",
-                      }}
-                    >
-                      {t("settings.gmailRealtime", "Gmail realtime")}: {gmailRealtimeLabel}
-                    </span>
-                  )}
-                </div>
-                <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-                  {account.provider === "gmail" && (
-                    <button
-                      onClick={() => doToggleGmailRealtime(account)}
-                      disabled={
-                        gmailRealtimeActionId === account.id ||
-                        (!!gmailRealtimeConfig?.configMissing && !gmailRealtimeConfig.enabled)
-                      }
-                      title={getGmailRealtimeActionLabel(gmailRealtimeConfig, t)}
-                      aria-label={getGmailRealtimeActionLabel(gmailRealtimeConfig, t)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "6px",
-                        borderRadius: "6px",
-                        border: "none",
-                        backgroundColor: "transparent",
-                        color: gmailRealtimeConfig?.enabled
-                          ? "var(--color-accent)"
-                          : "var(--color-text-secondary)",
-                        cursor:
-                          gmailRealtimeActionId === account.id ||
-                          (!!gmailRealtimeConfig?.configMissing && !gmailRealtimeConfig.enabled)
-                            ? "not-allowed"
-                            : "pointer",
-                        opacity:
-                          gmailRealtimeActionId === account.id ||
-                          (!!gmailRealtimeConfig?.configMissing && !gmailRealtimeConfig.enabled)
-                            ? 0.55
-                            : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (
-                          gmailRealtimeActionId === account.id ||
-                          (!!gmailRealtimeConfig?.configMissing && !gmailRealtimeConfig.enabled)
-                        )
-                          return;
-                        e.currentTarget.style.color = gmailRealtimeConfig?.enabled
-                          ? "#ef4444"
-                          : "var(--color-accent)";
-                        e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.color = gmailRealtimeConfig?.enabled
-                          ? "var(--color-accent)"
-                          : "var(--color-text-secondary)";
-                        e.currentTarget.style.backgroundColor = "transparent";
-                      }}
-                    >
-                      {gmailRealtimeConfig?.enabled ? (
-                        <PowerOff size={15} />
-                      ) : (
-                        <RadioTower size={15} />
-                      )}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => doTestConnection(account.id)}
-                    disabled={testingId === account.id}
-                    title={t("accountSetup.testConnection", "Test Connection")}
-                    aria-label={t("accountSetup.testConnection", "Test Connection")}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "6px",
-                      borderRadius: "6px",
-                      border: "none",
-                      backgroundColor: "transparent",
-                      color:
-                        testingId === account.id
-                          ? "var(--color-accent)"
-                          : "var(--color-text-secondary)",
-                      cursor: testingId === account.id ? "wait" : "pointer",
-                      opacity: testingId === account.id ? 0.6 : 1,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (testingId !== account.id) {
-                        e.currentTarget.style.color = "var(--color-accent)";
-                        e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (testingId !== account.id) {
-                        e.currentTarget.style.color = "var(--color-text-secondary)";
-                        e.currentTarget.style.backgroundColor = "transparent";
-                      }
-                    }}
-                  >
-                    <Plug size={15} />
-                  </button>
-                  <button
-                    onClick={() => setEditingAccount(account)}
-                    title={t("settings.editAccount", "Edit account")}
-                    aria-label={t("settings.editAccount", "Edit account")}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "6px",
-                      borderRadius: "6px",
-                      border: "none",
-                      backgroundColor: "transparent",
-                      color: "var(--color-text-secondary)",
-                      cursor: "pointer",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = "var(--color-accent)";
-                      e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = "var(--color-text-secondary)";
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    <Pencil size={15} />
-                  </button>
-                  <button
-                    onClick={() => setDeleteTarget({ id: account.id, email: account.email })}
-                    title={t("settings.removeAccount")}
-                    aria-label={t("settings.removeAccount")}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "6px",
-                      borderRadius: "6px",
-                      border: "none",
-                      backgroundColor: "transparent",
-                      color: "var(--color-text-secondary)",
-                      cursor: "pointer",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = "#ef4444";
-                      e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.08)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = "var(--color-text-secondary)";
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <AccountsList
+          accounts={accounts}
+          accountColorsById={accountColorsById}
+          realtimeStatusByAccount={realtimeStatusByAccount}
+          gmailRealtimeByAccount={gmailRealtimeByAccount}
+          gmailRealtimeActionId={gmailRealtimeActionId}
+          testingId={testingId}
+          onToggleGmailRealtime={doToggleGmailRealtime}
+          onTestConnection={doTestConnection}
+          onEdit={setEditingAccount}
+          onDelete={setDeleteTarget}
+          t={t}
+        />
       )}
 
       {/* Test result */}
@@ -512,69 +283,6 @@ export default function AccountsTab() {
       )}
     </div>
   );
-}
-
-function getAccountRealtimeStatusText(status: RealtimeStatus | undefined, t: TFunction) {
-  if (!status) return null;
-
-  if (status.message) {
-    return status.message;
-  }
-
-  switch (status.mode) {
-    case "realtime":
-      return t("status.realtimeConnected", "Realtime connected");
-    case "polling":
-      return t("status.realtimePolling", "Polling");
-    case "manual":
-      return t("status.realtimeManual", "Manual only");
-    case "backoff":
-      return t("status.realtimeBackoff", "Retrying");
-    case "auth_required":
-      return t("status.realtimeAuthRequired", "Reconnect required");
-    case "offline":
-      return t("status.offline", "Offline");
-    case "error":
-      return t("status.realtimeError", "Realtime error");
-  }
-}
-
-function getGmailRealtimeStatusText(
-  config: GmailRealtimeConfig | undefined | null,
-  transientStatus: "enabling" | null,
-  t: TFunction,
-) {
-  if (transientStatus === "enabling") {
-    return t("settings.gmailRealtimeEnabling", "Enabling...");
-  }
-  if (!config) return null;
-
-  switch (config.status) {
-    case "not_enabled":
-      return t("settings.gmailRealtimeNotEnabled", "Not enabled");
-    case "enabling":
-      return t("settings.gmailRealtimeEnabling", "Enabling...");
-    case "realtime_enabled":
-      return t("settings.gmailRealtimeEnabledStatus", "Realtime enabled");
-    case "renewing":
-      return t("settings.gmailRealtimeRenewing", "Renewing...");
-    case "realtime_error":
-      return t("settings.gmailRealtimeError", "Realtime error");
-    case "reconnect_required":
-      return t("settings.gmailRealtimeReconnectRequired", "Reconnect required");
-    case "config_missing":
-      return t("settings.gmailRealtimeConfigMissing", "Config missing");
-  }
-}
-
-function getGmailRealtimeActionLabel(config: GmailRealtimeConfig | undefined, t: TFunction) {
-  if (config?.enabled) {
-    return t("settings.disableGmailRealtime", "Disable realtime Gmail");
-  }
-  if (config?.configMissing) {
-    return t("settings.gmailRealtimeConfigMissing", "Config missing");
-  }
-  return t("settings.enableGmailRealtime", "Enable realtime Gmail");
 }
 
 function EditAccountModal({
