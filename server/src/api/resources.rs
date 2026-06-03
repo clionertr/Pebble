@@ -420,10 +420,7 @@ pub struct LogsQuery {
 async fn read_logs(
     Query(q): Query<LogsQuery>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::ApiError> {
-    let snapshot = crate::rpc::diagnostics::read_app_log(q.max_bytes).map_err(|e| {
-        tracing::error!("Failed to read app log: {e}");
-        crate::api::error::ApiError::internal("Internal server error")
-    })?;
+    let snapshot = crate::rpc::diagnostics::read_app_log(q.max_bytes)?;
     Ok(Json(serde_json::to_value(snapshot)?))
 }
 
@@ -432,9 +429,7 @@ async fn record_timing(
 ) -> Result<Json<()>, crate::api::error::ApiError> {
     let timing: crate::rpc::diagnostics::MailDisplayTiming = serde_json::from_value(timing)
         .map_err(|e| crate::api::error::ApiError::bad_request(e.to_string()))?;
-    crate::rpc::diagnostics::record_mail_display_timing(timing).map_err(|e| {
-        crate::api::error::ApiError::internal(format!("Failed to record timing: {e}"))
-    })?;
+    crate::rpc::diagnostics::record_mail_display_timing(timing)?;
     Ok(Json(()))
 }
 

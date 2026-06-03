@@ -229,6 +229,31 @@ cargo audit   # 或 cargo deny check
 
 ---
 
+## 附录 C：当前剩余任务状态表
+
+> 更新日期：2026-06-03
+> 说明：附录 A 是第 0 阶段基线快照，保留历史证据；本表反映当前执行状态，后续任务以本表为准。
+
+| 优先级 | 任务 | 当前状态 | 下一步验收标准 |
+|---|---|---|---|
+| P1 | 更新问题状态总表 | **部分完成**：已新增本当前状态表，避免直接把附录 A 基线当作最新事实；后续还需按 36 个问题 ID 做逐项状态映射 | 每个问题 ID 都能映射到“已修复 / 部分完成 / 剩余 / 延期 / 不建议修”；已修复项不再误导后续执行 |
+| P1 | OpenAPI 路由 diff 自动测试 | **已完成**：已新增 `api::docs::tests::openapi_paths_match_public_routes`，用于扫描真实路由并比较 OpenAPI paths | `cargo test -p pebble openapi_paths_match_public_routes -- --nocapture` 通过；后续新增公开路由缺文档会失败 |
+| P1 | Rust 依赖安全/许可证检查进入 CI | **已完成 CI 接入**：`deny.toml` 存在，CI 已加入 SHA pin 的 `EmbarkStudios/cargo-deny-action`；本机当前未安装 `cargo-deny`，无法直接跑本地复核 | CI cargo-deny job 通过；已知例外写入 `deny.toml` |
+| P1 | 错误类型统一 | **部分完成**：本轮已将 `rpc/health.rs`、`rpc/diagnostics.rs` 迁到 `PebbleError`，`record_timing` 不再向客户端拼接内部错误；仍需继续处理其他字符串边界 | 继续统一剩余 `Result<_, String>`；客户端只见安全文案，日志保留内部细节 |
+| P1 | IMAP 错误保留上下文 | **部分完成**：本轮已让 IMAP 测试连接的 TCP/SOCKS5/TLS/greeting 超时错误带目标地址；仍需继续整理更深层 IMAP 命令错误分类 | 保留原始错误或分类；测试能区分连接失败、超时、TLS、认证失败 |
+| P1 | 关键 API 测试补齐 | **部分完成**：已有 API baseline、auth、messages、shell、snooze、trusted_senders 测试；OpenAPI diff 测试本轮补入 | 继续补 Compose send、搜索 API、通知 API、OAuth callback 行为测试 |
+| P2 | 拆 `api/resources.rs` | **剩余** | 建立 route snapshot/OpenAPI diff 保护后，按 rules/translate/cloud_sync/trusted_senders/templates/diagnostics/proxy 拆分 |
+| P2 | 拆 `api/threads.rs` | **剩余** | 先抽 `parse_folder_ids` 和搜索请求类型，再拆 search/kanban/snooze；路由行为不变 |
+| P2 | 继续收敛 `spawn_blocking` 样板 | **部分完成**：已新增 `Store::with_blocking_async()` 并迁移 threads/messages/folders/folder_counts 部分路径 | 继续迁移 search/advanced_search、messages flags/rendering、batch 等旧 join-error 样板 |
+| P2 | 纯透传 RPC 分类和可见性收敛 | **剩余**：已有边界规范，但未逐函数出处理清单 | 每个薄 RPC 有保留/收敛/删除结论；仅 crate 内使用的函数改 `pub(crate)` |
+| P2 | GitHub Actions 产物证明/SBOM | **部分完成**：Actions 已 SHA pin，Docker digest pin 已完成；release 已有 artifact 下载/发布流程 | 发布产物补 checksum；评估 artifact attestations/SBOM |
+| P3 | 巨型同步/Provider 文件拆分 | **剩余** | 先补 provider fake/同步回归测试，再按状态机、协议请求、消息转换、错误分类拆 |
+| P3 | 前端巨型组件拆分 | **剩余** | `AccountsTab.tsx`、`ComposeView.tsx` 按职责拆分；前端测试和构建通过 |
+| P3 | Trellis 包级占位规范清理 | **部分完成**：主 `pebble/backend` 已补齐；包级 spec 仍有大量 `(To be filled by the team)` | `.trellis/spec/*` 不再大面积存在占位正文；每个包至少有真实目录/质量/错误规范入口 |
+| P3 | E2E 覆盖 | **剩余** | 核心用户流 E2E 覆盖 OAuth 到账号创建、Compose 到发送、搜索到 UI |
+
+---
+
 ## 附录 A：第 0 阶段核验报告（基线快照）
 
 > 核验日期：2026-06-02

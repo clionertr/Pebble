@@ -285,6 +285,12 @@ fn imap_timeout_error(operation: &str, seconds: u64) -> PebbleError {
     PebbleError::Network(format!("{operation} timed out after {seconds}s"))
 }
 
+fn imap_timeout_error_for_target(operation: &str, target: &str, seconds: u64) -> PebbleError {
+    PebbleError::Network(format!(
+        "{operation} to {target} timed out after {seconds}s"
+    ))
+}
+
 async fn with_imap_timeout<T, E, Fut>(operation: &str, seconds: u64, future: Fut) -> Result<T>
 where
     E: Display,
@@ -651,9 +657,7 @@ impl ImapProvider {
                 tokio_socks::tcp::Socks5Stream::connect(proxy_addr.as_str(), addr.as_str()),
             )
             .await
-            .map_err(|_| {
-                PebbleError::Network(format!("SOCKS5 connect to {proxy_addr} timed out (10s)"))
-            })?
+            .map_err(|_| imap_timeout_error_for_target("SOCKS5 connect", &proxy_addr, 10))?
             .map_err(|e| PebbleError::Network(format!("SOCKS5 proxy: {e}")))?;
             let tcp = stream.into_inner();
             report.push_str(&format!(
@@ -667,7 +671,7 @@ impl ImapProvider {
                 TcpStream::connect(&addr),
             )
             .await
-            .map_err(|_| PebbleError::Network(format!("TCP connect to {addr} timed out (10s)")))?
+            .map_err(|_| imap_timeout_error_for_target("TCP connect", &addr, 10))?
             .map_err(|e| PebbleError::Network(format!("TCP connect: {e}")))?;
             if let Ok(peer) = tcp.peer_addr() {
                 report.push_str(&format!(
@@ -692,7 +696,7 @@ impl ImapProvider {
                     tls_connect(&config.host, tcp),
                 )
                 .await
-                .map_err(|_| PebbleError::Network("TLS handshake timed out (10s)".into()))??;
+                .map_err(|_| imap_timeout_error_for_target("TLS handshake", &config.host, 10))??;
                 report.push_str(&format!(
                     "TLS handshake (implicit): OK ({:.0}ms)\n",
                     t1.elapsed().as_millis()
@@ -705,7 +709,7 @@ impl ImapProvider {
                     tokio::time::timeout(std::time::Duration::from_secs(10), tls.read(&mut buf))
                         .await
                         .map_err(|_| {
-                            PebbleError::Network("Read IMAP greeting timed out (10s)".into())
+                            imap_timeout_error_for_target("Read IMAP greeting", &addr, 10)
                         })?
                         .map_err(|e| PebbleError::Network(format!("Read greeting: {e}")))?;
                 let greeting = String::from_utf8_lossy(&buf[..n]);
@@ -724,7 +728,7 @@ impl ImapProvider {
                     tokio::time::timeout(std::time::Duration::from_secs(10), tcp.read(&mut buf))
                         .await
                         .map_err(|_| {
-                            PebbleError::Network("Read plain greeting timed out (10s)".into())
+                            imap_timeout_error_for_target("Read plain greeting", &addr, 10)
                         })?
                         .map_err(|e| PebbleError::Network(format!("Read greeting: {e}")))?;
                 let greeting = String::from_utf8_lossy(&buf[..n]);
@@ -746,9 +750,7 @@ impl ImapProvider {
                 let n =
                     tokio::time::timeout(std::time::Duration::from_secs(10), tcp.read(&mut resp))
                         .await
-                        .map_err(|_| {
-                            PebbleError::Network("STARTTLS response timed out (10s)".into())
-                        })?
+                        .map_err(|_| imap_timeout_error_for_target("STARTTLS response", &addr, 10))?
                         .map_err(|e| {
                             PebbleError::Network(format!("Read STARTTLS response: {e}"))
                         })?;
@@ -766,7 +768,7 @@ impl ImapProvider {
                     tls_connect(&config.host, tcp),
                 )
                 .await
-                .map_err(|_| PebbleError::Network("TLS upgrade timed out (10s)".into()))??;
+                .map_err(|_| imap_timeout_error_for_target("TLS upgrade", &config.host, 10))??;
                 report.push_str(&format!(
                     "TLS upgrade (STARTTLS): OK ({:.0}ms)\n",
                     t3.elapsed().as_millis()
@@ -781,7 +783,7 @@ impl ImapProvider {
                     tokio::time::timeout(std::time::Duration::from_secs(10), tcp.read(&mut buf))
                         .await
                         .map_err(|_| {
-                            PebbleError::Network("Read plain greeting timed out (10s)".into())
+                            imap_timeout_error_for_target("Read plain greeting", &addr, 10)
                         })?
                         .map_err(|e| PebbleError::Network(format!("Read greeting: {e}")))?;
                 let greeting = String::from_utf8_lossy(&buf[..n]);
@@ -1540,7 +1542,7 @@ pub fn folder_sort_order(role: &Option<FolderRole>) -> i32 {
 
 #[cfg(test)]
 mod tls_config_tests {
-    use super::{build_tls_connector, imap_timeout_error};
+    use super::{build_tls_connector, imap_timeout_error, imap_timeout_error_for_target};
 
     #[test]
     fn build_tls_connector_returns_result() {
@@ -1554,6 +1556,16 @@ mod tls_config_tests {
         assert_eq!(
             error.to_string(),
             "Network error: UID FETCH timed out after 30s"
+        );
+    }
+
+    #[test]
+    fn imap_timeout_error_for_target_names_destination() {
+        let error = imap_timeout_error_for_target("TCP connect", "imap.example.com:993", 10);
+
+        assert_eq!(
+            error.to_string(),
+            "Network error: TCP connect to imap.example.com:993 timed out after 10s"
         );
     }
 }

@@ -1,3 +1,4 @@
+use pebble_core::PebbleError;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{Read, Seek, SeekFrom};
@@ -37,7 +38,7 @@ fn app_log_path(app_data_dir: &Path) -> PathBuf {
     app_log_dir(app_data_dir).join(LOG_FILE_NAME)
 }
 
-fn read_log_tail(path: &Path, max_bytes: u64) -> Result<AppLogSnapshot, String> {
+fn read_log_tail(path: &Path, max_bytes: u64) -> Result<AppLogSnapshot, PebbleError> {
     let path_display = path.display().to_string();
     let Ok(metadata) = fs::metadata(path) else {
         return Ok(AppLogSnapshot {
@@ -50,13 +51,14 @@ fn read_log_tail(path: &Path, max_bytes: u64) -> Result<AppLogSnapshot, String> 
     let file_len = metadata.len();
     let truncated = file_len > max_bytes;
     let start = if truncated { file_len - max_bytes } else { 0 };
-    let mut file = fs::File::open(path).map_err(|e| format!("Failed to open app log: {e}"))?;
+    let mut file = fs::File::open(path)
+        .map_err(|e| PebbleError::Internal(format!("Failed to open app log: {e}")))?;
     file.seek(SeekFrom::Start(start))
-        .map_err(|e| format!("Failed to seek app log: {e}"))?;
+        .map_err(|e| PebbleError::Internal(format!("Failed to seek app log: {e}")))?;
 
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes)
-        .map_err(|e| format!("Failed to read app log: {e}"))?;
+        .map_err(|e| PebbleError::Internal(format!("Failed to read app log: {e}")))?;
 
     Ok(AppLogSnapshot {
         path: path_display,
@@ -65,7 +67,7 @@ fn read_log_tail(path: &Path, max_bytes: u64) -> Result<AppLogSnapshot, String> 
     })
 }
 
-pub fn read_app_log(max_bytes: Option<u64>) -> Result<AppLogSnapshot, String> {
+pub fn read_app_log(max_bytes: Option<u64>) -> Result<AppLogSnapshot, PebbleError> {
     let app_data_dir = std::path::PathBuf::from("./data");
     let max_bytes = max_bytes
         .unwrap_or(DEFAULT_LOG_MAX_BYTES)
@@ -73,7 +75,7 @@ pub fn read_app_log(max_bytes: Option<u64>) -> Result<AppLogSnapshot, String> {
     read_log_tail(&app_log_path(&app_data_dir), max_bytes)
 }
 
-pub fn record_mail_display_timing(timing: MailDisplayTiming) -> Result<(), String> {
+pub fn record_mail_display_timing(timing: MailDisplayTiming) -> Result<(), PebbleError> {
     if !crate::mail_latency::debug_enabled() {
         return Ok(());
     }

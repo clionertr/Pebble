@@ -1,6 +1,8 @@
 use semver::Version;
 use serde::Serialize;
 
+use pebble_core::PebbleError;
+
 #[derive(Serialize)]
 pub struct UpdateInfo {
     pub latest_version: String,
@@ -8,31 +10,34 @@ pub struct UpdateInfo {
     pub is_newer: bool,
 }
 
-pub async fn check_for_update(current_version: String) -> Result<UpdateInfo, String> {
+pub async fn check_for_update(current_version: String) -> Result<UpdateInfo, PebbleError> {
     let client = reqwest::Client::builder()
         .user_agent("Pebble-Email-Client")
         .build()
-        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
+        .map_err(|e| PebbleError::Network(format!("Failed to create HTTP client: {e}")))?;
 
     let resp = client
         .get("https://api.github.com/repos/clionertr/Pebble/releases/latest")
         .header("Accept", "application/vnd.github.v3+json")
         .send()
         .await
-        .map_err(|e| format!("Failed to check for updates: {e}"))?;
+        .map_err(|e| PebbleError::Network(format!("Failed to check for updates: {e}")))?;
 
     if !resp.status().is_success() {
-        return Err(format!("GitHub API returned status {}", resp.status()));
+        return Err(PebbleError::Network(format!(
+            "GitHub API returned status {}",
+            resp.status()
+        )));
     }
 
     let data: serde_json::Value = resp
         .json()
         .await
-        .map_err(|e| format!("Failed to parse response: {e}"))?;
+        .map_err(|e| PebbleError::Network(format!("Failed to parse response: {e}")))?;
 
     let tag = data["tag_name"]
         .as_str()
-        .ok_or("Missing tag_name in response")?;
+        .ok_or_else(|| PebbleError::Network("Missing tag_name in response".to_string()))?;
     let latest = tag.trim_start_matches('v').to_string();
     let release_url = data["html_url"]
         .as_str()
@@ -51,22 +56,24 @@ pub async fn check_for_update(current_version: String) -> Result<UpdateInfo, Str
     })
 }
 
-pub fn open_external_url(url: String) -> Result<(), String> {
-    // Only allow safe URL schemes to prevent command injection via opener::open / ShellExecuteW
+pub fn open_external_url(url: String) -> Result<(), PebbleError> {
+    // 只允许安全 URL scheme，避免 opener::open / ShellExecuteW 被注入危险命令。
     if !url.starts_with("https://") && !url.starts_with("http://") && !url.starts_with("mailto:") {
-        return Err("Only https://, http://, and mailto: URLs are permitted".to_string());
+        return Err(PebbleError::Validation(
+            "Only https://, http://, and mailto: URLs are permitted".to_string(),
+        ));
     }
-    opener::open(&url).map_err(|e| format!("Failed to open URL: {e}"))
+    opener::open(&url).map_err(|e| PebbleError::Internal(format!("Failed to open URL: {e}")))
 }
 
 pub fn health_check(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
-) -> Result<String, String> {
+) -> Result<String, PebbleError> {
     match state.store.list_accounts() {
         Ok(accounts) => Ok(format!(
             "Pebble is healthy. {} account(s) configured.",
             accounts.len()
         )),
-        Err(e) => Err(format!("Health check failed: {}", e)),
+        Err(e) => Err(PebbleError::Storage(format!("Health check failed: {e}"))),
     }
 }

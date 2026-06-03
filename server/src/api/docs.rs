@@ -618,3 +618,173 @@ fn build_spec() -> Value {
 
     spec
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::fs;
+    use std::path::Path;
+
+    #[test]
+    fn openapi_paths_match_public_routes() {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let mut routes = BTreeMap::new();
+        collect_routes_from_dir(&manifest_dir.join("src/api"), &mut routes);
+        collect_routes_from_file(&manifest_dir.join("src/main.rs"), &mut routes);
+
+        for excluded in [
+            "/api/docs",
+            "/api/docs/openapi.json",
+            "/auth/login",
+            "/auth/callback",
+        ] {
+            routes.remove(excluded);
+        }
+
+        let spec = build_spec();
+        let paths = spec["paths"].as_object().expect("OpenAPI paths object");
+        let documented = paths
+            .iter()
+            .map(|(path, methods)| {
+                let method_set = methods
+                    .as_object()
+                    .expect("OpenAPI path methods")
+                    .keys()
+                    .map(|method| method.to_ascii_lowercase())
+                    .collect::<BTreeSet<_>>();
+                (canonical_path(path), method_set)
+            })
+            .collect::<BTreeMap<_, _>>();
+
+        let missing = routes
+            .iter()
+            .filter_map(|(path, methods)| {
+                let documented_methods = documented.get(path)?;
+                let missing_methods = methods
+                    .difference(documented_methods)
+                    .cloned()
+                    .collect::<BTreeSet<_>>();
+                if missing_methods.is_empty() {
+                    None
+                } else {
+                    Some(format!("{path} missing methods {missing_methods:?}"))
+                }
+            })
+            .chain(
+                routes
+                    .keys()
+                    .filter(|path| !documented.contains_key(*path))
+                    .map(|path| format!("{path} missing path")),
+            )
+            .collect::<Vec<_>>();
+
+        let extra = documented
+            .keys()
+            .filter(|path| !routes.contains_key(*path))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        assert!(
+            missing.is_empty() && extra.is_empty(),
+            "OpenAPI 与真实路由不一致\nmissing: {missing:#?}\nextra: {extra:#?}"
+        );
+    }
+
+    fn collect_routes_from_dir(dir: &Path, routes: &mut BTreeMap<String, BTreeSet<String>>) {
+        let entries = fs::read_dir(dir).expect("read api dir");
+        for entry in entries {
+            let path = entry.expect("read api entry").path();
+            if path.extension().is_some_and(|ext| ext == "rs") {
+                collect_routes_from_file(&path, routes);
+            }
+        }
+    }
+
+    fn collect_routes_from_file(path: &Path, routes: &mut BTreeMap<String, BTreeSet<String>>) {
+        let source = fs::read_to_string(path).expect("read route source");
+        for route_call in source.match_indices(".route(").map(|(idx, _)| idx) {
+            let Some(path_start) = source[route_call..].find('"') else {
+                continue;
+            };
+            let path_start = route_call + path_start + 1;
+            let Some(path_end) = source[path_start..].find('"') else {
+                continue;
+            };
+            let raw_path = &source[path_start..path_start + path_end];
+            if !raw_path.starts_with('/') {
+                continue;
+            }
+
+            let Some(route_end) = matching_call_end(&source, route_call + ".route(".len()) else {
+                continue;
+            };
+            let route_segment = &source[route_call..route_end];
+            let methods = http_methods_from_route_segment(route_segment);
+            if methods.is_empty() {
+                continue;
+            }
+
+            routes
+                .entry(canonical_path(raw_path))
+                .or_default()
+                .extend(methods);
+        }
+    }
+
+    fn http_methods_from_route_segment(segment: &str) -> BTreeSet<String> {
+        ["get", "post", "put", "patch", "delete"]
+            .into_iter()
+            .filter(|method| {
+                segment.contains(&format!("{method}(")) || segment.contains(&format!(".{method}("))
+            })
+            .map(str::to_string)
+            .collect()
+    }
+
+    fn matching_call_end(source: &str, open_paren_idx: usize) -> Option<usize> {
+        let mut depth = 1usize;
+        let mut in_string = false;
+        let mut escaped = false;
+
+        for (offset, ch) in source[open_paren_idx..].char_indices() {
+            if in_string {
+                if escaped {
+                    escaped = false;
+                } else if ch == '\\' {
+                    escaped = true;
+                } else if ch == '"' {
+                    in_string = false;
+                }
+                continue;
+            }
+
+            match ch {
+                '"' => in_string = true,
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(open_paren_idx + offset + ch.len_utf8());
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        None
+    }
+
+    fn canonical_path(path: &str) -> String {
+        path.split('/')
+            .map(|part| {
+                if part.starts_with(':') || (part.starts_with('{') && part.ends_with('}')) {
+                    "{}"
+                } else {
+                    part
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("/")
+    }
+}
