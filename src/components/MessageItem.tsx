@@ -146,7 +146,7 @@ function MessageItem({
               e.stopPropagation();
               onToggleBatchSelect?.(message.id);
             }}
-            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           />
         )}
         <span
@@ -238,7 +238,7 @@ function MessageItem({
       </div>
       {showActions && (
         <div
-          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           role="presentation"
           style={{
             position: "absolute",

@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import type { Editor } from "@tiptap/react";
 import { BookTemplate, FileText, Trash2, X } from "lucide-react";
 import type { TFunction } from "i18next";
@@ -261,9 +262,14 @@ export function SaveTemplatePanel({
   onCancel,
   t,
 }: SaveTemplatePanelProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
   return (
     <div className="compose-inline-panel">
       <input
+        ref={inputRef}
         type="text"
         value={name}
         onChange={(e) => onNameChange(e.target.value)}
@@ -353,10 +359,17 @@ export function ComposeLeaveConfirmDialog({ onCancel, onConfirm, t }: LeaveConfi
           cursor: "default",
         }}
       />
+      {/* role="dialog" + tabIndex is a WAI-ARIA interactive pattern; jsx-a11y 6.10.2 only recognizes a subset */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="compose-leave-title"
+        tabIndex={-1}
+        ref={(el) => el?.focus()}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onCancel();
+        }}
         style={{
           position: "relative",
           zIndex: 1,

@@ -60,6 +60,11 @@ export default function SearchView() {
   });
 
   const resultsParentRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
   const virtualizer = useVirtualizer({
     count: results.length,
     getScrollElement: () => resultsParentRef.current,
@@ -125,6 +130,7 @@ export default function SearchView() {
         <div className="search-input-shell">
           <Search size={16} aria-hidden="true" />
           <input
+            ref={searchInputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}

@@ -251,7 +251,7 @@ export default function MessageActionToolbar({
           </button>
           {showKanbanPicker && (
             <div
-              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
               role="presentation"
               style={{
                 position: "absolute",

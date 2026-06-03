@@ -62,7 +62,8 @@ export default function SelectionActionPopover({
         zIndex: 1000,
         color: "var(--color-text-primary)",
       }}
-      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
     >
       <button
         onClick={handleCopy}
