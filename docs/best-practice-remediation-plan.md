@@ -241,7 +241,7 @@ cargo audit   # 或 cargo deny check
 | P1 | Rust 依赖安全/许可证检查进入 CI | **已完成 CI 接入**：`deny.toml` 存在，CI 已加入 SHA pin 的 `EmbarkStudios/cargo-deny-action`；本机当前未安装 `cargo-deny`，无法直接跑本地复核 | CI cargo-deny job 通过；已知例外写入 `deny.toml` |
 | P1 | 错误类型统一 | **部分完成**：`rpc/health.rs`、`rpc/diagnostics.rs` 已迁到 `PebbleError`，`auth_api` 已改走 `ApiError`，`record_timing` 不再向客户端拼接内部错误；仍需持续审视新 handler 边界 | 客户端只见安全文案，日志保留内部细节；新增 handler 不再绕过 `ApiError` |
 | P1 | IMAP 错误保留上下文 | **已完成当前范围**：IMAP 测试连接的 TCP/SOCKS5/TLS/greeting 超时错误带目标地址；深层 SELECT/FETCH/STORE/MOVE/IDLE 等命令统一经 `with_imap_timeout()` 保留操作名和原始错误；IMAP UID 解析错误也保留 `ParseIntError` 上下文 | `rg 'map_err\(\|_\|' crates/pebble-mail/src/imap.rs server/src/rpc/messages/provider_dispatch.rs` 无输出；相关单测通过 |
-| P1 | 关键 API 测试补齐 | **部分完成**：已有 API baseline、auth、OAuth callback、messages、shell、snooze、trusted_senders、搜索、通知测试；OpenAPI diff 测试已补入 | 继续补 Compose send 行为测试和端到端覆盖 |
+| P1 | 关键 API 测试补齐 | **已完成 API 范围**：已有 API baseline、auth、OAuth callback、Compose send、messages、shell、snooze、trusted_senders、搜索、通知测试；OpenAPI diff 测试已补入 | 端到端覆盖继续作为 P3 E2E 项推进 |
 | P2 | 拆 `api/resources.rs` | **剩余** | 建立 route snapshot/OpenAPI diff 保护后，按 rules/translate/cloud_sync/trusted_senders/templates/diagnostics/proxy 拆分 |
 | P2 | 拆 `api/threads.rs` | **剩余** | 先抽 `parse_folder_ids` 和搜索请求类型，再拆 search/kanban/snooze；路由行为不变 |
 | P2 | 继续收敛 `spawn_blocking` 样板 | **已完成 RPC 层收敛**：已新增 `Store::with_blocking_async()` 和 `rpc::blocking::run_blocking()`；search/advanced_search、messages flags/rendering、batch、attachments、accounts cleanup、reindex 等旧 join-error 样板已迁移 | `rg 'tokio::task::spawn_blocking|Task join error' server/src/rpc` 仅剩统一 helper；全量 Rust 质量门通过 |
@@ -291,7 +291,7 @@ cargo audit   # 或 cargo deny check
 | D-SEC-05 | **已完成** | inbox/thread/search/pending ops 等 limit 已 clamp 到上限。 |
 | D-STRUCT-01 | **部分完成** | 新增规范和部分可见性/注释改造已完成；命名、模块拆分、历史英文注释仍需随重构推进。 |
 | D-DOC-01 | **已完成基础同步** | README、集成指南、OpenAPI 已大幅补齐；后续随新增 API/SSE 继续维护。 |
-| D-TEST-01 | **部分完成** | 已有 API baseline/auth/OAuth callback/messages/shell/snooze/trusted_senders/search/notifications/OpenAPI diff 测试；Compose 和 E2E 仍需补齐。 |
+| D-TEST-01 | **部分完成** | API 层已有 baseline/auth/OAuth callback/Compose send/messages/shell/snooze/trusted_senders/search/notifications/OpenAPI diff 测试；E2E 仍需补齐。 |
 
 ### C.2 纯透传 RPC 分类结果
 

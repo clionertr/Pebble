@@ -2,6 +2,7 @@
 // Entry point is main.rs — Cargo requirement for directory-based integration test targets.
 
 mod auth;
+mod compose;
 mod health;
 mod messages;
 mod notifications;
