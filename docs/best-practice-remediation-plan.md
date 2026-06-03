@@ -250,7 +250,7 @@ cargo audit   # 或 cargo deny check
 | P3 | 巨型同步/Provider 文件拆分 | **剩余** | 先补 provider fake/同步回归测试，再按状态机、协议请求、消息转换、错误分类拆 |
 | P3 | 前端巨型组件拆分 | **已完成当前范围**：`ComposeView.tsx` 已抽出附件列表、模板菜单、保存模板面板、离开确认弹窗到 `ComposePanels.tsx`，主文件由 1118 行降到 794 行；`AccountsTab.tsx` 已抽出账号列表到 `AccountsList.tsx`、编辑弹窗到 `EditAccountModal.tsx`，主文件由 1237 行降到 280 行 | `pnpm lint`、Accounts 相关测试、`pnpm build:frontend` 通过；后续新增功能继续按组件边界拆 |
 | P3 | Trellis 包级占位规范清理 | **已完成**：`pebble-core`、`pebble-crypto`、`pebble-mail`、`pebble-oauth`、`pebble-privacy`、`pebble-rules`、`pebble-search`、`pebble-store`、`pebble-translate` 的包级 backend spec 已替换为真实目录/质量/错误/日志/数据库边界规范 | `rg '(To be filled by the team)' .trellis/spec -g '*.md'` 无输出；每个包至少有真实目录/质量/错误规范入口 |
-| P3 | E2E 覆盖 | **剩余** | 核心用户流 E2E 覆盖 OAuth 到账号创建、Compose 到发送、搜索到 UI |
+| P3 | E2E 覆盖 | **已完成当前 Vitest 范围**：新增 `tests/e2e/` 核心流测试，覆盖 OAuth 账号入口、Compose typed recipient 到发送 mutation、搜索提交到结果详情打开 | `pnpm test` 79 文件 / 274 测试通过；后续如引入 Playwright 再补真实浏览器后端联调 |
 
 ### C.1 问题 ID 当前状态
 
@@ -291,7 +291,7 @@ cargo audit   # 或 cargo deny check
 | D-SEC-05 | **已完成** | inbox/thread/search/pending ops 等 limit 已 clamp 到上限。 |
 | D-STRUCT-01 | **部分完成** | 新增规范和部分可见性/注释改造已完成；`ComposeView.tsx` 已抽出面板组件；`AccountsTab.tsx` 已抽出账号列表和编辑弹窗；命名、模块拆分、历史英文注释仍需随重构推进。 |
 | D-DOC-01 | **已完成基础同步** | README、集成指南、OpenAPI 已大幅补齐；后续随新增 API/SSE 继续维护。 |
-| D-TEST-01 | **部分完成** | API 层已有 baseline/auth/OAuth callback/Compose send/messages/shell/snooze/trusted_senders/search/notifications/OpenAPI diff 测试；E2E 仍需补齐。 |
+| D-TEST-01 | **已完成当前范围** | API 层已有 baseline/auth/OAuth callback/Compose send/messages/shell/snooze/trusted_senders/search/notifications/OpenAPI diff 测试；前端新增 Vitest 核心流覆盖 OAuth 账号入口、Compose 发送、搜索结果详情。 |
 
 ### C.2 纯透传 RPC 分类结果
 
