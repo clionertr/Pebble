@@ -1,18 +1,11 @@
-use pebble_core::{new_id, Result};
+use pebble_core::{new_id, Result, UserLabel};
 use rusqlite::OptionalExtension;
 use std::collections::HashMap;
 
 use crate::Store;
 
-/// A label entity (matches the `labels` table).
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Label {
-    pub id: String,
-    pub name: String,
-    pub color: String,
-    pub is_system: bool,
-    pub rule_id: Option<String>,
-}
+/// 标签实体，对应 `labels` 表；复用核心领域类型，避免 store/API 各维护一份同字段结构。
+pub type Label = UserLabel;
 
 impl Store {
     /// Find or create a label by name, returning its id.

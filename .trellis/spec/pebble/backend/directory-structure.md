@@ -54,6 +54,36 @@ Pebble/
 - 前端只通过 `src/lib/api-client.ts`、`src/lib/api.ts` 和 `src/lib/sse-client.ts` 访问后端。
 - 共享 TypeScript 类型放在 `src/lib/api-types.ts`，命名必须描述 Web API 契约，不使用 IPC/Tauri 命名。
 
+## API/RPC/store 边界
+
+第三阶段架构清债以边界职责为准，而不是简单按“函数薄不薄”删除层级。可以把三层理解成：
+
+- **API 层是柜台**：只接收 HTTP 输入，做路径、查询、JSON、Multipart、Cookie/Header 的提取和基础格式校验，把业务请求交给服务层；找不到资源、认证失败等 HTTP 语义在这里映射成状态码。
+- **RPC/service 层是后厨**：承载跨 store、搜索、推送、OAuth、同步器的业务编排。例如通知订阅注册需要保存设备、推断设备名、发送首次未读摘要，这些不应留在 handler 里。
+- **store/crates 是账本和领域能力**：`pebble-store` 负责持久化查询和事务，`pebble-search` 负责索引检索，`pebble-mail` 负责协议和同步，避免反向依赖 `server/src/api/`。
+
+### 允许保留的薄服务函数
+
+薄函数不一定是坏味道。满足任一条件时可以保留：
+
+- 它定义了稳定的 API → service 边界，后续可能增加校验、日志、缓存、事件或多 store 编排。
+- 它统一隐藏历史命名（`rpc` 目录当前作为内部 service 层，不再代表 JSON-RPC）。
+- 它避免 API handler 直接依赖 store 细节，让 handler 保持可扫描、可替换。
+
+### 应该收敛或删除的薄函数
+
+满足以下条件时优先改 `pub(crate)`、合并或删除：
+
+- 只有单个调用方，且函数完全等价于一行 store 调用，并且没有业务边界价值。
+- 对外 `pub` 但只在本 crate 内使用。
+- 名称仍暗示 Tauri/IPC/RPC 命令，实际已没有对应入口。
+
+### 阻塞 I/O 约定
+
+- API handler 不直接执行可能阻塞 Tokio runtime 的 SQLite 或文件 I/O。
+- 需要调用现有 `Store` 方法时，优先用 `Store::with_blocking_async`，避免在每个 service 函数重复写 `tokio::task::spawn_blocking` 和 join-error 转换。
+- 新增 store 查询时，优先在 `pebble-store` 内通过 `with_read` / `with_write` 封装；异步调用方用 `with_read_async` / `with_write_async`。
+
 ---
 
 ## 反例与正确做法

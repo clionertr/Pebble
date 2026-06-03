@@ -36,43 +36,42 @@ pub async fn list_folders(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,
     account_id: String,
 ) -> std::result::Result<Vec<Folder>, PebbleError> {
-    let store = state.store.clone();
-    tokio::task::spawn_blocking(move || {
-        let provider = store
-            .get_account(&account_id)?
-            .map(|account| account.provider);
-        let folders = store.list_folders(&account_id)?;
-
-        if !provider_folders_have_arrived(&folders) {
-            return Ok(Vec::new());
-        }
-
-        // Ensure a local archive folder exists after provider folders have arrived.
-        // During first OAuth sign-in, folders may still be syncing; returning an
-        // empty list lets the sidebar keep its placeholder folders instead of
-        // caching a misleading "Archive only" account.
-        if should_seed_local_archive(&folders) {
-            let archive = Folder {
-                id: new_id(),
-                account_id: account_id.clone(),
-                remote_id: "__local_archive__".to_string(),
-                name: "Archive".to_string(),
-                folder_type: FolderType::Folder,
-                role: Some(FolderRole::Archive),
-                parent_id: None,
-                color: None,
-                is_system: true,
-                sort_order: 3,
-            };
-            let _ = store.insert_folder(&archive);
+    state
+        .store
+        .with_blocking_async(move |store| {
+            let provider = store
+                .get_account(&account_id)?
+                .map(|account| account.provider);
             let folders = store.list_folders(&account_id)?;
-            return Ok(filter_display_folders(provider.as_ref(), folders));
-        }
 
-        Ok(filter_display_folders(provider.as_ref(), folders))
-    })
-    .await
-    .map_err(|e| PebbleError::Internal(format!("Task join error: {e}")))?
+            if !provider_folders_have_arrived(&folders) {
+                return Ok(Vec::new());
+            }
+
+            // 仅在服务商文件夹已到达后补本地归档文件夹；首次 OAuth 登录时文件夹
+            // 可能仍在同步，提前返回空列表可让侧边栏保留占位文件夹，避免缓存成
+            // 误导性的“只有 Archive”状态。
+            if should_seed_local_archive(&folders) {
+                let archive = Folder {
+                    id: new_id(),
+                    account_id: account_id.clone(),
+                    remote_id: "__local_archive__".to_string(),
+                    name: "Archive".to_string(),
+                    folder_type: FolderType::Folder,
+                    role: Some(FolderRole::Archive),
+                    parent_id: None,
+                    color: None,
+                    is_system: true,
+                    sort_order: 3,
+                };
+                let _ = store.insert_folder(&archive);
+                let folders = store.list_folders(&account_id)?;
+                return Ok(filter_display_folders(provider.as_ref(), folders));
+            }
+
+            Ok(filter_display_folders(provider.as_ref(), folders))
+        })
+        .await
 }
 
 #[cfg(test)]

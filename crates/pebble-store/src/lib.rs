@@ -163,6 +163,22 @@ impl Store {
             .map_err(|e| PebbleError::Internal(format!("spawn_blocking: {e}")))?
     }
 
+    /// 在阻塞线程中运行需要访问完整 Store API 的闭包。
+    ///
+    /// 优先使用 `with_read_async` / `with_write_async` 直接拿连接；只有旧的
+    /// Store 方法已经封装好查询逻辑时，才用这个 helper 避免在服务层重复写
+    /// `spawn_blocking` 和 join-error 转换。
+    pub async fn with_blocking_async<F, T>(self: &Arc<Self>, f: F) -> Result<T>
+    where
+        F: FnOnce(&Store) -> Result<T> + Send + 'static,
+        T: Send + 'static,
+    {
+        let store = Arc::clone(self);
+        tokio::task::spawn_blocking(move || f(&store))
+            .await
+            .map_err(|e| PebbleError::Internal(format!("spawn_blocking: {e}")))?
+    }
+
     /// Run VACUUM to reclaim space from soft-deleted rows.
     pub fn vacuum(&self) -> Result<()> {
         self.with_write(|conn| {

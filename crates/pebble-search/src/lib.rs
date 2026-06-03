@@ -65,6 +65,30 @@ fn make_snippet(doc: &TantivyDocument, field: tantivy::schema::Field) -> String 
     }
 }
 
+fn search_hit_from_doc(doc: &TantivyDocument, score: f32, schema: &SearchSchema) -> SearchHit {
+    SearchHit {
+        message_id: doc
+            .get_first(schema.message_id)
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        score,
+        snippet: make_snippet(doc, schema.body_text),
+        subject: doc
+            .get_first(schema.subject)
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
+        from_address: doc
+            .get_first(schema.from_address)
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
+        date: doc
+            .get_first(schema.date)
+            .and_then(|v| v.as_datetime())
+            .map(|dt| dt.into_timestamp_secs()),
+    }
+}
+
 pub struct AdvancedSearchParams<'a> {
     pub text: Option<&'a str>,
     pub from: Option<&'a str>,
@@ -339,35 +363,7 @@ impl TantivySearch {
                 .doc(doc_addr)
                 .map_err(|e| PebbleError::Internal(format!("Failed to retrieve doc: {e}")))?;
 
-            let message_id = doc
-                .get_first(ss.message_id)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-
-            let snippet = make_snippet(&doc, ss.body_text);
-
-            let subject = doc
-                .get_first(ss.subject)
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let from_address = doc
-                .get_first(ss.from_address)
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let date = doc
-                .get_first(ss.date)
-                .and_then(|v| v.as_datetime())
-                .map(|dt| dt.into_timestamp_secs());
-
-            hits.push(SearchHit {
-                message_id,
-                score,
-                snippet,
-                subject,
-                from_address,
-                date,
-            });
+            hits.push(search_hit_from_doc(&doc, score, ss));
         }
 
         Ok(hits)
@@ -482,35 +478,7 @@ impl TantivySearch {
                 .doc(doc_addr)
                 .map_err(|e| PebbleError::Internal(format!("Failed to retrieve doc: {e}")))?;
 
-            let message_id = doc
-                .get_first(ss.message_id)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-
-            let snippet = make_snippet(&doc, ss.body_text);
-
-            let subject = doc
-                .get_first(ss.subject)
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let from_address = doc
-                .get_first(ss.from_address)
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let date = doc
-                .get_first(ss.date)
-                .and_then(|v| v.as_datetime())
-                .map(|dt| dt.into_timestamp_secs());
-
-            hits.push(SearchHit {
-                message_id,
-                score,
-                snippet,
-                subject,
-                from_address,
-                date,
-            });
+            hits.push(search_hit_from_doc(&doc, score, ss));
         }
 
         Ok(hits)

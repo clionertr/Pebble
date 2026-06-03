@@ -191,6 +191,44 @@ cargo audit   # 或 cargo deny check
 
 ---
 
+## 附录 B：第 3 阶段落地记录
+
+> 落地日期：2026-06-03
+> 执行原则：先做低风险、高收益、可回滚的小切口；大型模块拆分记录为后续 backlog，不在一次任务里“一把梭”。
+
+### B.1 已完成项
+
+| 整改项 | 覆盖问题 | 处理结果 | 验收证据 |
+|---|---|---|---|
+| 明确 API/RPC/store 边界 | D-ARCH-01, D-ARCH-02 | 已写入 `.trellis/spec/pebble/backend/directory-structure.md`，明确 API 是 HTTP 适配层，`server/src/rpc/` 是内部 service 层，store/crates 负责持久化和领域能力 | 规范包含“API/RPC/store 边界”“允许保留的薄服务函数”“阻塞 I/O 约定” |
+| 通知业务下沉 | D-ARCH-02 | `api/notifications.rs` 不再承担设备名推断、订阅注册业务和首次未读摘要发送；相关逻辑迁入 `rpc/notifications.rs` | handler 只提取 Cookie/Header/Json 并调用 service；通知 API 路由不变 |
+| 重复查询模型收敛 | D-DUP-01 | 高级搜索复用 `pebble_core::traits::StructuredQuery`，`server/src/rpc/advanced_search.rs` 不再维护同字段结构 | `AdvancedSearchQuery` 变为核心类型别名，serde camelCase 契约保留 |
+| 标签重复类型收敛 | D-DUP-01 | `pebble-store::labels::Label` 改为 `pebble_core::UserLabel` 的类型别名，避免 store/API 与 core 同字段模型漂移 | 调用方类型名保持 `Label`，序列化结构不变 |
+| Tantivy hit builder 收敛 | D-DUP-02 | `pebble-search` 新增 `search_hit_from_doc()`，普通搜索和高级搜索共用命中构建逻辑 | 删除两处重复的 `SearchHit` 字段拼装代码 |
+| `spawn_blocking` 样板收敛 | D-DUP-03 | `Store` 新增 `with_blocking_async()`，线程、消息、文件夹、未读计数等纯读 RPC 改用统一 helper | join-error 转换集中到 store helper；后续旧服务函数按同模式逐步迁移 |
+| 注释语言与规范补齐 | C-DOC-01, D-STRUCT-01 | 填充后端 database/logging 规范，占位状态更新为 Done；新增注释使用中文 | `.trellis/spec/pebble/backend/database-guidelines.md`、`logging-guidelines.md` 不再包含占位正文 |
+| 资源文件优化 | C-ASSET-01 | 根目录 `icon.png` 从 5040x5036、20MB 压缩/重采样为 1024x1023、约 703KB | `file icon.png` 显示 1024x1023；`ls -lh icon.png` 显示约 703KB |
+
+### B.2 已评估但延期的架构债务
+
+| Backlog | 延期原因 | 建议后续拆法 |
+|---|---|---|
+| 拆 `api/resources.rs` | 该文件挂载 rules/translate/cloud-sync/trusted-senders/templates/diagnostics/proxy 多个路由，机械拆分容易造成 OpenAPI、前端客户端和测试同时漂移 | 单独开任务，先建立 route snapshot/OpenAPI diff，再按资源域拆模块并保持 `resource_routes()` 聚合入口 |
+| 拆 `api/threads.rs` | threads/search/kanban/snooze 共用分页和搜索契约，拆分时容易影响前端 Inbox/Search/Kanban 多处调用 | 先抽 `parse_folder_ids` 和搜索请求类型，再按 search/kanban/snooze 分文件 |
+| 巨型同步/Provider 文件拆分 | `sync.rs`、`provider/gmail.rs`、`provider/outlook.rs` 涉及协议状态机、重试、增量同步和错误恢复，缺少足够 E2E 保护时不适合一次性重排 | 先补同步集成测试和 provider fake，再按“状态机/协议请求/消息转换/错误分类”拆 |
+| 纯透传 RPC 全量改可见性 | 当前 `server/src/rpc/` 作为内部 service 层，薄函数仍有边界价值；盲目删除会让 API handler 直接依赖 store 细节 | 逐模块评估：有编排潜力保留，单调用方且无边界价值改 `pub(crate)` 或合并 |
+
+### B.3 第 3 阶段当前状态
+
+第 3 阶段已完成一批高收益清债，并把大规模重构收敛为后续 backlog。后续若继续推进，推荐顺序是：
+
+1. `api/resources.rs` 拆分，配套 OpenAPI diff 和 API 测试。
+2. `api/threads.rs` 拆分，先抽共享查询解析 helper。
+3. `sync.rs` / provider 文件拆分，先补协议假实现和同步回归测试。
+4. 继续把旧 `spawn_blocking` 样板迁移到统一 helper。
+
+---
+
 ## 附录 A：第 0 阶段核验报告（基线快照）
 
 > 核验日期：2026-06-02
@@ -414,4 +452,3 @@ cargo audit   # 或 cargo deny check
 | `bash -n deploy/install.sh` / `bash -n deploy/build.sh` | ✅ 通过 |
 
 > 第 2 阶段主目标（契约、文档、工具链、供应链）达成；质量门除前端 lint 存量外全部绿灯。
-

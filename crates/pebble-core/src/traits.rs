@@ -54,6 +54,8 @@ pub struct OutgoingMessage {
     pub attachment_paths: Vec<String>,
 }
 
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StructuredQuery {
     pub text: Option<String>,
     pub from: Option<String>,

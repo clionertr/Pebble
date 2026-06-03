@@ -1,20 +1,8 @@
-use pebble_core::traits::SearchHit;
+use pebble_core::traits::{SearchHit, StructuredQuery};
 use pebble_core::PebbleError;
 use pebble_search::AdvancedSearchParams;
-use serde::Deserialize;
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AdvancedSearchQuery {
-    pub text: Option<String>,
-    pub from: Option<String>,
-    pub to: Option<String>,
-    pub subject: Option<String>,
-    pub date_from: Option<i64>,
-    pub date_to: Option<i64>,
-    pub has_attachment: Option<bool>,
-    pub folder_id: Option<String>,
-}
+pub type AdvancedSearchQuery = StructuredQuery;
 
 pub async fn advanced_search(
     state: axum::extract::State<std::sync::Arc<crate::state::AppState>>,

@@ -17,10 +17,10 @@ This directory contains guidelines for backend development. Fill in each file wi
 | [Configuration](./configuration.md) | Environment variables and binding host | Done |
 | [Directory Structure](./directory-structure.md) | Module organization and file layout | Done |
 | [Webmail API Contracts](./webmail-api-contracts.md) | REST/SSE/auth/deploy cross-layer contracts | Done |
-| [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations | To fill |
+| [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations | Done (Phase 3) |
 | [Error Handling](./error-handling.md) | Error types, handling strategies | Done (Phase 1) |
 | [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns, security patterns | Done (Phase 1) |
-| [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | To fill |
+| [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | Done (Phase 3) |
 
 ---
 
