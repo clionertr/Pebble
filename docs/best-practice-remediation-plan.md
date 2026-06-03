@@ -246,7 +246,7 @@ cargo audit   # 或 cargo deny check
 | P2 | 拆 `api/threads.rs` | **剩余** | 先抽 `parse_folder_ids` 和搜索请求类型，再拆 search/kanban/snooze；路由行为不变 |
 | P2 | 继续收敛 `spawn_blocking` 样板 | **已完成 RPC 层收敛**：已新增 `Store::with_blocking_async()` 和 `rpc::blocking::run_blocking()`；search/advanced_search、messages flags/rendering、batch、attachments、accounts cleanup、reindex 等旧 join-error 样板已迁移 | `rg 'tokio::task::spawn_blocking|Task join error' server/src/rpc` 仅剩统一 helper；全量 Rust 质量门通过 |
 | P2 | 纯透传 RPC 分类和可见性收敛 | **已完成当前清单**：薄 RPC 已按“保留边界 / 收窄可见性 / 删除遗留透传”分类；labels/rules/kanban/snooze/threads/messages query 等仅 crate 内调用的函数已改 `pub(crate)`，未使用的 `get_global_proxy()` 已删除 | `cargo clippy --workspace --all-targets -- -D warnings` 与 API 测试通过；分类结果见 C.2 |
-| P2 | GitHub Actions 产物证明/SBOM | **部分完成**：Actions 已 SHA pin，Docker digest pin 已完成；release 已有 artifact 下载/发布流程 | 发布产物补 checksum；评估 artifact attestations/SBOM |
+| P2 | GitHub Actions 产物证明/SBOM | **已完成 checksum 基线**：Actions 已 SHA pin，Docker digest pin 已完成；release 二进制逐平台生成 `.sha256`，发布前统一校验并上传 `checksums.txt` | 后续可继续评估 artifact attestations/SBOM；当前 release 产物完整性校验已有可验收基线 |
 | P3 | 巨型同步/Provider 文件拆分 | **剩余** | 先补 provider fake/同步回归测试，再按状态机、协议请求、消息转换、错误分类拆 |
 | P3 | 前端巨型组件拆分 | **剩余** | `AccountsTab.tsx`、`ComposeView.tsx` 按职责拆分；前端测试和构建通过 |
 | P3 | Trellis 包级占位规范清理 | **部分完成**：主 `pebble/backend` 已补齐；包级 spec 仍有大量 `(To be filled by the team)` | `.trellis/spec/*` 不再大面积存在占位正文；每个包至少有真实目录/质量/错误规范入口 |

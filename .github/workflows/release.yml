@@ -49,7 +49,11 @@ jobs:
       - name: Package
         run: |
           cp "target/${{ matrix.target }}/release/pebble" "${{ matrix.artifact }}"
-          sha256sum "${{ matrix.artifact }}" > "${{ matrix.artifact }}.sha256"
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${{ matrix.artifact }}" > "${{ matrix.artifact }}.sha256"
+          else
+            shasum -a 256 "${{ matrix.artifact }}" > "${{ matrix.artifact }}.sha256"
+          fi
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -68,9 +72,17 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: Verify and collect checksums
+        run: |
+          cd artifacts
+          sha256sum -c ./*.sha256
+          sort -k2 ./*.sha256 > checksums.txt
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.3.3
         with:
-          files: artifacts/pebble-*
+          files: |
+            artifacts/pebble-*
+            artifacts/checksums.txt
           generate_release_notes: true
           make_latest: true
