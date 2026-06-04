@@ -38,17 +38,18 @@ pub fn is_known_tracker(domain: &str) -> bool {
 }
 
 pub fn is_tracking_pixel(width: Option<&str>, height: Option<&str>) -> bool {
-    match (width, height) {
+    /// 将属性值解析为像素数；无法解析的（如 "100%"）返回 None，不参与跟踪像素判定。
+    fn parse_pixel_dim(val: &str) -> Option<u32> {
+        val.parse::<u32>().ok()
+    }
+
+    match (width.and_then(parse_pixel_dim), height.and_then(parse_pixel_dim)) {
         // Both dimensions explicitly set to <= 1 — classic tracking pixel
-        (Some(w), Some(h)) => {
-            let w = w.parse::<u32>().unwrap_or(0);
-            let h = h.parse::<u32>().unwrap_or(0);
-            w <= 1 && h <= 1
-        }
+        (Some(w), Some(h)) => w <= 1 && h <= 1,
         // One dimension present and <= 1, other absent — likely a pixel
-        (Some(v), None) | (None, Some(v)) => v.parse::<u32>().unwrap_or(0) <= 1,
-        // Both absent — cannot determine from dimensions alone; don't flag here.
-        // The caller should use additional heuristics (URL pattern, known domains).
+        (Some(v), None) | (None, Some(v)) => v <= 1,
+        // Both absent, or values are non-numeric (e.g. "100%") — cannot determine
+        // from dimensions alone; don't flag here.
         (None, None) => false,
     }
 }

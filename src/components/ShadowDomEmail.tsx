@@ -91,7 +91,9 @@ export function ShadowDomEmail({ html, className }: ShadowDomEmailProps) {
       td, th { word-break: normal; overflow-wrap: normal; }
       body, div { word-wrap: break-word; overflow-wrap: break-word; }
       .blocked-image {
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         padding: 6px 12px;
         font-size: 12px;
         color: #888;
@@ -101,6 +103,7 @@ export function ShadowDomEmail({ html, className }: ShadowDomEmailProps) {
         text-align: center;
         max-width: 100%;
         box-sizing: border-box;
+        overflow: hidden;
       }
     `;
     shadow.innerHTML = `<div class="pebble-email-content">${safeHtml}</div>`;

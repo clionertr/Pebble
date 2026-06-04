@@ -475,13 +475,42 @@ fn preprocess_images(
                         };
                         let escaped_src = html_escape(src_val);
                         let escaped_label = html_escape(&label);
-                        el.replace(
-                            &format!(
+
+                        // 保留原图的尺寸信息，构造 inline style
+                        let mut css_parts: Vec<String> = Vec::new();
+                        for (attr, css_prop) in &[
+                            (width.as_deref(), "width"),
+                            (height.as_deref(), "height"),
+                        ] {
+                            if let Some(val) = attr {
+                                let val = val.trim();
+                                if val.is_empty() {
+                                    continue;
+                                }
+                                // 纯数字 → 补上 px 单位
+                                if val.chars().all(|c| c.is_ascii_digit()) {
+                                    css_parts.push(format!("{}:{}px", css_prop, val));
+                                } else {
+                                    css_parts.push(format!("{}:{}", css_prop, val));
+                                }
+                            }
+                        }
+
+                        let div_html = if css_parts.is_empty() {
+                            format!(
                                 r#"<div class="blocked-image" data-src="{}">{}</div>"#,
                                 escaped_src, escaped_label
-                            ),
-                            lol_html::html_content::ContentType::Html,
-                        );
+                            )
+                        } else {
+                            format!(
+                                r#"<div class="blocked-image" data-src="{}" style="{}">{}</div>"#,
+                                escaped_src,
+                                css_parts.join(";"),
+                                escaped_label
+                            )
+                        };
+
+                        el.replace(&div_html, lol_html::html_content::ContentType::Html);
                     }
                     ImgAction::Keep => { /* leave element untouched */ }
                 }
@@ -873,6 +902,37 @@ mod tests {
         let result = guard.render_safe_html(html, &PrivacyMode::Strict);
         assert!(result.html.contains("blocked-image"));
         assert_eq!(result.images_blocked, 1);
+    }
+
+    #[test]
+    fn test_blocked_image_placeholder_preserves_dimensions() {
+        let guard = PrivacyGuard::new();
+        // 数值型 width/height → 应补充 px 单位
+        let html = r#"<img src="https://example.com/banner.jpg" width="600" height="200">"#;
+        let result = guard.render_safe_html(html, &PrivacyMode::Strict);
+        assert!(result.html.contains("width:600px"));
+        assert!(result.html.contains("height:200px"));
+        assert!(result.html.contains("blocked-image"));
+    }
+
+    #[test]
+    fn test_blocked_image_placeholder_preserves_percent_dimensions() {
+        let guard = PrivacyGuard::new();
+        // 百分比型 width/height → 原样保留
+        let html = r#"<img src="https://example.com/banner.jpg" width="100%">"#;
+        let result = guard.render_safe_html(html, &PrivacyMode::Strict);
+        assert!(result.html.contains("width:100%"));
+        assert!(result.html.contains("blocked-image"));
+    }
+
+    #[test]
+    fn test_blocked_image_placeholder_no_dimensions_still_works() {
+        let guard = PrivacyGuard::new();
+        // 无 width/height 的 img → 不输出 style 属性，行为与改前一致
+        let html = r#"<img src="https://example.com/photo.jpg">"#;
+        let result = guard.render_safe_html(html, &PrivacyMode::Strict);
+        assert!(result.html.contains("blocked-image"));
+        assert!(!result.html.contains("blocked-image\" style="));
     }
 
     #[test]
