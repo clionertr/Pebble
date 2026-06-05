@@ -582,3 +582,36 @@ Implemented Web Push browser notifications (backend push service, notification d
 ### Next Steps
 
 - None - task complete
+
+
+## Session 16: 修复生产 CSP 邮件内联样式
+
+**Date**: 2026-06-05
+**Task**: 修复生产 CSP 邮件内联样式
+**Branch**: `master`
+
+### Summary
+
+将生产 nginx CSP 收敛为 style-src-elem self 与 style-src-attr unsafe-inline，补充邮件内联样式 sanitizer 回归测试，并记录 CSP 与邮件样式边界规范。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `33b6733` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
