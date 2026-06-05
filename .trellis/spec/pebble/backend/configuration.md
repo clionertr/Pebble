@@ -40,7 +40,7 @@ ALLOWED_ORIGIN=
 
 ### 1. Scope / Trigger
 - Trigger: 前端 nginx 的 `Content-Security-Policy` 会直接影响 `ShadowDomEmail` 渲染出的邮件 HTML。
-- 范围：`deploy/nginx.conf`、`deploy/nginx-public.example.conf`、README 中的 nginx 示例，以及 `crates/pebble-privacy/src/sanitizer.rs` 的 CSS 白名单。
+- 范围：`deploy/nginx.conf`、`deploy/nginx-public.example.conf`、README 中的 nginx 示例、`src/components/ShadowDomEmail.tsx` 的 Shadow DOM 样式加载，以及 `crates/pebble-privacy/src/sanitizer.rs` 的 CSS 白名单。
 
 ### 2. Signatures
 - nginx 响应头：
@@ -51,19 +51,21 @@ ALLOWED_ORIGIN=
 
 ### 3. Contracts
 - `style-src 'self'` 和 `style-src-elem 'self'` 继续限制外部 CSS 与 `<style>` 元素。
+- `ShadowDomEmail` 的 Shadow DOM 壳样式必须通过同源静态文件加载，例如 `/shadow-dom-email.css`；不得在运行时创建内联 `<style>` 元素。
 - `style-src-attr 'unsafe-inline'` 只允许元素上的 `style=""` 属性，用于邮件正文和 blocked image placeholder 的安全样式。
 - 允许 `style-src-attr 'unsafe-inline'` 的前提是 sanitizer 对 `style` 属性执行 CSS 属性和值白名单过滤。
 - 禁止把 nginx 配置退回到全局 `style-src 'self' 'unsafe-inline'`。
 
 ### 4. Validation & Error Matrix
 - CSP 缺少 `style-src-attr 'unsafe-inline'` -> Docker/nginx 生产环境会拦截邮件正文或 blocked image placeholder 的 `style=""`。
+- `ShadowDomEmail` 运行时创建内联 `<style>` -> `style-src-elem 'self'` 会阻止该样式，邮件壳样式失效。
 - CSP 使用全局 `style-src 'self' 'unsafe-inline'` -> `<style>` 元素也被放宽，超出邮件正文样式需求。
 - sanitizer 放行 `url()`、`data:`、`javascript:`、`@import` 或 CSS 反斜杠转义 -> 邮件内联样式可能变成外部请求或脚本绕过载体。
 - sanitizer 放行 `position`、`z-index` 等覆盖布局属性 -> 邮件内容可能伪装系统界面或遮挡应用 UI。
 
 ### 5. Good/Base/Bad Cases
 - Good: 生产 CSP 使用 `style-src-attr 'unsafe-inline'`，邮件中 `color`、`width` 等白名单样式生效，危险 CSS 值被 sanitizer 删除。
-- Base: blocked image placeholder 生成 `style="width:600px;height:200px"`，浏览器允许应用该属性，外部图片仍被隐私模式阻止。
+- Base: blocked image placeholder 生成 `style="width:600px;height:200px"`，浏览器允许应用该属性；Shadow DOM 壳样式通过 `/shadow-dom-email.css` 加载，外部图片仍被隐私模式阻止。
 - Bad: 只保留 `style-src 'self'`，dev 正常但生产邮件样式被浏览器 CSP 拦截。
 
 ### 6. Tests Required
@@ -71,17 +73,23 @@ ALLOWED_ORIGIN=
 - `cargo clippy --workspace --all-targets -- -D warnings`。
 - `cargo test --workspace --all-targets`。
 - 修改 nginx CSP 后搜索 README、deploy 示例和最佳实践文档，确认没有残留旧策略。
+- `pnpm build:frontend`，断言 `public/shadow-dom-email.css` 被复制到 `dist/shadow-dom-email.css`。
 
 ### 7. Wrong vs Correct
 
 #### Wrong
-```nginx
-add_header Content-Security-Policy "default-src 'self'; style-src 'self'" always;
+```typescript
+const style = document.createElement("style");
+style.textContent = "...";
+shadow.appendChild(style);
 ```
 
 #### Correct
-```nginx
-add_header Content-Security-Policy "default-src 'self'; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'" always;
+```typescript
+const stylesheet = document.createElement("link");
+stylesheet.rel = "stylesheet";
+stylesheet.href = "/shadow-dom-email.css";
+shadow.appendChild(stylesheet);
 ```
 
 ## Scenario: 一键 Docker 部署配置链路

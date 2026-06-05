@@ -1,6 +1,6 @@
 window.__splashStart=Date.now();
-// Apply saved theme immediately to avoid flash of wrong theme
-try{var t=localStorage.getItem('pebble-theme')||'light';var d=t==='system'?matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light':t;document.documentElement.setAttribute('data-theme',d)}catch(e){}
+// 立即应用已保存主题，避免闪现错误主题。
+try{var t=localStorage.getItem('pebble-theme')||'light';var d=t==='system'?matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light':t;document.documentElement.setAttribute('data-theme',d)}catch{/* 忽略本地存储或 matchMedia 不可用的启动早期异常。 */}
 // splash 由 HTML 自主管理生命周期，React 只发送"应用已就绪"信号。
 // 这样即使 React 未挂载或 transitionend 丢失，也不会永久遮挡 UI。
 (function(){
@@ -16,7 +16,9 @@ try{var t=localStorage.getItem('pebble-theme')||'light';var d=t==='system'?match
       window.dispatchEvent(new CustomEvent('pebble:splash-removed', {
         detail: { reason: reason || 'unknown', elapsedMs: Date.now() - start }
       }));
-    } catch(e) {}
+    } catch {
+      // 忽略旧浏览器不支持 CustomEvent 的情况；splash 删除流程不能被阻断。
+    }
   };
   var remove = function(reason){
     if (removed) return;

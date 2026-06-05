@@ -9,105 +9,20 @@ interface ShadowDomEmailProps {
 export function ShadowDomEmail({ html, className }: ShadowDomEmailProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
-  // The shadow body must be ready before paint; otherwise the reader can flash
-  // from the fallback text into the sanitized HTML a frame later.
+  // Shadow DOM 的主体需要在绘制前准备好，避免读信时从 fallback 文本闪到正文。
   useLayoutEffect(() => {
     if (!hostRef.current) return;
     const shadow = hostRef.current.shadowRoot || hostRef.current.attachShadow({ mode: "open" });
 
     const safeHtml = sanitizeHtml(html);
-    // IMPORTANT: The <style> element MUST be created via the DOM API rather
-    // than embedded in shadow.innerHTML. <style> elements created through the
-    // HTML parser path (innerHTML) are evaluated against the host document's
-    // CSP and blocked by `style-src 'self'` (no 'unsafe-inline'). A
-    // programmatically-created <style> appended via appendChild is a CSSOM
-    // operation and is not subject to CSP style-src, so the email wrapper
-    // styles apply regardless of a strict CSP.
-    const style = document.createElement("style");
-    style.textContent = `
-      :host {
-        all: initial;
-        display: block;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        font-size: 14px;
-        color: var(--color-text-primary);
-        background: transparent;
-        word-break: break-word;
-      }
-      img { max-width: 100%; height: auto; }
-      a { color: var(--color-accent); }
-      .pebble-email-content {
-        box-sizing: border-box;
-        max-width: 100%;
-        overflow-x: auto;
-        color: inherit;
-        background: transparent;
-      }
-      :host-context([data-theme="dark"]) .pebble-email-content {
-        display: inline-block;
-        max-width: 100%;
-        color-scheme: light;
-        color: #202124;
-        background: #fff;
-      }
-      pre {
-        white-space: pre-wrap;
-        overflow-x: auto;
-        scrollbar-color: var(--color-scrollbar-thumb) transparent;
-        scrollbar-width: thin;
-      }
-      pre::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
-      }
-      pre::-webkit-scrollbar-thumb {
-        border: 3px solid transparent;
-        border-radius: 999px;
-        background-clip: content-box;
-        background-color: var(--color-scrollbar-thumb);
-      }
-      pre:hover::-webkit-scrollbar-thumb {
-        background-color: var(--color-scrollbar-thumb-hover);
-      }
-      table { border-collapse: collapse; }
-      .pebble-email-content > table[height="100%"],
-      .pebble-email-content > div[height="100%"],
-      .pebble-email-content > center[height="100%"],
-      .pebble-email-content > table[style*="height:100%" i],
-      .pebble-email-content > table[style*="height: 100%" i],
-      .pebble-email-content > table[style*="height:100vh" i],
-      .pebble-email-content > table[style*="height: 100vh" i],
-      .pebble-email-content > div[style*="height:100%" i],
-      .pebble-email-content > div[style*="height: 100%" i],
-      .pebble-email-content > div[style*="height:100vh" i],
-      .pebble-email-content > div[style*="height: 100vh" i],
-      .pebble-email-content > center[style*="height:100%" i],
-      .pebble-email-content > center[style*="height: 100%" i],
-      .pebble-email-content > center[style*="height:100vh" i],
-      .pebble-email-content > center[style*="height: 100vh" i] {
-        height: auto !important;
-        min-height: 0 !important;
-      }
-      td, th { word-break: normal; overflow-wrap: normal; }
-      body, div { word-wrap: break-word; overflow-wrap: break-word; }
-      .blocked-image {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 6px 12px;
-        font-size: 12px;
-        color: #888;
-        background: #f5f5f5;
-        border: 1px dashed #ccc;
-        border-radius: 4px;
-        text-align: center;
-        max-width: 100%;
-        box-sizing: border-box;
-        overflow: hidden;
-      }
-    `;
-    shadow.innerHTML = `<div class="pebble-email-content">${safeHtml}</div>`;
-    shadow.insertBefore(style, shadow.firstChild);
+    const stylesheet = document.createElement("link");
+    stylesheet.rel = "stylesheet";
+    stylesheet.href = "/shadow-dom-email.css";
+
+    const content = document.createElement("div");
+    content.className = "pebble-email-content";
+    content.innerHTML = safeHtml;
+    shadow.replaceChildren(stylesheet, content);
 
     const handleClick = (event: Event) => {
       const target = event.target;
