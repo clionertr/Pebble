@@ -615,3 +615,36 @@ Implemented Web Push browser notifications (backend push service, notification d
 ### Next Steps
 
 - None - task complete
+
+
+## Session 17: 修复 Shadow DOM 邮件样式 CSP
+
+**Date**: 2026-06-05
+**Task**: 修复 Shadow DOM 邮件样式 CSP
+**Branch**: `master`
+
+### Summary
+
+定位线上 style-src-elem 报错来自 ShadowDomEmail 运行时创建内联 style 元素；改为同源 /shadow-dom-email.css 加载，补充 CSP 规范，并在本地部署 pebble-frontend:f7f30a8 验证。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f7f30a8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
