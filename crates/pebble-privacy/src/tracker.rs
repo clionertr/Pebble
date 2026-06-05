@@ -43,7 +43,10 @@ pub fn is_tracking_pixel(width: Option<&str>, height: Option<&str>) -> bool {
         val.parse::<u32>().ok()
     }
 
-    match (width.and_then(parse_pixel_dim), height.and_then(parse_pixel_dim)) {
+    match (
+        width.and_then(parse_pixel_dim),
+        height.and_then(parse_pixel_dim),
+    ) {
         // Both dimensions explicitly set to <= 1 — classic tracking pixel
         (Some(w), Some(h)) => w <= 1 && h <= 1,
         // One dimension present and <= 1, other absent — likely a pixel

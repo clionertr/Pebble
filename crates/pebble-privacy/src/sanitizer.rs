@@ -478,10 +478,9 @@ fn preprocess_images(
 
                         // 保留原图的尺寸信息，构造 inline style
                         let mut css_parts: Vec<String> = Vec::new();
-                        for (attr, css_prop) in &[
-                            (width.as_deref(), "width"),
-                            (height.as_deref(), "height"),
-                        ] {
+                        for (attr, css_prop) in
+                            &[(width.as_deref(), "width"), (height.as_deref(), "height")]
+                        {
                             if let Some(val) = attr {
                                 let val = val.trim();
                                 if val.is_empty() {
@@ -1064,6 +1063,37 @@ mod tests {
         let result = guard.render_safe_html(html, &PrivacyMode::Strict);
         assert!(!result.html.contains("position"));
         assert!(!result.html.contains("z-index"));
+    }
+
+    #[test]
+    fn test_sanitized_inline_styles_remain_csp_attr_safe() {
+        let guard = PrivacyGuard::new();
+        let html = r#"
+            <div style="
+                color: red;
+                width: 600px;
+                background-image: url('https://evil.com/pixel.png');
+                background: data:image/png;base64,AAAA;
+                border-image: url(javascript:alert(1));
+                position: fixed;
+                z-index: 9999;
+                font-family: u\72l('https://evil.com/font.css');
+                list-style: @import url('https://evil.com/list.css')
+            ">text</div>
+        "#;
+        let result = guard.render_safe_html(html, &PrivacyMode::Strict);
+
+        assert!(result.html.contains("color: red"));
+        assert!(result.html.contains("width: 600px"));
+        assert!(!result.html.contains("background-image"));
+        assert!(!result.html.contains("data:image"));
+        assert!(!result.html.contains("border-image"));
+        assert!(!result.html.contains("javascript:"));
+        assert!(!result.html.contains("position"));
+        assert!(!result.html.contains("z-index"));
+        assert!(!result.html.contains("evil.com"));
+        assert!(!result.html.contains("@import"));
+        assert!(!result.html.contains("\\72"));
     }
 
     #[test]
