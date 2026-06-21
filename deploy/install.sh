@@ -10,8 +10,7 @@ PEBBLE_INSTALL_DIR="${PEBBLE_INSTALL_DIR:-./pebble}"
 PEBBLE_HTTP_BIND="${PEBBLE_HTTP_BIND:-127.0.0.1:9191}"
 
 IMAGE_OWNER="${REPO_OWNER,,}"
-PEBBLE_BACKEND_IMAGE="${PEBBLE_BACKEND_IMAGE:-ghcr.io/${IMAGE_OWNER}/pebble:${PEBBLE_VERSION}}"
-PEBBLE_FRONTEND_IMAGE="${PEBBLE_FRONTEND_IMAGE:-ghcr.io/${IMAGE_OWNER}/pebble-frontend:${PEBBLE_VERSION}}"
+PEBBLE_IMAGE="${PEBBLE_IMAGE:-ghcr.io/${IMAGE_OWNER}/pebble:${PEBBLE_VERSION}}"
 PEBBLE_RAW_BASE="${PEBBLE_RAW_BASE:-https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${PEBBLE_REF}}"
 DOCKER_CMD=(docker)
 
@@ -263,12 +262,12 @@ generate_password_hash() {
   local password="$1"
   local hash=""
 
-  log "Pulling backend image for password hashing: ${PEBBLE_BACKEND_IMAGE}"
-  docker_cmd pull "$PEBBLE_BACKEND_IMAGE" >/dev/null \
-    || die "Cannot pull ${PEBBLE_BACKEND_IMAGE}. If this is a GHCR image, check that the GitHub package is public."
+  log "Pulling Pebble image for password hashing: ${PEBBLE_IMAGE}"
+  docker_cmd pull "$PEBBLE_IMAGE" >/dev/null \
+    || die "Cannot pull ${PEBBLE_IMAGE}. If this is a GHCR image, check that the GitHub package is public."
 
-  hash="$(printf "%s" "$password" | docker_cmd run --rm -i "$PEBBLE_BACKEND_IMAGE" pebble hash-password)" \
-    || die "Failed to generate bcrypt password hash with the backend image."
+  hash="$(printf "%s" "$password" | docker_cmd run --rm -i "$PEBBLE_IMAGE" pebble hash-password)" \
+    || die "Failed to generate bcrypt password hash with the Pebble image."
 
   case "$hash" in
     \$2a\$*|\$2b\$*|\$2x\$*|\$2y\$*) printf "%s" "$hash" | compose_escape ;;
@@ -296,8 +295,7 @@ configure_oauth() {
 write_env_file() {
   cat > "$ENV_FILE" <<EOF
 # Pebble Docker deployment
-PEBBLE_BACKEND_IMAGE=${PEBBLE_BACKEND_IMAGE}
-PEBBLE_FRONTEND_IMAGE=${PEBBLE_FRONTEND_IMAGE}
+PEBBLE_IMAGE=${PEBBLE_IMAGE}
 PEBBLE_HTTP_BIND=${PEBBLE_HTTP_BIND}
 
 # Backend runtime
@@ -343,7 +341,7 @@ wait_for_http() {
 
   warn "Pebble did not become reachable at ${health_url}."
   compose_cmd ps || true
-  compose_cmd logs --tail=80 backend frontend || true
+  compose_cmd logs --tail=80 pebble || true
   return 1
 }
 
@@ -385,9 +383,9 @@ main() {
   log "Validating compose configuration"
   compose_cmd config --quiet
 
-  log "Pulling Pebble images"
+  log "Pulling Pebble image"
   compose_cmd pull \
-    || die "Failed to pull Pebble images. If GHCR returns denied/not found, set the packages to Public in GitHub Packages."
+    || die "Failed to pull Pebble image. If GHCR returns denied/not found, set the package to Public in GitHub Packages."
 
   log "Starting Pebble"
   compose_cmd up -d

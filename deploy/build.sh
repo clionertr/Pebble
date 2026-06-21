@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build Pebble Docker images with cache busting.
+# 构建 Pebble 单容器 Docker 镜像，并支持缓存击穿。
 # Usage:
 #   ./deploy/build.sh              # Build with default cache
 #   ./deploy/build.sh --no-cache   # Force fresh rebuild

@@ -1,4 +1,4 @@
-name: Docker Images
+name: Docker Image
 
 on:
   push:
@@ -20,7 +20,7 @@ env:
 
 jobs:
   build:
-    name: Build ${{ matrix.arch }} images
+    name: Build ${{ matrix.arch }} image
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -98,25 +98,15 @@ jobs:
           SHORT_SHA: ${{ steps.vars.outputs.short_sha }}
         run: |
           set -euo pipefail
-          backend="${REGISTRY}/${IMAGE_OWNER}/pebble"
-          frontend="${REGISTRY}/${IMAGE_OWNER}/pebble-frontend"
+          image="${REGISTRY}/${IMAGE_OWNER}/pebble"
 
           {
-            echo "backend<<EOF"
-            echo "${backend}:${VERSION}-${ARCH}"
-            echo "${backend}:latest-${ARCH}"
-            echo "${backend}:sha-${SHORT_SHA}-${ARCH}"
+            echo "tags<<EOF"
+            echo "${image}:${VERSION}-${ARCH}"
+            echo "${image}:latest-${ARCH}"
+            echo "${image}:sha-${SHORT_SHA}-${ARCH}"
             if [[ "$PRERELEASE" == "false" ]]; then
-              echo "${backend}:${MAJOR_MINOR}-${ARCH}"
-            fi
-            echo "EOF"
-
-            echo "frontend<<EOF"
-            echo "${frontend}:${VERSION}-${ARCH}"
-            echo "${frontend}:latest-${ARCH}"
-            echo "${frontend}:sha-${SHORT_SHA}-${ARCH}"
-            if [[ "$PRERELEASE" == "false" ]]; then
-              echo "${frontend}:${MAJOR_MINOR}-${ARCH}"
+              echo "${image}:${MAJOR_MINOR}-${ARCH}"
             fi
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
@@ -131,38 +121,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push backend
+      - name: Build and push image
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.0.0
         with:
           context: .
           file: deploy/backend.Dockerfile
           platforms: ${{ matrix.platform }}
           push: true
-          tags: ${{ steps.image_tags.outputs.backend }}
+          tags: ${{ steps.image_tags.outputs.tags }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ env.IMAGE_OWNER }}/Pebble
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ steps.vars.outputs.version }}
-          cache-from: type=gha,scope=pebble-backend-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=pebble-backend-${{ matrix.arch }}
-
-      - name: Build and push frontend
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.0.0
-        with:
-          context: .
-          file: deploy/frontend.Dockerfile
-          platforms: ${{ matrix.platform }}
-          push: true
-          tags: ${{ steps.image_tags.outputs.frontend }}
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ env.IMAGE_OWNER }}/Pebble
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.vars.outputs.version }}
-          cache-from: type=gha,scope=pebble-frontend-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=pebble-frontend-${{ matrix.arch }}
+          cache-from: type=gha,scope=pebble-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=pebble-${{ matrix.arch }}
 
   manifest:
-    name: Publish multi-arch manifests
+    name: Publish multi-arch manifest
     runs-on: ubuntu-latest
     needs: build
 
@@ -204,31 +179,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish backend manifest
+      - name: Publish manifest
         shell: bash
         run: |
           set -euo pipefail
           image="${REGISTRY}/${IMAGE_OWNER}/pebble"
-          tags=(
-            -t "${image}:${{ steps.vars.outputs.version }}"
-            -t "${image}:latest"
-            -t "${image}:sha-${{ steps.vars.outputs.short_sha }}"
-          )
-          if [[ "${{ steps.vars.outputs.prerelease }}" == "false" ]]; then
-            tags+=(
-              -t "${image}:${{ steps.vars.outputs.major_minor }}"
-            )
-          fi
-
-          docker buildx imagetools create "${tags[@]}" \
-            "${image}:${{ steps.vars.outputs.version }}-amd64" \
-            "${image}:${{ steps.vars.outputs.version }}-arm64"
-
-      - name: Publish frontend manifest
-        shell: bash
-        run: |
-          set -euo pipefail
-          image="${REGISTRY}/${IMAGE_OWNER}/pebble-frontend"
           tags=(
             -t "${image}:${{ steps.vars.outputs.version }}"
             -t "${image}:latest"

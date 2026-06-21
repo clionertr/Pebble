@@ -1,31 +1,16 @@
 name: pebble
 
 services:
-  backend:
-    image: ${PEBBLE_BACKEND_IMAGE:-ghcr.io/clionertr/pebble:latest}
-    container_name: pebble-backend
+  pebble:
+    image: ${PEBBLE_IMAGE:-ghcr.io/clionertr/pebble:latest}
+    container_name: pebble
     env_file:
       - .env
     environment:
       PEBBLE_HOST: 0.0.0.0
       PEBBLE_PORT: 3000
+    ports:
+      - "${PEBBLE_HTTP_BIND:-127.0.0.1:9191}:3000"
     volumes:
       - ./data:/app/data
     restart: unless-stopped
-    networks:
-      - pebble-net
-
-  frontend:
-    image: ${PEBBLE_FRONTEND_IMAGE:-ghcr.io/clionertr/pebble-frontend:latest}
-    container_name: pebble-frontend
-    ports:
-      - "${PEBBLE_HTTP_BIND:-127.0.0.1:9191}:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-    networks:
-      - pebble-net
-
-networks:
-  pebble-net:
-    driver: bridge
