@@ -25,6 +25,15 @@ async fn unauthenticated_api_returns_401() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        response
+            .headers()
+            .get(header::X_CONTENT_TYPE_OPTIONS)
+            .unwrap(),
+        "nosniff"
+    );
+    assert_eq!(response.headers().get("x-frame-options").unwrap(), "DENY");
+    assert!(response.headers().get("content-security-policy").is_some());
 }
 
 #[tokio::test]

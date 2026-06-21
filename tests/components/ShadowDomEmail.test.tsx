@@ -1,10 +1,17 @@
 import { fireEvent, render, waitFor } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ShadowDomEmail } from "@/components/ShadowDomEmail";
 
 const mocks = vi.hoisted(() => ({
   open: vi.fn(),
 }));
+
+const shadowDomEmailStyles = readFileSync(
+  join(process.cwd(), "public/shadow-dom-email.css"),
+  "utf8",
+);
 
 describe("ShadowDomEmail", () => {
   beforeEach(() => {
@@ -26,10 +33,14 @@ describe("ShadowDomEmail", () => {
       expect(host?.shadowRoot).not.toBeNull();
     });
 
-    const shadowMarkup = host!.shadowRoot!.innerHTML;
-    expect(shadowMarkup).toContain("var(--color-text-primary)");
-    expect(shadowMarkup).toContain("var(--color-accent)");
-    expect(shadowMarkup).not.toContain("color: #1a1a1a");
+    const stylesheet = host!.shadowRoot!.querySelector<HTMLLinkElement>(
+      'link[rel="stylesheet"]',
+    );
+
+    expect(stylesheet?.getAttribute("href")).toBe("/shadow-dom-email.css");
+    expect(shadowDomEmailStyles).toContain("var(--color-text-primary)");
+    expect(shadowDomEmailStyles).toContain("var(--color-accent)");
+    expect(shadowDomEmailStyles).not.toContain("color: #1a1a1a");
   });
 
   it("themes horizontal overflow inside email content", async () => {
@@ -40,9 +51,8 @@ describe("ShadowDomEmail", () => {
       expect(host?.shadowRoot).not.toBeNull();
     });
 
-    const shadowMarkup = host!.shadowRoot!.innerHTML;
-    expect(shadowMarkup).toContain("scrollbar-width: thin");
-    expect(shadowMarkup).toContain("::-webkit-scrollbar-thumb");
+    expect(shadowDomEmailStyles).toContain("scrollbar-width: thin");
+    expect(shadowDomEmailStyles).toContain("::-webkit-scrollbar-thumb");
   });
 
   it("keeps light-authored email html readable in dark theme", async () => {
@@ -57,12 +67,11 @@ describe("ShadowDomEmail", () => {
       expect(host?.shadowRoot).not.toBeNull();
     });
 
-    const shadowMarkup = host!.shadowRoot!.innerHTML;
-    expect(shadowMarkup).toContain('class="pebble-email-content"');
-    expect(shadowMarkup).toContain(':host-context([data-theme="dark"]) .pebble-email-content');
-    expect(shadowMarkup).toContain("color-scheme: light");
-    expect(shadowMarkup).toContain("background: #fff");
-    expect(shadowMarkup).toContain("color: #202124");
+    expect(host!.shadowRoot!.innerHTML).toContain('class="pebble-email-content"');
+    expect(shadowDomEmailStyles).toContain(':host-context([data-theme="dark"]) .pebble-email-content');
+    expect(shadowDomEmailStyles).toContain("color-scheme: light");
+    expect(shadowDomEmailStyles).toContain("background: #fff");
+    expect(shadowDomEmailStyles).toContain("color: #202124");
   });
 
   it("prevents full-height email wrappers from painting a gray viewport canvas", async () => {
@@ -80,10 +89,10 @@ describe("ShadowDomEmail", () => {
     });
 
     const shadowMarkup = host!.shadowRoot!.innerHTML;
-    expect(shadowMarkup).toContain('.pebble-email-content > table[height="100%"]');
+    expect(shadowDomEmailStyles).toContain('.pebble-email-content > table[height="100%"]');
     expect(shadowMarkup).toContain('style="height: 100%; background: #f1f1f1"');
-    expect(shadowMarkup).toContain("height: auto !important");
-    expect(shadowMarkup).toContain("min-height: 0 !important");
+    expect(shadowDomEmailStyles).toContain("height: auto !important");
+    expect(shadowDomEmailStyles).toContain("min-height: 0 !important");
   });
 
   it("opens http and https links in a new browser tab", async () => {

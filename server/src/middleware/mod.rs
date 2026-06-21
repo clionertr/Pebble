@@ -1,6 +1,6 @@
 use axum::{
     extract::{Request, State},
-    http::StatusCode,
+    http::{header, HeaderName, HeaderValue, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
     Json,
@@ -10,6 +10,7 @@ use std::sync::Arc;
 use crate::state::AppState;
 
 const SESSION_COOKIE: &str = "pebble_session";
+const CONTENT_SECURITY_POLICY: &str = "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'";
 
 fn is_exempt(path: &str) -> bool {
     if path == "/events" {
@@ -51,6 +52,30 @@ pub async fn auth_middleware(
         )
             .into_response(),
     }
+}
+
+pub async fn security_headers_middleware(request: Request, next: Next) -> Response {
+    let mut response = next.run(request).await;
+    let headers = response.headers_mut();
+
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        HeaderName::from_static("x-frame-options"),
+        HeaderValue::from_static("DENY"),
+    );
+    headers.insert(
+        HeaderName::from_static("referrer-policy"),
+        HeaderValue::from_static("no-referrer"),
+    );
+    headers.insert(
+        HeaderName::from_static("content-security-policy"),
+        HeaderValue::from_static(CONTENT_SECURITY_POLICY),
+    );
+
+    response
 }
 
 fn extract_cookie(header: &str, name: &str) -> Option<String> {

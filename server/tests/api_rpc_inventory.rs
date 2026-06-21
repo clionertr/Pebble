@@ -80,13 +80,24 @@ fn tests_do_not_encode_desktop_or_tauri_contracts() {
 }
 
 #[test]
-fn dev_proxy_and_nginx_do_not_expose_rpc_route() {
+fn dev_proxy_and_docker_deploy_do_not_expose_rpc_or_frontend_nginx_routes() {
     let root = repo_root();
     let vite = fs::read_to_string(root.join("vite.config.ts")).unwrap();
-    let nginx = fs::read_to_string(root.join("deploy/nginx.conf")).unwrap();
+    let compose = fs::read_to_string(root.join("deploy/compose.prod.yml")).unwrap();
+    let docker_workflow = fs::read_to_string(root.join(".github/workflows/docker.yml")).unwrap();
 
     assert!(!vite.contains("\"/rpc\""));
-    assert!(!nginx.contains("|rpc|"));
+    assert!(!compose.contains("/rpc"));
+    assert!(!docker_workflow.contains(&format!("{}-{}", "pebble", "frontend")));
+    assert!(!root
+        .join("deploy")
+        .join(format!("{}{}", "nginx", ".conf"))
+        .exists());
+    assert!(!root
+        .join("deploy")
+        .join(format!("{}{}", "frontend", ".Dockerfile"))
+        .exists());
+    assert!(!root.join("deploy").join("docker-compose.yml").exists());
 }
 
 #[test]

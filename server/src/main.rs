@@ -7,6 +7,7 @@ use axum::{
 };
 use pebble::{
     api, auth, gmail_realtime, middleware, rpc, session, snooze_watcher, state::AppState,
+    static_assets,
 };
 use std::convert::Infallible;
 use std::io::Read;
@@ -326,12 +327,18 @@ async fn main() {
         .merge(api::api_routes())
         .merge(api::auth_api::auth_routes())
         .merge(api::docs::docs_routes())
+        .merge(static_assets::static_assets_router(
+            static_assets::default_frontend_dist_dir(),
+        ))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             middleware::auth_middleware,
         ))
         .layer(cors_layer())
         .layer(tower_http::compression::CompressionLayer::new())
+        .layer(axum::middleware::from_fn(
+            middleware::security_headers_middleware,
+        ))
         .with_state(state);
 
     let host = std::env::var("PEBBLE_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());

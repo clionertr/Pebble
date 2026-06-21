@@ -14,6 +14,7 @@ mod proxy;
 mod search;
 mod shell;
 mod snooze;
+mod static_assets;
 mod trusted_senders;
 
 use axum::{
@@ -71,6 +72,9 @@ pub async fn test_app() -> (Router, TempDir, Arc<AppState>) {
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             middleware::auth_middleware,
+        ))
+        .layer(axum::middleware::from_fn(
+            middleware::security_headers_middleware,
         ))
         .with_state(state.clone());
 

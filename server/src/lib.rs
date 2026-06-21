@@ -16,3 +16,4 @@ pub mod rpc;
 pub mod session;
 pub mod snooze_watcher;
 pub mod state;
+pub mod static_assets;
