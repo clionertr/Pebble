@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 17
-- **Last Active**: 2026-06-05
+- **Total Sessions**: 18
+- **Last Active**: 2026-06-21
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~650 | Active |
+| `journal-1.md` | ~687 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 18 | 2026-06-21 | Rust 后端内置前端静态文件，单容器部署 | `6ee3c4b`, `bf73b55`, `f1fb880`, `55fb10e`, `2810d7d` | `master` |
 | 17 | 2026-06-05 | 修复 Shadow DOM 邮件样式 CSP | `f7f30a8` | `master` |
 | 16 | 2026-06-05 | 修复生产 CSP 邮件内联样式 | `33b6733` | `master` |
 | 15 | 2026-06-03 | 完成最佳实践整改计划第三阶段 | `437e62d` | `master` |

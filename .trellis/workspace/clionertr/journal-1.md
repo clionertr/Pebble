@@ -648,3 +648,40 @@ Implemented Web Push browser notifications (backend push service, notification d
 ### Next Steps
 
 - None - task complete
+
+
+## Session 18: Rust 后端内置前端静态文件，单容器部署
+
+**Date**: 2026-06-21
+**Task**: Rust 后端内置前端静态文件，单容器部署
+**Branch**: `master`
+
+### Summary
+
+将 Pebble 从后端+前端 nginx 双容器部署改为单一 Rust 容器：后端通过 tower-http 托管前端 dist/，接管安全响应头与缓存头。删除前端 nginx、前端镜像、裸二进制 release 路线。同步更新 CI、文档和 Trellis 规范。升级 Vite/DOMPurify 修复审计告警。全量质量门禁通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6ee3c4b` | (see git log) |
+| `bf73b55` | (see git log) |
+| `f1fb880` | (see git log) |
+| `55fb10e` | (see git log) |
+| `2810d7d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
