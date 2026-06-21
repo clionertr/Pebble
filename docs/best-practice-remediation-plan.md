@@ -101,7 +101,7 @@
 | 静默吞错改为可观测 | D-ERR-02 | 对关键 `let _ =` 改成 `if let Err(e)` 并 `warn!`，必要时阻断流程 | 归档文件夹创建失败、账户回滚失败、索引状态写入失败均有日志或返回错误；测试覆盖至少 1 个关键路径 |
 | 版本/仓库元数据统一 | C-META-01, D-DOC-01 | 将 UI、OpenAPI、更新检查、CHANGELOG 链接统一到 `package.json/server/Cargo.toml` 与 `clionertr/Pebble` | `git grep '0.0.4\|QingJ01/Pebble'` 仅保留明确“原始上游署名/历史链接”位置；About 页显示 `0.0.11` 或构建注入版本 |
 | `.dockerignore` 补齐本地目录 | C-SEC-05 | 增加 `.agent/`、`.claude/`、`.codex/`、`.antigravitycli/`、`.trellis/.backup-*` 等 | `docker build` context 不包含这些目录；可用临时 `tar`/BuildKit 输出或脚本验证 |
-| nginx 真实 IP 信任范围收紧 | C-SEC-06 | `set_real_ip_from` 改为具体 Docker 网络/反代 IP，或在示例中说明如何配置 | 默认配置不再信任 `0.0.0.0/0`；README 说明多反代场景配置方式 |
+| 反代真实 IP 信任范围收紧 | C-SEC-06 | `set_real_ip_from` 改为具体 Docker 网络/反代 IP，或在示例中说明如何配置 | 默认应用不信任任意代理头；README 说明外部反代统一转发到 `127.0.0.1:9191` |
 | 本地运行数据迁移建议 | C-HYGIENE-01, D-SEC-04 | 文档说明开发数据应放仓库外，或使用 `.env` 私有路径配置 | README/开发文档含迁移建议；Git 仍不跟踪敏感文件 |
 
 ### 第 2 阶段：契约、文档、工具链与供应链
@@ -171,7 +171,7 @@ cargo audit   # 或 cargo deny check
 1. **依赖漏洞与版本元数据修复**：C-SEC-01、C-META-01。
 2. **OAuth XSS + 请求可达 unwrap + 静默吞错**：C-SEC-02、D-ERR-01、D-ERR-02。
 3. **资源限制**：附件大小限制、limit 上限、搜索长度/复杂度限制。
-4. **Docker/nginx 本地安全卫生**：`.dockerignore`、真实 IP、运行数据文档。
+4. **Docker/反代本地安全卫生**：`.dockerignore`、真实 IP、运行数据文档。
 5. **OpenAPI/README/集成指南同步**。
 6. **ESLint/Rust audit/锁文件统一/CI 加固**。
 7. **API/RPC/store 边界规范写入 Trellis spec**。
@@ -246,7 +246,7 @@ cargo audit   # 或 cargo deny check
 | P2 | 拆 `api/threads.rs` | **已完成**：`threads.rs` 已改为聚合路由，thread_reads/search/kanban/snooze 已拆到 `server/src/api/threads/` 子模块，共享分页上限保留在聚合模块 | 递归 OpenAPI route diff、API 测试、全量 Rust 测试通过；路由行为不变 |
 | P2 | 继续收敛 `spawn_blocking` 样板 | **已完成 RPC 层收敛**：已新增 `Store::with_blocking_async()` 和 `rpc::blocking::run_blocking()`；search/advanced_search、messages flags/rendering、batch、attachments、accounts cleanup、reindex 等旧 join-error 样板已迁移 | `rg 'tokio::task::spawn_blocking|Task join error' server/src/rpc` 仅剩统一 helper；全量 Rust 质量门通过 |
 | P2 | 纯透传 RPC 分类和可见性收敛 | **已完成当前清单**：薄 RPC 已按“保留边界 / 收窄可见性 / 删除遗留透传”分类；labels/rules/kanban/snooze/threads/messages query 等仅 crate 内调用的函数已改 `pub(crate)`，未使用的 `get_global_proxy()` 已删除 | `cargo clippy --workspace --all-targets -- -D warnings` 与 API 测试通过；分类结果见 C.2 |
-| P2 | GitHub Actions 产物证明/SBOM | **已完成 checksum 基线**：Actions 已 SHA pin，Docker digest pin 已完成；release 二进制逐平台生成 `.sha256`，发布前统一校验并上传 `checksums.txt` | 后续可继续评估 artifact attestations/SBOM；当前 release 产物完整性校验已有可验收基线 |
+| P2 | GitHub Actions 产物证明/SBOM | **已完成 checksum 基线**：Actions 已 SHA pin，Docker digest pin 已完成；当前分发收敛为单个 Docker 镜像，裸二进制发布链路已移除 | 后续可继续评估 artifact attestations/SBOM；当前 Docker 产物完整性和 workflow pinning 已有可验收基线 |
 | P3 | 巨型同步/Provider 文件拆分 | **已完成当前范围**：Gmail provider 已抽出 MIME/地址/附件编码 helper 到 `gmail_mime.rs`；Outlook provider 已抽出 base64/MIME helper 到 `outlook_codec.rs`；`sync_cmd.rs` 已抽出实时状态、wake 统计、触发决策到 `sync_cmd_support.rs`，主文件由 1196 行降到 764 行；`sync.rs` 已抽出附件落盘到 `sync_attachments.rs`、IMAP cursor/轮询/错误分类到 `sync_imap_state.rs`，主文件由 2260 行降到 1603 行 | `cargo test -p pebble rpc::sync_cmd -- --nocapture` 15 个测试通过；`cargo test -p pebble-mail sync -- --nocapture` 52 个测试通过；`cargo clippy -p pebble --all-targets -- -D warnings` 与 `cargo clippy -p pebble-mail --all-targets -- -D warnings` 通过 |
 | P3 | 前端巨型组件拆分 | **已完成当前范围**：`ComposeView.tsx` 已抽出附件列表、模板菜单、保存模板面板、离开确认弹窗到 `ComposePanels.tsx`，主文件由 1118 行降到 794 行；`AccountsTab.tsx` 已抽出账号列表到 `AccountsList.tsx`、编辑弹窗到 `EditAccountModal.tsx`，主文件由 1237 行降到 280 行 | `pnpm lint`、Accounts 相关测试、`pnpm build:frontend` 通过；后续新增功能继续按组件边界拆 |
 | P3 | Trellis 包级占位规范清理 | **已完成**：`pebble-core`、`pebble-crypto`、`pebble-mail`、`pebble-oauth`、`pebble-privacy`、`pebble-rules`、`pebble-search`、`pebble-store`、`pebble-translate` 的包级 backend spec 已替换为真实目录/质量/错误/日志/数据库边界规范 | `rg '(To be filled by the team)' .trellis/spec -g '*.md'` 无输出；每个包至少有真实目录/质量/错误规范入口 |
@@ -258,11 +258,11 @@ cargo audit   # 或 cargo deny check
 |---|---|---|
 | C-SEC-01 | **已完成** | `pnpm audit --audit-level moderate` 已为零漏洞；依赖升级已固化在第 1/2 阶段。 |
 | C-SEC-02 | **已完成** | `server/src/auth.rs` 使用 `escape_html()`，OAuth 错误页测试覆盖脚本转义。 |
-| C-SEC-03 | **已完成** | `deploy/backend.Dockerfile`、`deploy/frontend.Dockerfile` 的 `FROM` 均使用 `@sha256` digest pin。 |
+| C-SEC-03 | **已完成** | 单一 `deploy/backend.Dockerfile` 的 Node/Rust/runtime 基础镜像均使用 `@sha256` digest pin。 |
 | C-SEC-04 | **已完成** | `.github/workflows/*.yml` action 均用 SHA pin，并保留 tag 注释。 |
 | C-SEC-05 | **已完成** | `.dockerignore` 已包含 `.agent`、`.claude`、`.codex`、`.antigravitycli`、`server/data` 等本地目录。 |
-| C-SEC-06 | **已完成** | `deploy/nginx.conf` 不再信任 `0.0.0.0/0`，改为 Docker 私网 CIDR 和 loopback。 |
-| C-SEC-07 | **已完成当前范围** | OAuth 成功页和 API docs 已去除 inline style；nginx CSP 已收敛为 `style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'`，仅允许 sanitizer 白名单过滤后的邮件 `style=""` 属性生效。 |
+| C-SEC-06 | **已完成** | 旧前端 nginx 配置已删除；真实 IP 与公网入口信任边界改由外部反代负责，应用自身接管基础安全响应头。 |
+| C-SEC-07 | **已完成当前范围** | OAuth 成功页和 API docs 已去除 inline style；应用 CSP 已收敛为 `style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'`，仅允许 sanitizer 白名单过滤后的邮件 `style=""` 属性生效。 |
 | C-META-01 | **已完成** | OpenAPI、更新检查、About 页、站点链接、CHANGELOG compare 链接已对齐 `0.0.11` 与 `clionertr/Pebble`；README 仅保留明确的原始上游说明和署名。 |
 | C-CONTRACT-01 | **已完成** | OpenAPI 已补通知路由，新增 `openapi_paths_match_public_routes` 自动 diff 测试。 |
 | C-TOOL-01 | **已完成** | ESLint/Prettier 严格门禁已可通过；CI 前端 lint/format 不再 `continue-on-error`；`pnpm lint`、`pnpm format:check`、`pnpm test`、`pnpm build:frontend` 均通过。 |
@@ -323,11 +323,11 @@ cargo audit   # 或 cargo deny check
 |---|---|---|
 | C-SEC-01 | **真实存在** | `pnpm audit` 报 5 个漏洞：vitest (critical, <4.1.0)、vite (high, <=6.4.1)、vite (moderate, <=6.4.1)、postcss (moderate, <8.5.10)、ws (moderate, <8.20.1) |
 | C-SEC-02 | **真实存在** | `server/src/auth.rs:94` — `Html(format!("<h1>OAuth Error</h1><p>{}</p>", err))` 直接将 `query.error` 未转义插入 HTML；同文件 :48, :53, :61, :117, :132, :168 存在类似模式 |
-| C-SEC-03 | **真实存在** | 4 个 Dockerfile 全部使用浮动标签：`deploy/backend.Dockerfile:2` `lukemathwalker/cargo-chef:latest-rust-1-slim-bookworm`、`:46` `debian:bookworm-slim`；`deploy/frontend.Dockerfile:1` `node:22-alpine`、`:23` `nginx:alpine` |
+| C-SEC-03 | **真实存在** | 旧版后端/前端 Dockerfile 曾使用浮动基础镜像；当前已收敛为单一后端 Dockerfile，并固定 Node、cargo-chef、Debian runtime digest |
 | C-SEC-04 | **真实存在** | 3 个 workflow 文件全部使用版本标签（`actions/checkout@v4`、`docker/build-push-action@v7` 等），无任何 SHA pin |
 | C-SEC-05 | **部分存在** | `.dockerignore` 已有 `.agents`、`.gemini`、`.trellis`、`data`、`.env`，但缺少 `.claude`、`.codex`、`.antigravitycli`、`.agent` |
-| C-SEC-06 | **真实存在** | `deploy/nginx.conf:6` — `set_real_ip_from 0.0.0.0/0;` |
-| C-SEC-07 | **部分存在** | CSP 仅由 nginx 对静态资源执行（`deploy/nginx.conf:17` `script-src 'self'`）；后端直接返回的 HTML（如 `auth.rs:157-161` OAuth 成功页内联 `<script>`）不受 CSP 约束。当前不影响生产功能，但策略不统一 |
+| C-SEC-06 | **真实存在** | 旧前端 nginx 配置曾信任所有代理头；当前该配置已删除 |
+| C-SEC-07 | **部分存在** | CSP 曾只由前端 nginx 对静态资源执行，后端直接返回 HTML 不受同一策略约束；当前由 Rust 后端统一注入基础安全响应头 |
 | C-META-01 | **真实存在** | 版本：`package.json:4` 和 `server/Cargo.toml:3` 均为 `0.0.11`，但 `server/src/api/docs.rs:34` 仍为 `"0.0.4"`。仓库：`server/src/rpc/health.rs:18` 和 `src/features/settings/AboutTab.tsx:10` 使用 `QingJ01/Pebble`（更新检查指向上游 fork），而 `deploy/install.sh:5` 和 `docker.yml:19` 使用 `clionertr` |
 | C-CONTRACT-01 | **真实存在** | 6 个通知路由缺失 OpenAPI 文档（详见 A.2）；OpenAPI 版本号 `0.0.4` 与实际 `0.0.11` 不一致 |
 | C-TOOL-01 | **真实存在** | 无 `.eslintrc*`、`eslint.config*`、`.prettierrc*` 文件；`package.json` 无相关依赖或脚本 |
@@ -503,12 +503,12 @@ cargo audit   # 或 cargo deny check
 | ID | 整改动作 | 验收证据 |
 |---|---|---|
 | C-CONTRACT-01 | `api/docs.rs` 补齐 6 条缺失的 notification 路由（vapid-public-key、devices GET/PATCH/DELETE、subscriptions POST/DELETE、test POST）；OpenAPI 版本号已对齐 `0.0.11` | `git grep -n "api/notifications" server/src/api/docs.rs` 可看到全部 6 条路径；路由-OpenAPI diff 为 0（有意排除的 4 条除外） |
-| C-SEC-07 | OAuth 成功页去掉 `<script>` 自动跳转，改用 `<meta http-equiv="refresh">` + 手动回链 | `server/src/auth.rs` 成功分支渲染的 HTML 不再包含 `setTimeout` 或 `window.location`；nginx CSP `script-src 'self'` 下仍可正常跳转 |
+| C-SEC-07 | OAuth 成功页去掉 `<script>` 自动跳转，改用 `<meta http-equiv="refresh">` + 手动回链 | `server/src/auth.rs` 成功分支渲染的 HTML 不再包含 `setTimeout` 或 `window.location`；应用 CSP `script-src 'self'` 下仍可正常跳转 |
 | C-TOOL-01 | 引入 ESLint 9 flat config + Prettier 3；新增 `pnpm lint`、`pnpm lint:fix`、`pnpm format`、`pnpm format:check` 脚本；清理前端存量 lint/format 问题，并移除 CI 前端 lint/format 的 `continue-on-error` | `eslint.config.js`、`.prettierrc`、`.prettierignore` 存在；`pnpm lint`、`pnpm format:check`、`pnpm test`、`pnpm build:frontend` 均通过 |
 | C-TOOL-02 | 新增 `deny.toml`（licenses / advisories / bans / sources）；CI 加入 `EmbarkStudios/cargo-deny-action@v2` 步骤 | `deny.toml` 存在；`.github/workflows/ci.yml` 出现 `cargo-deny-action` |
 | C-TOOL-03 | 删除 `package-lock.json`，保留 `pnpm-lock.yaml` 单一锁文件 | `git ls-files package-lock.json` 为空；`pnpm-lock.yaml` 仍在 |
-| C-SEC-03 | 4 处 Dockerfile 基础镜像改为多架构 index digest pin（`lukemathwalker/cargo-chef`、`debian:bookworm-slim`、`node:22-alpine`、`nginx:alpine`），注释保留原始 tag 便于后续升级 | `deploy/backend.Dockerfile` 与 `deploy/frontend.Dockerfile` 所有 FROM 使用 `@sha256:...` |
-| C-SEC-04 | 3 个 workflow 全部 action 用 `@<SHA> # <tag>` 形式 pin：checkout v4.2.2、setup-node v4.4.0、pnpm/action-setup v4.1.0、rust-toolchain stable、rust-cache v2.7.8、upload/download-artifact v4.x、setup-buildx v4.0.0、login-action v4.0.0、build-push-action v7.0.0、action-gh-release v2.3.3、cargo-deny-action v2.2.0 | `grep -E '@[a-f0-9]{40}' .github/workflows/*.yml` 全部命中 |
+| C-SEC-03 | 单一 Dockerfile 的 Node、cargo-chef、Debian runtime 基础镜像改为多架构 index digest pin，注释保留原始 tag 便于后续升级 | `deploy/backend.Dockerfile` 所有 FROM 使用 `@sha256:...` |
+| C-SEC-04 | 保留的 workflow action 均用 `@<SHA> # <tag>` 形式 pin：checkout v4.2.2、setup-node v4.4.0、pnpm/action-setup v4.1.0、rust-toolchain stable、rust-cache v2.7.8、setup-buildx v4.0.0、login-action v4.0.0、build-push-action v7.0.0、cargo-deny-action v2.2.0 | `grep -E '@[a-f0-9]{40}' .github/workflows/*.yml` 全部命中 |
 | D-DOC-01 (集成指南) | `docs/integration-guide.md` 新增：SSE 事件全集、推送通知（Web Push/VAPID）、Kanban、暂延、待处理操作五个章节 | 文档目录新增 5 个二级标题，含请求/响应载荷表 |
 | D-DOC-01 / C-DOC-02 (README) | 修正版本号 `v0.0.9` → `v0.0.11`；Node 22+ / pnpm 11+；`cargo test --workspace --all-targets`；补充 sha256 校验替代 `curl \| bash` | `README.md` 与 `README.zh-CN.md` 均更新 |
 | C-ERR-01 (partial) | `pnpm audit` 零漏洞（`No known vulnerabilities found`），第 1 阶段依赖升级已固化 | `pnpm audit` 输出无告警 |

@@ -6,12 +6,14 @@
 
 ```text
 Browser React SPA
+  ├─ static files served by Axum backend
   ├─ HTTP REST: /api/*
   ├─ SSE:       /events
   └─ OAuth:     /auth/login, /auth/callback
         │
         ▼
 Axum backend
+  ├─ server/src/static_assets.rs  前端静态文件、SPA fallback、安全头与缓存头
   ├─ server/src/api/        Web API 边界
   ├─ server/src/rpc/        业务服务层
   ├─ crates/pebble-store    SQLite 数据
@@ -21,6 +23,29 @@ Axum backend
 ```
 
 所有 `/api/*` 与 `/events` 请求都使用 `pebble_session` Cookie 鉴权。前端生产代码只走 HTTP/SSE，不再使用 Tauri IPC。
+
+## 部署边界
+
+生产 Docker 部署只有一个 Pebble 容器。镜像构建时会先生成前端 `dist/`，再把 `dist/` 复制进后端运行镜像；运行时由 Rust/Axum 托管前端静态文件和 Webmail API。
+
+默认链路：
+
+```text
+Browser / Reverse proxy / Cloudflare Tunnel
+        │
+        ▼
+127.0.0.1:9191
+        │
+        ▼
+Pebble container :3000
+  ├─ frontend dist + SPA fallback
+  ├─ /api/*
+  ├─ /events
+  ├─ /auth/*
+  └─ /webhook/*
+```
+
+外部 nginx、Caddy、1Panel OpenResty 或 Cloudflare Tunnel 只需要把整个站点转发到 `http://127.0.0.1:9191`。不要再维护独立的前端 nginx 容器或旧前端镜像。
 
 ## 启动快照与前端缓存
 

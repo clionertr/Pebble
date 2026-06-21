@@ -13,13 +13,10 @@
 <p align="center">
   <a href="README.zh-CN.md">简体中文</a>
   ·
-  <a href="https://github.com/clionertr/Pebble/releases">Releases</a>
-  ·
   <a href="LICENSE">License</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/clionertr/Pebble/releases"><img src="https://img.shields.io/github/v/release/clionertr/Pebble?style=flat-square&color=d4714e" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20VPS%20%7C%20Self--hosted-lightgrey?style=flat-square" alt="Platform">
 </p>
@@ -42,7 +39,7 @@ Pick the method that fits you.
 
 ### One-command Docker deploy (recommended)
 
-You need Docker and Docker Compose installed. The installer pulls the latest tagged GHCR images, creates `./pebble`, writes `.env`, starts the services, and checks `http://127.0.0.1:9191`. If Docker needs elevated privileges and passwordless sudo is available, the installer will use `sudo -n docker` automatically.
+You need Docker and Docker Compose installed. The installer pulls the latest tagged GHCR image, creates `./pebble`, writes `.env`, starts the single Pebble container, and checks `http://127.0.0.1:9191`. If Docker needs elevated privileges and passwordless sudo is available, the installer will use `sudo -n docker` automatically.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh | bash
@@ -104,77 +101,11 @@ pnpm dev:frontend
 Open `http://localhost:1420`. The dev server proxies API calls to the backend at port 3000.
 If you access Vite through a reverse proxy or remote dev domain, set comma-separated hostnames in `PEBBLE_VITE_ALLOWED_HOSTS`, for example `PEBBLE_VITE_ALLOWED_HOSTS=pebble.example.com,dev.example.com`.
 
-Important dev rule: run only one backend process against the same `./data` directory. If a release binary, `cargo run`, or a systemd service is already running, the search index will be locked and the next backend start will fail.
-
-### Production from Source
-
-For a VPS that runs from source, use a process manager such as systemd. The mental model is:
-
-1. stop the old Pebble backend
-2. pull/build the new code
-3. start exactly one backend again
-
-```bash
-# One-time setup
-git clone https://github.com/clionertr/Pebble.git /opt/pebble
-cd /opt/pebble
-pnpm install --frozen-lockfile
-cp .env.example .env
-printf '%s' 'your-password' | cargo run -p pebble -- hash-password
-# Edit .env and set PEBBLE_PASSWORD_HASH to the generated hash.
-# Direct source runs use single $ characters, for example '$2b$12$...'.
-```
-
-Build and restart after code changes:
-
-```bash
-# Update code if this server tracks git
-git pull --ff-only
-
-# Build while the old service keeps serving traffic
-pnpm install --frozen-lockfile
-pnpm run build:frontend
-cargo build --release -p pebble
-
-# Restart once. systemd stops the old backend before starting the new one.
-sudo systemctl restart pebble
-```
-
-Serve `dist/` with nginx (example config below). The backend listens on port 3000 by default.
-
-Example systemd unit. A ready-to-edit copy is also available at `deploy/pebble.service.example`:
-
-```ini
-[Unit]
-Description=Pebble webmail backend
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-WorkingDirectory=/opt/pebble
-EnvironmentFile=/opt/pebble/.env
-ExecStart=/opt/pebble/target/release/pebble
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Install it with:
-
-```bash
-sudo cp deploy/pebble.service.example /etc/systemd/system/pebble.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now pebble
-```
-
-For quick manual testing without systemd, stop any existing Pebble process first, then run `./target/release/pebble` from the repository root. The binary now reads `.env` from the current working directory.
+Important dev rule: run only one backend process against the same `./data` directory. If another `cargo run` or Docker container is already using the data directory, the search index will be locked and the next backend start will fail.
 
 ## Configuration Guide
 
-All configuration goes into **environment variables**. You can set them in a `.env` file, pass them directly when running the binary, or use Docker Compose's `env_file`. Direct source runs read `.env` from the current working directory without an extra `source .env` step.
+All configuration goes into **environment variables**. You can set them in a `.env` file, pass them directly when running from source, or use Docker Compose's `env_file`. Direct source runs read `.env` from the current working directory without an extra `source .env` step.
 
 ### Required: Password
 
@@ -239,82 +170,43 @@ Setup steps:
 
 ## Production Deployment
 
-### Nginx Reverse Proxy
+### Single-container Docker (recommended)
 
-The recommended setup: nginx serves the frontend static files and proxies API calls to the backend.
+Pebble now serves both the React SPA and the Webmail API from the Rust backend. The Docker image contains the frontend `dist/` files, so production deployment only needs one container.
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name mail.your-domain.com;
+The one-command installer writes a compose file from `deploy/compose.prod.yml`. If you want to maintain it manually, use the prebuilt GHCR image:
 
-    root /path/to/Pebble/dist;
-    index index.html;
-
-    # Security headers
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
-    add_header Referrer-Policy "no-referrer" always;
-    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" always;
-
-    # Frontend SPA — fall back to index.html for client-side routing
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Backend API, SSE (real-time events), OAuth, and Gmail webhook
-    location ~ ^/(api|events|auth|webhook) {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-
-        # Required for Server-Sent Events (real-time updates)
-        proxy_buffering off;
-        proxy_cache off;
-        proxy_read_timeout 3600s;
-    }
-}
-```
-
-### Docker Compose (Production)
-
-The one-command installer writes a compose file from `deploy/compose.prod.yml`. If you want to maintain it manually, use the prebuilt GHCR images:
-
-`latest` is updated only when this repository pushes a version tag such as `v0.0.11`.
+`latest` is updated only when this repository pushes a version tag such as `v0.0.12`.
 
 ```yaml
 name: pebble
 
 services:
-  backend:
+  pebble:
     image: ghcr.io/clionertr/pebble:latest
-    volumes:
-      - ./data:/app/data
     env_file:
       - .env
     environment:
       PEBBLE_HOST: 0.0.0.0
       PEBBLE_PORT: 3000
-    restart: unless-stopped
-    networks:
-      - pebble-net
-
-  frontend:
-    image: ghcr.io/clionertr/pebble-frontend:latest
     ports:
-      - "127.0.0.1:9191:80"
-    depends_on:
-      - backend
+      - "127.0.0.1:9191:3000"
+    volumes:
+      - ./data:/app/data
     restart: unless-stopped
-    networks:
-      - pebble-net
-
-networks:
-  pebble-net:
-    driver: bridge
 ```
 
-With this setup, point your public reverse proxy (nginx, Caddy, 1Panel OpenResty, etc.) to `http://127.0.0.1:9191`.
+Point your public reverse proxy (nginx, Caddy, 1Panel OpenResty, etc.) to `http://127.0.0.1:9191`. Pebble itself handles frontend files, `/api/*`, `/events`, `/auth/*`, and `/webhook/*`; your reverse proxy only needs to forward the whole site.
+
+### Cloudflare Tunnel
+
+For Cloudflare Tunnel, create a Public Hostname and set the service to:
+
+```text
+http://127.0.0.1:9191
+```
+
+No extra path rules are required.
 
 ### Data Persistence
 
@@ -336,14 +228,13 @@ All data lives in the `./data/` directory relative to where the backend runs:
 
 ```
 Browser (React SPA)
+        │  Frontend static files
         │  HTTP REST  /api/*
         │  SSE stream /events
         │  OAuth flow /auth/login  /auth/callback
         ▼
-Nginx (serves frontend, proxies API)
-        │
-        ▼
 Rust HTTP Server (Axum, port 3000)
+        │  serves frontend static files and Webmail API
         │
         ├── pebble-store    SQLite database
         ├── pebble-search   Tantivy full-text index
@@ -444,12 +335,10 @@ Shortcuts can be customized in Settings.
 | `cargo run -p pebble` | Run backend dev server |
 | `pnpm dev:frontend` | Run frontend dev server (proxies to backend) |
 | `pnpm build:frontend` | Type-check and build frontend to `dist/` |
-| `cargo build --release -p pebble` | Build release backend binary |
 | `pnpm test` | Run frontend tests (Vitest) |
 | `cargo fmt --check` | Check Rust formatting |
 | `cargo clippy --all-targets -- -D warnings` | Run Rust lint checks |
 | `cargo test --workspace --all-targets` | Run all Rust tests |
-| `sudo systemctl restart pebble` | Restart a source-deployed backend managed by systemd |
 
 ## Troubleshooting
 
@@ -457,7 +346,7 @@ Shortcuts can be customized in Settings.
 Your session expired (7-day TTL) or the backend restarted. Log in again.
 
 ### Can't log in after deployment
-Check that `PEBBLE_PASSWORD_HASH` in `.env` has `$$` escaping (not `$`) when used with Docker Compose. Test with: `docker exec pebble-backend env | grep PASSWORD`.
+Check that `PEBBLE_PASSWORD_HASH` in `.env` has `$$` escaping (not `$`) when used with Docker Compose. Test with: `docker exec pebble env | grep PASSWORD`.
 
 For direct source runs, use normal single `$` characters, usually quoted: `PEBBLE_PASSWORD_HASH='$2b$12$...'`. The backend reads `.env` automatically from the directory where you start it.
 
@@ -468,23 +357,22 @@ Pebble's full-text search index lives in `data/index/`. Tantivy allows only one 
 Check and stop the old process:
 
 ```bash
-sudo systemctl status pebble
-sudo systemctl stop pebble
+docker ps --filter name=pebble
 pgrep -af pebble
 ```
 
-Then start only one backend again: either `sudo systemctl start pebble`, `cargo run -p pebble`, or `./target/release/pebble`, not several at the same time.
+Then start only one backend again: either Docker or `cargo run -p pebble`, not several at the same time.
 
 If `pgrep -af pebble` shows no running process but the lock remains, reboot the server first. Only remove stale lock files under `data/index/` after confirming no Pebble process is running and after backing up `data/`.
 
 ### Routes returning 404
-Make sure the nginx config proxies `/api/*` to the backend. The proxy rule should be: `location ~ ^/(api|events|auth|webhook)`.
+Make sure your reverse proxy forwards the whole site to `http://127.0.0.1:9191`. Pebble handles frontend routes and API routes itself.
 
 ### Database "disk image is malformed"  
 The SQLite database may have been corrupted by an unclean shutdown. Try: `sqlite3 data/pebble.db "PRAGMA integrity_check;"`. If corrupted, restore from backup.
 
 ### Email sync not working
-Check the backend logs: `docker logs pebble-backend` or `tail -f data/logs/`. Common issues: OAuth token expired (re-authenticate in Settings → Accounts), network proxy not configured, IMAP credentials wrong.
+Check the backend logs: `docker logs pebble` or `tail -f data/logs/`. Common issues: OAuth token expired (re-authenticate in Settings → Accounts), network proxy not configured, IMAP credentials wrong.
 
 ## Project Structure
 
@@ -513,7 +401,7 @@ Pebble/
 │   ├── pebble-rules/       Rules engine
 │   ├── pebble-translate/   Translation providers
 │   └── pebble-privacy/     HTML sanitizing and tracker controls
-├── deploy/                 Docker and nginx configs
+├── deploy/                 Docker deployment files
 ├── tests/                  Frontend tests
 └── site/                   Screenshots
 ```

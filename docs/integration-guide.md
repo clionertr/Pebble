@@ -126,13 +126,23 @@ Content-Type: application/json
 
 ## 反向代理要求
 
-公网反代必须代理这些路径到后端：
+生产 Docker 默认把单个 Pebble 容器绑定到 `127.0.0.1:9191`。Rust 后端会同时处理：
+
+- 前端静态文件和 SPA fallback
+- `/api/*`
+- `/events`
+- `/auth/*`
+- `/webhook/*`
+
+因此公网反代只需要把整个站点转发到本机入口：
 
 ```nginx
-location ~ ^/(api|events|auth|webhook) {
-    proxy_pass http://127.0.0.1:3000;
+location / {
+    proxy_pass http://127.0.0.1:9191;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 
     # SSE 必须关闭缓冲
     proxy_buffering off;
@@ -141,7 +151,7 @@ location ~ ^/(api|events|auth|webhook) {
 }
 ```
 
-前端静态资源由 nginx 或容器中的前端服务托管；API/SSE/OAuth/webhook 走后端。
+Cloudflare Tunnel 的 Public Hostname service 同样填写 `http://127.0.0.1:9191`，不需要额外路径规则。
 
 ## SSE 事件全集
 

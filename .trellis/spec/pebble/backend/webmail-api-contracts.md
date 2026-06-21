@@ -4,7 +4,7 @@
 
 ### 1. Scope / Trigger
 - Trigger: Pebble 已从桌面 JSON-RPC 迁移为浏览器 Webmail；认证、附件、实时事件、部署和前端调用方式都跨越前后端边界。
-- 范围：`server/src/api/`、`server/src/middleware/`、`src/lib/api-client.ts`、`src/lib/sse-client.ts`、Docker/nginx 部署。
+- 范围：`server/src/api/`、`server/src/middleware/`、`src/lib/api-client.ts`、`src/lib/sse-client.ts`、Docker/反向代理部署。
 
 ### 2. Signatures
 - 登录：`POST /api/auth/login`，body `{ "password": string }`。
@@ -20,7 +20,7 @@
 - 鉴权：除 `/api/auth/login`、`/api/auth/logout`、`/api/auth/status`、`/api/docs*`、`/auth/*`、`/webhook/gmail` 外，`/api/*` 和 `/events` 必须要求有效 session。
 - 环境变量：`PEBBLE_PASSWORD_HASH` 必填；`ALLOWED_ORIGIN` 仅在前后端跨域部署时设置；Docker Compose 负责设置 `PEBBLE_HOST=0.0.0.0`。
 - 前端：生产代码不得调用 `invoke(...)`、`/rpc` 或 Tauri mock；HTTP 调用集中在 `api-client.ts`/`api.ts`。
-- 部署：nginx 只代理 `api|events|auth|webhook`，不得重新暴露 `/rpc`。
+- 部署：单容器 Docker 默认暴露 `127.0.0.1:9191`，外部反代转发整个站点；不得重新暴露 `/rpc`。
 
 ### 4. Validation & Error Matrix
 - 缺少 `PEBBLE_PASSWORD_HASH` -> 进程启动失败。
@@ -34,8 +34,8 @@
 
 ### 5. Good/Base/Bad Cases
 - Good: 浏览器登录后，REST 请求和 EventSource 都自动携带 cookie，收件箱和实时事件都可用。
-- Base: 同源 Docker/nginx 部署中 `ALLOWED_ORIGIN` 为空，CORS 不放宽，前端通过 nginx 访问后端。
-- Bad: 在前端新增 `invoke("send_email")` 或在 nginx 恢复 `/rpc` 代理，会绕开 Web API 契约和测试保护。
+- Base: 同源 Docker/反向代理部署中 `ALLOWED_ORIGIN` 为空，CORS 不放宽，浏览器通过同一站点访问前端静态文件和后端 API。
+- Bad: 在前端新增 `invoke("send_email")` 或恢复 `/rpc` 入口，会绕开 Web API 契约和测试保护。
 
 ### 6. Tests Required
 - Rust API 测试：登录 cookie 属性、登出失效、`/events` 未登录 401、认证豁免路由可访问。

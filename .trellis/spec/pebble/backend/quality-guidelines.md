@@ -104,7 +104,7 @@ if query.q.len() > MAX_SEARCH_QUERY_LEN {
 ### 前端
 - 使用 `pnpm install --frozen-lockfile` 保证可复现安装。
 - Docker 构建阶段使用 pnpm store cache mount。
-- 生产镜像只包含 `dist/` 静态文件和 nginx 配置。
+- 前端构建产物 `dist/` 复制进单一 Pebble 运行镜像，由 Rust 后端托管。
 
 ---
 
@@ -113,23 +113,15 @@ if query.q.len() > MAX_SEARCH_QUERY_LEN {
 - `master` 分支：运行 Webmail 质量门，不触发 Docker 镜像发布。
 - `vMAJOR.MINOR.PATCH` tag：发布 Docker 镜像，生成版本号、major/minor、`latest` 和 `sha-*` 标签。
 - Docker 镜像构建按镜像和 CPU 架构拆分 BuildKit/GitHub Actions cache scope；优先用原生架构 runner，避免 QEMU 拖慢构建。
-- 不构建 Windows/macOS 桌面包；Pebble 当前发布物是后端与前端 Docker 镜像。
+- 不构建 Windows/macOS 桌面包或裸二进制 Release；Pebble 当前主发布物是单一 Docker 镜像。
 
 ---
 
-## nginx 安全配置
+## 反向代理安全配置
 
-**真实 IP 信任范围**：不得使用 `0.0.0.0/0`，应限定为 Docker 私有网络 CIDR。
-
-```nginx
-# deploy/nginx.conf — 正确配置
-set_real_ip_from 172.16.0.0/12;
-set_real_ip_from 10.0.0.0/8;
-set_real_ip_from 192.168.0.0/16;
-set_real_ip_from 127.0.0.1;
-```
-
-如有外部反向代理，在注释中说明如何添加其 IP/CIDR。
+- 应用自身负责基础安全响应头和 CSP。
+- 外部 nginx、Caddy、1Panel OpenResty 或 Cloudflare Tunnel 只应把整个站点转发到 `http://127.0.0.1:9191`。
+- 真实客户端 IP 的信任范围由外部反代配置管理；不要在应用内信任任意 `X-Forwarded-For`。
 
 ---
 

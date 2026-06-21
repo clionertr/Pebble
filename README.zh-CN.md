@@ -13,13 +13,10 @@
 <p align="center">
   <a href="README.md">English</a>
   ·
-  <a href="https://github.com/clionertr/Pebble/releases">发布版本</a>
-  ·
   <a href="LICENSE">许可证</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/clionertr/Pebble/releases"><img src="https://img.shields.io/github/v/release/clionertr/Pebble?style=flat-square&color=d4714e" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20VPS%20%7C%20Self--hosted-lightgrey?style=flat-square" alt="Platform">
 </p>
@@ -44,7 +41,7 @@ Pebble 是一个网页邮件客户端，安装在你自己的 VPS 或 NAS 上。
 
 ### 一键 Docker 部署（推荐）
 
-前提：你已安装 Docker 和 Docker Compose。安装脚本会拉取最新 tag 对应的 GHCR 镜像，创建 `./pebble`，写入 `.env`，启动服务，并检查 `http://127.0.0.1:9191` 是否可访问。如果当前用户不能直接连接 Docker，但免密 sudo 可用，脚本会自动改用 `sudo -n docker`。
+前提：你已安装 Docker 和 Docker Compose。安装脚本会拉取最新 tag 对应的 GHCR 镜像，创建 `./pebble`，写入 `.env`，启动单个 Pebble 容器，并检查 `http://127.0.0.1:9191` 是否可访问。如果当前用户不能直接连接 Docker，但免密 sudo 可用，脚本会自动改用 `sudo -n docker`。
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/clionertr/Pebble/master/deploy/install.sh | bash
@@ -106,77 +103,11 @@ pnpm dev:frontend
 打开 `http://localhost:1420`。Vite 开发服务器会自动把 API 请求转发到后端的 3000 端口。
 如果你通过反向代理或远程开发域名访问 Vite，在 `.env` 或启动环境里设置逗号分隔的 `PEBBLE_VITE_ALLOWED_HOSTS`，例如 `PEBBLE_VITE_ALLOWED_HOSTS=pebble.example.com,dev.example.com`。
 
-开发时的重要规则：同一个 `./data` 目录只能被一个后端进程使用。如果发布版二进制、`cargo run` 或 systemd 服务已经在运行，搜索索引会被锁住，新的后端启动会失败。
-
-### 源码生产部署
-
-如果 VPS 直接从源码运行，建议交给 systemd 管理。心智模型很简单：
-
-1. 先停止旧的 Pebble 后端
-2. 拉取/构建新代码
-3. 再启动唯一一个后端进程
-
-```bash
-# 一次性初始化
-git clone https://github.com/clionertr/Pebble.git /opt/pebble
-cd /opt/pebble
-pnpm install --frozen-lockfile
-cp .env.example .env
-printf '%s' '你的密码' | cargo run -p pebble -- hash-password
-# 编辑 .env，把生成的 hash 填到 PEBBLE_PASSWORD_HASH。
-# 源码直接运行时使用单个 $，例如 '$2b$12$...'。
-```
-
-代码改动后的构建和重启流程：
-
-```bash
-# 如果服务器跟踪 git，用 fast-forward 拉取新代码
-git pull --ff-only
-
-# 构建时旧服务可以继续提供访问
-pnpm install --frozen-lockfile
-pnpm run build:frontend
-cargo build --release -p pebble
-
-# 只重启一次。systemd 会先停旧后端，再启动新后端。
-sudo systemctl restart pebble
-```
-
-用 nginx 托管 `dist/` 目录（配置示例见下文）。后端默认监听 3000 端口。
-
-systemd 服务示例。仓库里也提供了可编辑模板：`deploy/pebble.service.example`。
-
-```ini
-[Unit]
-Description=Pebble webmail backend
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-WorkingDirectory=/opt/pebble
-EnvironmentFile=/opt/pebble/.env
-ExecStart=/opt/pebble/target/release/pebble
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-安装服务后执行：
-
-```bash
-sudo cp deploy/pebble.service.example /etc/systemd/system/pebble.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now pebble
-```
-
-如果只是临时手动测试，不用 systemd 也可以；但必须先停掉已有 Pebble 进程，再从仓库根目录运行 `./target/release/pebble`。二进制现在会自动读取当前工作目录下的 `.env`。
+开发时的重要规则：同一个 `./data` 目录只能被一个后端进程使用。如果另一个 `cargo run` 或 Docker 容器已经在使用这个数据目录，搜索索引会被锁住，新的后端启动会失败。
 
 ## 配置指南
 
-所有配置都通过**环境变量**设置。可以写在 `.env` 文件里，也可以直接传给二进制文件，Docker Compose 则通过 `env_file` 读取。源码直接运行时，后端会自动读取当前工作目录下的 `.env`，不需要额外执行 `source .env`。
+所有配置都通过**环境变量**设置。可以写在 `.env` 文件里，也可以在源码运行时直接传入，Docker Compose 则通过 `env_file` 读取。源码直接运行时，后端会自动读取当前工作目录下的 `.env`，不需要额外执行 `source .env`。
 
 ### 必须配置：登录密码
 
@@ -241,82 +172,43 @@ Gmail 可以通过 Google Cloud Pub/Sub 向 Pebble 推送新邮件通知，无�
 
 ## 生产环境部署
 
-### Nginx 反向代理
+### 单容器 Docker（推荐）
 
-推荐方案：nginx 托管前端静态文件，反向代理 API 请求到后端。
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name mail.你的域名.com;
-
-    root /path/to/Pebble/dist;
-    index index.html;
-
-    # 安全头
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
-    add_header Referrer-Policy "no-referrer" always;
-    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" always;
-
-    # 前端 SPA —— 回退到 index.html 以支持客户端路由
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # 后端 API、SSE（实时推送）、OAuth、Gmail webhook
-    location ~ ^/(api|events|auth|webhook) {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-
-        # SSE 连接所需
-        proxy_buffering off;
-        proxy_cache off;
-        proxy_read_timeout 3600s;
-    }
-}
-```
-
-### Docker Compose（生产）
+Pebble 现在由 Rust 后端同时托管 React SPA 和 Webmail API。Docker 镜像里已经包含前端 `dist/` 文件，所以生产部署只需要一个容器。
 
 一键安装脚本会从 `deploy/compose.prod.yml` 写出 compose 文件。如果你想手动维护，可以使用预构建的 GHCR 镜像：
 
-`latest` 只会在仓库推送版本 tag（例如 `v0.0.11`）时更新。
+`latest` 只会在仓库推送版本 tag（例如 `v0.0.12`）时更新。
 
 ```yaml
 name: pebble
 
 services:
-  backend:
+  pebble:
     image: ghcr.io/clionertr/pebble:latest
-    volumes:
-      - ./data:/app/data
     env_file:
       - .env
     environment:
       PEBBLE_HOST: 0.0.0.0
       PEBBLE_PORT: 3000
-    restart: unless-stopped
-    networks:
-      - pebble-net
-
-  frontend:
-    image: ghcr.io/clionertr/pebble-frontend:latest
     ports:
-      - "127.0.0.1:9191:80"
-    depends_on:
-      - backend
+      - "127.0.0.1:9191:3000"
+    volumes:
+      - ./data:/app/data
     restart: unless-stopped
-    networks:
-      - pebble-net
-
-networks:
-  pebble-net:
-    driver: bridge
 ```
 
-这种部署方式下，把你的公网反向代理（nginx、Caddy、1Panel OpenResty 等）指向 `http://127.0.0.1:9191` 即可。
+把你的公网反向代理（nginx、Caddy、1Panel OpenResty 等）指向 `http://127.0.0.1:9191` 即可。Pebble 自己会处理前端静态文件、`/api/*`、`/events`、`/auth/*` 和 `/webhook/*`；反向代理只需要把整个站点转发过来。
+
+### Cloudflare Tunnel
+
+如果使用 Cloudflare Tunnel，创建 Public Hostname 后，把 service 填成：
+
+```text
+http://127.0.0.1:9191
+```
+
+不需要额外配置路径规则。
 
 ### 数据持久化
 
@@ -342,10 +234,8 @@ networks:
         │  SSE 流     /events
         │  OAuth 流程  /auth/login  /auth/callback
         ▼
-Nginx (托管前端、反向代理 API)
-        │
-        ▼
 Rust HTTP 服务器 (Axum, 端口 3000)
+        │ 托管前端静态文件和 Webmail API
         │
         ├── pebble-store    SQLite 数据库
         ├── pebble-search   Tantivy 全文索引
@@ -446,12 +336,10 @@ Pebble 在后台同步你的邮件：
 | `cargo run -p pebble` | 运行后端开发服务器 |
 | `pnpm dev:frontend` | 运行前端开发服务器（代理到后端） |
 | `pnpm build:frontend` | 类型检查 + 构建前端到 `dist/` |
-| `cargo build --release -p pebble` | 构建发布版后端 |
 | `pnpm test` | 运行前端测试 |
 | `cargo fmt --check` | 检查 Rust 格式 |
 | `cargo clippy --all-targets -- -D warnings` | 运行 Rust lint 检查 |
 | `cargo test --workspace --all-targets` | 运行全部 Rust 测试 |
-| `sudo systemctl restart pebble` | 重启 systemd 管理的源码部署后端 |
 
 ## 常见问题
 
@@ -459,7 +347,7 @@ Pebble 在后台同步你的邮件：
 会话过期（7 天）或后端重启了。重新登录即可。
 
 ### 部署后无法登录
-检查 `.env` 中的 `PEBBLE_PASSWORD_HASH`，`$` 符号是否用 `$$` 转义了（Docker Compose 要求）。可以用 `docker exec pebble-backend env | grep PASSWORD` 查看容器内的实际值。
+检查 `.env` 中的 `PEBBLE_PASSWORD_HASH`，`$` 符号是否用 `$$` 转义了（Docker Compose 要求）。可以用 `docker exec pebble env | grep PASSWORD` 查看容器内的实际值。
 
 如果是源码直接运行，使用普通的单个 `$`，通常加引号：`PEBBLE_PASSWORD_HASH='$2b$12$...'`。后端会自动读取启动目录下的 `.env`。
 
@@ -470,23 +358,22 @@ Pebble 的全文搜索索引在 `data/index/`。Tantivy 同一时间只允许一
 先检查并停止旧进程：
 
 ```bash
-sudo systemctl status pebble
-sudo systemctl stop pebble
+docker ps --filter name=pebble
 pgrep -af pebble
 ```
 
-然后只启动一个后端：`sudo systemctl start pebble`、`cargo run -p pebble`、`./target/release/pebble` 三选一，不要同时跑多个。
+然后只启动一个后端：Docker 或 `cargo run -p pebble` 二选一，不要同时跑多个。
 
 如果 `pgrep -af pebble` 看不到任何 Pebble 进程，但锁仍然存在，先重启服务器。只有在确认没有 Pebble 进程运行、并且已经备份 `data/` 后，才考虑删除 `data/index/` 下残留的锁文件。
 
 ### 某些 API 返回 404
-确认 nginx 配置中代理了 `/api/*` 路径。反向代理规则应包含：`location ~ ^/(api|events|auth|webhook)`。
+确认反向代理把整个站点转发到 `http://127.0.0.1:9191`。Pebble 会自己处理前端路由和 API 路由。
 
 ### 数据库提示 "disk image is malformed"
 SQLite 数据库可能因异常关闭而损坏。尝试修复：`sqlite3 data/pebble.db "PRAGMA integrity_check;"`。如果损坏，从备份恢复。
 
 ### 邮件同步不工作
-查看后端日志：`docker logs pebble-backend` 或 `tail -f data/logs/`。常见原因：OAuth token 过期（在设置 → 账户中重新认证）、网络代理未配置、IMAP 凭据错误。
+查看后端日志：`docker logs pebble` 或 `tail -f data/logs/`。常见原因：OAuth token 过期（在设置 → 账户中重新认证）、网络代理未配置、IMAP 凭据错误。
 
 ## 项目结构
 
@@ -515,7 +402,7 @@ Pebble/
 │   ├── pebble-rules/       规则引擎
 │   ├── pebble-translate/   翻译提供商
 │   └── pebble-privacy/     HTML 清理和追踪控制
-├── deploy/                 Docker 和 nginx 配置
+├── deploy/                 Docker 部署文件
 ├── tests/                  前端测试
 └── site/                   截图
 ```
