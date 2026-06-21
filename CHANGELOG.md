@@ -17,6 +17,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+### Removed
+
+- 删除前端 nginx 容器发布路线（`deploy/frontend.Dockerfile`、`deploy/nginx.conf`、`deploy/nginx-public.example.conf`、`deploy/pebble.service.example`、`deploy/docker-compose.yml`），不再构建 `pebble-frontend` 镜像。
+- 删除裸二进制 GitHub Release workflow（`.github/workflows/release.yml`），Docker 单镜像成为唯一主推分发方式。
+
+### Security
+
+- Rust 后端统一注入安全响应头（`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Content-Security-Policy`），替代原前端 nginx 职责。
+- 升级 Vite 至 6.4.3、DOMPurify 至 3.4.11 修复已知审计告警。
+
 - Hydrated Webmail account metadata, folders, unread counts, and Gmail realtime settings from the `/api/shell` startup snapshot to avoid multi-account metadata request fan-out.
 - Replaced Tauri IPC `invoke` calls with standard HTTP `fetch` to the JSON-RPC backend.
 - Migrated local data storage (SQLite database, Tantivy index, attachments) to a VPS-friendly `./data/` directory.
@@ -45,6 +55,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+### Removed
+
+- 删除前端 nginx 容器发布路线（`deploy/frontend.Dockerfile`、`deploy/nginx.conf`、`deploy/nginx-public.example.conf`、`deploy/pebble.service.example`、`deploy/docker-compose.yml`），不再构建 `pebble-frontend` 镜像。
+- 删除裸二进制 GitHub Release workflow（`.github/workflows/release.yml`），Docker 单镜像成为唯一主推分发方式。
+
+### Security
+
+- Rust 后端统一注入安全响应头（`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Content-Security-Policy`），替代原前端 nginx 职责。
+- 升级 Vite 至 6.4.3、DOMPurify 至 3.4.11 修复已知审计告警。
+
 - Reorganized proxy settings into clearer global and per-account sections.
 - Refined the compose editor layout with a single compact toolbar, a full-height editor surface, and consistent rich text, Markdown, and HTML mode controls.
 - Replies now open with a clean editable reply area while the original message is shown as a collapsed read-only quote; the quote is still appended when the reply is sent.
@@ -70,6 +90,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Added the macOS `.icns` bundle icon required by Tauri's macOS application bundle.
 
 ### Changed
+
+### Removed
+
+- 删除前端 nginx 容器发布路线（`deploy/frontend.Dockerfile`、`deploy/nginx.conf`、`deploy/nginx-public.example.conf`、`deploy/pebble.service.example`、`deploy/docker-compose.yml`），不再构建 `pebble-frontend` 镜像。
+- 删除裸二进制 GitHub Release workflow（`.github/workflows/release.yml`），Docker 单镜像成为唯一主推分发方式。
+
+### Security
+
+- Rust 后端统一注入安全响应头（`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Content-Security-Policy`），替代原前端 nginx 职责。
+- 升级 Vite 至 6.4.3、DOMPurify 至 3.4.11 修复已知审计告警。
 
 - WebDAV restore now replaces local rules and Kanban cards/notes while merging account metadata from the backup, and restore previews disclose Kanban note counts.
 
@@ -100,6 +130,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Added the LINUX DO friend link to the English and Chinese README files.
 
 ### Changed
+
+### Removed
+
+- 删除前端 nginx 容器发布路线（`deploy/frontend.Dockerfile`、`deploy/nginx.conf`、`deploy/nginx-public.example.conf`、`deploy/pebble.service.example`、`deploy/docker-compose.yml`），不再构建 `pebble-frontend` 镜像。
+- 删除裸二进制 GitHub Release workflow（`.github/workflows/release.yml`），Docker 单镜像成为唯一主推分发方式。
+
+### Security
+
+- Rust 后端统一注入安全响应头（`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Content-Security-Policy`），替代原前端 nginx 职责。
+- 升级 Vite 至 6.4.3、DOMPurify 至 3.4.11 修复已知审计告警。
 
 - Themed native form controls and focus-visible styling so inputs, selects, textareas, and buttons fit the dark UI.
 
