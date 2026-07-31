@@ -685,3 +685,30 @@ Implemented Web Push browser notifications (backend push service, notification d
 ### Next Steps
 
 - None - task complete
+
+
+## Session 19: 一键发布工作流 + CI 全面修复 + 发布 v0.0.13
+
+**Date**: 2026-07-31
+**Task**: 一键发布工作流 + CI 全面修复 + 发布 v0.0.13
+**Branch**: `master`
+
+### Summary
+
+为 Pebble 增加一键发布工作流（release.yml + deploy/release.sh）：网页 workflow_dispatch 填版本号或留空自动递增 → 同步 package.json/server/Cargo.toml 版本、更新 CHANGELOG、打 vX.Y.Z tag 推送（触发 docker.yml 构建镜像）、创建 GitHub Release。版本号改为构建时派生，消除硬编码漂移：AboutTab 读 package.json（tsconfig 开 resolveJsonModule）、OpenAPI 用 env!(CARGO_PKG_VERSION)。修复 CI 长期红：3 个无效 action SHA 锁定、Set up Rust 缺 toolchain: stable、4 个前端文件 Prettier 格式错位。排查发布后无镜像的隐蔽根因：actions/checkout 注入的 http.extraheader 劫持推送，tag 以 github-actions[bot] 身份推送导致 GITHUB_TOKEN 事件被丢弃、docker.yml 不触发；release.sh 推送前 unset extraheader 修复。成功发布 v0.0.13，amd64+arm64 镜像构建完成并更新 latest。规范新增 ci-release.md 记录发布契约与 extraheader 坑。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7fbcc36` | (see git log) |
+| `4f82d18` | (see git log) |
+| `36baa23` | (see git log) |
+| `9d2304e` | (see git log) |
+| `a471a4b` | (see git log) |
+| `8164ae6` | (see git log) |
+| `0f0b191` | (see git log) |
+
+### Status
+
+[OK] **Completed**
