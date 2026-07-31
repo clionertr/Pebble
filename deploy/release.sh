@@ -170,6 +170,9 @@ git_ops() { # ver
   local ver="$1"
   local url="https://x-access-token:${RELEASE_PAT}@github.com/${REPO}.git"
   cd "$ROOT"
+  # 关键：清掉 actions/checkout 注入的 GITHUB_TOKEN extraheader，否则 push 仍以 GITHUB_TOKEN
+  # 认证（身份显示为 github-actions[bot]），其事件被 GitHub 静默丢弃，docker.yml 永不触发。
+  git config --local --unset-all http.https://github.com/.extraheader 2>/dev/null || true
   git config user.name  "github-actions[bot]"
   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
   git add package.json server/Cargo.toml CHANGELOG.md
