@@ -208,61 +208,66 @@ export default function MessageList({
               flexShrink: 0,
             }}
           >
-          <label className="batch-select-control">
-            <input
-              type="checkbox"
-              checked={allSelected}
-              onChange={() => (allSelected ? clearSelection() : selectAllMessages(messageIds))}
-              aria-label={t("batch.selectAll", "Select all")}
-              className="batch-checkbox batch-select-all-checkbox"
+            <label className="batch-select-control">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={() => (allSelected ? clearSelection() : selectAllMessages(messageIds))}
+                aria-label={t("batch.selectAll", "Select all")}
+                className="batch-checkbox batch-select-all-checkbox"
+              />
+              <span>
+                {selectedMessageIds.size > 0
+                  ? t("batch.selected", { count: selectedMessageIds.size })
+                  : t("batch.selectAll")}
+              </span>
+            </label>
+            {selectedMessageIds.size > 0 && (
+              <>
+                <BatchBtn
+                  icon={Archive}
+                  label={t("messageActions.archive")}
+                  onClick={() => handleBatchAction("archive")}
+                  disabled={batchLoading}
+                />
+                <BatchBtn
+                  icon={Trash2}
+                  label={t("common.delete")}
+                  onClick={() => handleBatchAction("delete")}
+                  disabled={batchLoading}
+                />
+                <BatchBtn
+                  icon={MailOpen}
+                  label={t("batch.markRead")}
+                  onClick={() => handleBatchAction("markRead")}
+                  disabled={batchLoading}
+                />
+                <BatchBtn
+                  icon={MailCheck}
+                  label={t("batch.markUnread")}
+                  onClick={() => handleBatchAction("markUnread")}
+                  disabled={batchLoading}
+                />
+                <BatchBtn
+                  icon={Star}
+                  label={t("batch.star", "Star")}
+                  onClick={() => handleBatchAction("star")}
+                  disabled={batchLoading}
+                />
+                <BatchBtn
+                  icon={Star}
+                  label={t("batch.unstar", "Unstar")}
+                  onClick={() => handleBatchAction("unstar")}
+                  disabled={batchLoading}
+                />
+              </>
+            )}
+            <BatchBtn
+              icon={X}
+              label={t("common.close")}
+              onClick={toggleBatchMode}
+              disabled={false}
             />
-            <span>
-              {selectedMessageIds.size > 0
-                ? t("batch.selected", { count: selectedMessageIds.size })
-                : t("batch.selectAll")}
-            </span>
-          </label>
-          {selectedMessageIds.size > 0 && (
-            <>
-              <BatchBtn
-                icon={Archive}
-                label={t("messageActions.archive")}
-                onClick={() => handleBatchAction("archive")}
-                disabled={batchLoading}
-              />
-              <BatchBtn
-                icon={Trash2}
-                label={t("common.delete")}
-                onClick={() => handleBatchAction("delete")}
-                disabled={batchLoading}
-              />
-              <BatchBtn
-                icon={MailOpen}
-                label={t("batch.markRead")}
-                onClick={() => handleBatchAction("markRead")}
-                disabled={batchLoading}
-              />
-              <BatchBtn
-                icon={MailCheck}
-                label={t("batch.markUnread")}
-                onClick={() => handleBatchAction("markUnread")}
-                disabled={batchLoading}
-              />
-              <BatchBtn
-                icon={Star}
-                label={t("batch.star", "Star")}
-                onClick={() => handleBatchAction("star")}
-                disabled={batchLoading}
-              />
-              <BatchBtn
-                icon={Star}
-                label={t("batch.unstar", "Unstar")}
-                onClick={() => handleBatchAction("unstar")}
-                disabled={batchLoading}
-              />
-            </>
-          )}
-          <BatchBtn icon={X} label={t("common.close")} onClick={toggleBatchMode} disabled={false} />
           </div>
         </div>
       </div>

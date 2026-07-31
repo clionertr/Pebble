@@ -41,8 +41,8 @@ export default function AppearanceTab() {
               flex: 1,
               padding: "16px",
               borderRadius: "8px",
-              border: "1px solid " +
-                (theme === th.id ? "var(--color-accent)" : "var(--color-border)"),
+              border:
+                "1px solid " + (theme === th.id ? "var(--color-accent)" : "var(--color-border)"),
               boxShadow: theme === th.id ? "inset 0 0 0 1px var(--color-accent)" : "none",
               backgroundColor: theme === th.id ? "var(--color-bg-hover)" : "transparent",
               cursor: "pointer",
@@ -72,8 +72,8 @@ export default function AppearanceTab() {
               flex: 1,
               padding: "16px",
               borderRadius: "8px",
-              border: "1px solid " +
-                (motion === mo.id ? "var(--color-accent)" : "var(--color-border)"),
+              border:
+                "1px solid " + (motion === mo.id ? "var(--color-accent)" : "var(--color-border)"),
               boxShadow: motion === mo.id ? "inset 0 0 0 1px var(--color-accent)" : "none",
               backgroundColor: motion === mo.id ? "var(--color-bg-hover)" : "transparent",
               cursor: "pointer",
@@ -103,8 +103,8 @@ export default function AppearanceTab() {
               flex: 1,
               padding: "16px",
               borderRadius: "8px",
-              border: "1px solid " +
-                (language === l.id ? "var(--color-accent)" : "var(--color-border)"),
+              border:
+                "1px solid " + (language === l.id ? "var(--color-accent)" : "var(--color-border)"),
               boxShadow: language === l.id ? "inset 0 0 0 1px var(--color-accent)" : "none",
               backgroundColor: language === l.id ? "var(--color-bg-hover)" : "transparent",
               cursor: "pointer",

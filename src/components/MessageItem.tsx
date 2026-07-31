@@ -245,6 +245,55 @@ function MessageItem({
           boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
         }}
       >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setRemoving(true);
+            setTimeout(() => {
+              const previousLists = snapshotMessagesCache(queryClient);
+              patchMessagesCache(queryClient, (page) => page.filter((m) => m.id !== message.id));
+              archiveMessage(message.id)
+                .then((result) => {
+                  if (result === "skipped") {
+                    restoreMessagesCache(queryClient, previousLists);
+                    setRemoving(false);
+                    return;
+                  }
+                  invalidateMessageViews(true);
+                  const msg =
+                    result === "unarchived"
+                      ? t("messageActions.unarchiveSuccess", "Message moved to inbox")
+                      : t("messageActions.archiveSuccess", "Message archived");
+                  useToastStore.getState().addToast({ message: msg, type: "success" });
+                })
+                .catch(() => {
+                  restoreMessagesCache(queryClient, previousLists);
+                  setRemoving(false);
+                  queryClient.invalidateQueries({ queryKey: ["messages"] });
+                  const msg =
+                    folderRole === "archive"
+                      ? t("messageActions.unarchiveFailed", "Failed to unarchive")
+                      : t("messageActions.archiveFailed", "Failed to archive");
+                  useToastStore.getState().addToast({ message: msg, type: "error" });
+                });
+            }, 200);
+          }}
+          aria-label={archiveActionLabel}
+          title={archiveActionLabel}
+          style={{
+            padding: "4px",
+            border: "none",
+            background: "transparent",
+            borderRadius: "4px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          <ArchiveActionIcon size={14} />
+        </button>
+        {spamFolderId && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -252,34 +301,27 @@ function MessageItem({
               setTimeout(() => {
                 const previousLists = snapshotMessagesCache(queryClient);
                 patchMessagesCache(queryClient, (page) => page.filter((m) => m.id !== message.id));
-                archiveMessage(message.id)
-                  .then((result) => {
-                    if (result === "skipped") {
-                      restoreMessagesCache(queryClient, previousLists);
-                      setRemoving(false);
-                      return;
-                    }
+                moveToFolder(message.id, spamFolderId)
+                  .then(() => {
                     invalidateMessageViews(true);
-                    const msg =
-                      result === "unarchived"
-                        ? t("messageActions.unarchiveSuccess", "Message moved to inbox")
-                        : t("messageActions.archiveSuccess", "Message archived");
-                    useToastStore.getState().addToast({ message: msg, type: "success" });
+                    useToastStore.getState().addToast({
+                      message: t("messageActions.spamSuccess", "Marked as spam"),
+                      type: "success",
+                    });
                   })
                   .catch(() => {
                     restoreMessagesCache(queryClient, previousLists);
                     setRemoving(false);
                     queryClient.invalidateQueries({ queryKey: ["messages"] });
-                    const msg =
-                      folderRole === "archive"
-                        ? t("messageActions.unarchiveFailed", "Failed to unarchive")
-                        : t("messageActions.archiveFailed", "Failed to archive");
-                    useToastStore.getState().addToast({ message: msg, type: "error" });
+                    useToastStore.getState().addToast({
+                      message: t("messageActions.spamFailed", "Failed to mark as spam"),
+                      type: "error",
+                    });
                   });
               }, 200);
             }}
-            aria-label={archiveActionLabel}
-            title={archiveActionLabel}
+            aria-label={t("messageActions.reportSpam", "Report spam")}
+            title={t("messageActions.reportSpam", "Report spam")}
             style={{
               padding: "4px",
               border: "none",
@@ -291,118 +333,76 @@ function MessageItem({
               color: "var(--color-text-secondary)",
             }}
           >
-            <ArchiveActionIcon size={14} />
+            <ShieldAlert size={14} />
           </button>
-          {spamFolderId && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setRemoving(true);
-                setTimeout(() => {
-                  const previousLists = snapshotMessagesCache(queryClient);
-                  patchMessagesCache(queryClient, (page) => page.filter((m) => m.id !== message.id));
-                  moveToFolder(message.id, spamFolderId)
-                    .then(() => {
-                      invalidateMessageViews(true);
-                      useToastStore.getState().addToast({
-                        message: t("messageActions.spamSuccess", "Marked as spam"),
-                        type: "success",
-                      });
-                    })
-                    .catch(() => {
-                      restoreMessagesCache(queryClient, previousLists);
-                      setRemoving(false);
-                      queryClient.invalidateQueries({ queryKey: ["messages"] });
-                      useToastStore.getState().addToast({
-                        message: t("messageActions.spamFailed", "Failed to mark as spam"),
-                        type: "error",
-                      });
-                    });
-                }, 200);
-              }}
-              aria-label={t("messageActions.reportSpam", "Report spam")}
-              title={t("messageActions.reportSpam", "Report spam")}
-              style={{
-                padding: "4px",
-                border: "none",
-                background: "transparent",
-                borderRadius: "4px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                color: "var(--color-text-secondary)",
-              }}
-            >
-              <ShieldAlert size={14} />
-            </button>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              useKanbanStore
-                .getState()
-                .addCard(message.id, "todo")
-                .then(() => {
-                  useToastStore.getState().addToast({
-                    message: t("messageActions.kanbanSuccess", "Added to kanban board"),
-                    type: "success",
-                  });
-                })
-                .catch(() => {
-                  useToastStore.getState().addToast({
-                    message: t("messageActions.kanbanFailed", "Failed to add to kanban"),
-                    type: "error",
-                  });
+        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            useKanbanStore
+              .getState()
+              .addCard(message.id, "todo")
+              .then(() => {
+                useToastStore.getState().addToast({
+                  message: t("messageActions.kanbanSuccess", "Added to kanban board"),
+                  type: "success",
                 });
-            }}
-            aria-label={t("messageActions.addToKanban")}
-            title={t("messageActions.addToKanban")}
-            style={{
-              padding: "4px",
-              border: "none",
-              background: "transparent",
-              borderRadius: "4px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              color: "var(--color-text-secondary)",
-            }}
-          >
-            <LayoutGrid size={14} />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              updateMessageFlags(message.id, undefined, !message.is_starred)
-                .then(() => {
-                  invalidateMessageViews();
-                  queryClient.invalidateQueries({ queryKey: ["starred-messages"] });
-                  queryClient.invalidateQueries({ queryKey: ["message", message.id] });
-                })
-                .catch(console.error);
-              if (onToggleStar) onToggleStar(message.id, !message.is_starred);
-            }}
-            aria-label={message.is_starred ? t("messageActions.unstar") : t("messageActions.star")}
-            aria-pressed={message.is_starred}
-            title={message.is_starred ? t("messageActions.unstar") : t("messageActions.star")}
-            style={{
-              padding: "4px",
-              border: "none",
-              background: "transparent",
-              borderRadius: "4px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              color: message.is_starred ? "var(--color-star)" : "var(--color-text-secondary)",
-            }}
-          >
-            <Star
-              size={14}
-              fill={message.is_starred ? "var(--color-star)" : "none"}
-              color={message.is_starred ? "var(--color-star)" : "currentColor"}
-            />
-          </button>
-        </div>
+              })
+              .catch(() => {
+                useToastStore.getState().addToast({
+                  message: t("messageActions.kanbanFailed", "Failed to add to kanban"),
+                  type: "error",
+                });
+              });
+          }}
+          aria-label={t("messageActions.addToKanban")}
+          title={t("messageActions.addToKanban")}
+          style={{
+            padding: "4px",
+            border: "none",
+            background: "transparent",
+            borderRadius: "4px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          <LayoutGrid size={14} />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            updateMessageFlags(message.id, undefined, !message.is_starred)
+              .then(() => {
+                invalidateMessageViews();
+                queryClient.invalidateQueries({ queryKey: ["starred-messages"] });
+                queryClient.invalidateQueries({ queryKey: ["message", message.id] });
+              })
+              .catch(console.error);
+            if (onToggleStar) onToggleStar(message.id, !message.is_starred);
+          }}
+          aria-label={message.is_starred ? t("messageActions.unstar") : t("messageActions.star")}
+          aria-pressed={message.is_starred}
+          title={message.is_starred ? t("messageActions.unstar") : t("messageActions.star")}
+          style={{
+            padding: "4px",
+            border: "none",
+            background: "transparent",
+            borderRadius: "4px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            color: message.is_starred ? "var(--color-star)" : "var(--color-text-secondary)",
+          }}
+        >
+          <Star
+            size={14}
+            fill={message.is_starred ? "var(--color-star)" : "none"}
+            color={message.is_starred ? "var(--color-star)" : "currentColor"}
+          />
+        </button>
+      </div>
     </div>
   );
 }

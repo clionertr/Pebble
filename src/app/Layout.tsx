@@ -179,7 +179,10 @@ function AuthenticatedLayout() {
               data-open={drawerOpen}
               onClick={() => setDrawerOpen(false)}
             />
-            <div className="absolute inset-y-0 left-0 z-50 shadow-2xl drawer-panel" data-open={drawerOpen}>
+            <div
+              className="absolute inset-y-0 left-0 z-50 shadow-2xl drawer-panel"
+              data-open={drawerOpen}
+            >
               <Sidebar />
             </div>
           </>
