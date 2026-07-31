@@ -17,6 +17,7 @@ This directory contains the current backend guidelines for Pebble's Webmail API,
 | [Configuration](./configuration.md) | Environment variables and binding host | Done |
 | [Directory Structure](./directory-structure.md) | Module organization and file layout | Done |
 | [Webmail API Contracts](./webmail-api-contracts.md) | REST/SSE/auth/deploy cross-layer contracts | Done |
+| [CI 与发布契约](./ci-release.md) | 发布管线、版本号同步、PAT 触发约束 | Done |
 | [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations | Done (Phase 3) |
 | [Error Handling](./error-handling.md) | Error types, handling strategies | Done (Phase 1) |
 | [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns, security patterns | Done (Phase 1) |

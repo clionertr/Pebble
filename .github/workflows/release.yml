@@ -1,0 +1,43 @@
+name: Release
+
+# 一键发布：在 GitHub 网页 Actions → Release → Run workflow 填版本号（可空）即可。
+# 实际逻辑在 deploy/release.sh（本文件只是触发壳）。
+# 注意：推 tag 必须用 RELEASE_PAT（PAT），因为 GITHUB_TOKEN 推送的 tag 不会触发 docker.yml。
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '发布版本号，如 v0.0.13 或 0.0.13；留空自动递增 patch'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Guard master branch
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/master" ]]; then
+            echo "::error::发布只允许在 master 分支执行，当前为 ${GITHUB_REF}"
+            exit 1
+          fi
+
+      - name: Run release script
+        env:
+          REPO: ${{ github.repository }}
+          RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
+        run: bash ./deploy/release.sh "${{ inputs.version }}"

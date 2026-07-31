@@ -224,6 +224,23 @@ http://127.0.0.1:9191
 
 **请妥善保管 `data/pebble.key`。** 如果丢失，所有已连接的账户将无法解密，需要重新认证。
 
+### 一键发布新版本
+
+发布新版本在 GitHub Actions 里点一个按钮即可。**Release** 工作流（`.github/workflows/release.yml`）调用 `deploy/release.sh`，自动完成：
+
+1. 计算版本号——留空自动递增 patch（`0.0.12 → 0.0.13`）；
+2. 校验 master 最新一次 `ci.yml` 为绿色，否则中止（防止把坏代码发上线）；
+3. 同步 `package.json` 与 `server/Cargo.toml` 版本，并把 `[Unreleased]` 下的条目归入新的 `## [X.Y.Z] - <日期>`；
+4. 提交 `chore(release): vX.Y.Z`、打 `vX.Y.Z` tag 并推送；
+5. 触发 `docker.yml` 构建并推送多架构镜像（非预发布版本会自动更新 `latest`）；
+6. 创建 GitHub Release，说明文本取自刚写入的 CHANGELOG 小节。
+
+操作步骤：**Actions → Release → Run workflow** → 可选填版本号 → **Run workflow**。
+
+> 一次性准备：推 tag 必须使用个人访问令牌（PAT）而不是 `GITHUB_TOKEN`——GitHub 规定 `GITHUB_TOKEN` 引发的事件不会再触发工作流，否则 `docker.yml` 永远不会执行。请创建一个带 `repo` 权限（或 fine-grained `contents: read & write`）的 PAT，在 **Settings → Secrets and variables → Actions** 中添加为 `RELEASE_PAT`。
+
+同样的逻辑也能在本地跑：`./deploy/release.sh`（完整发布）、`./deploy/release.sh --dry-run v0.0.13`（只看文件差异、不动仓库）、`./deploy/release.sh --self-check`（自检）。
+
 ## 工作原理
 
 ### 架构

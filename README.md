@@ -222,6 +222,23 @@ All data lives in the `./data/` directory relative to where the backend runs:
 
 **Keep `data/pebble.key` safe.** If you lose it, you lose access to all connected accounts and need to re-authenticate.
 
+### Releasing a new version (one-click)
+
+Releasing is one button in GitHub Actions. The **Release** workflow (`.github/workflows/release.yml`) runs `deploy/release.sh`, which:
+
+1. computes the version — leave the input blank to auto-bump the patch (`0.0.12 → 0.0.13`);
+2. aborts if the latest `ci.yml` run on `master` is not green;
+3. bumps `package.json` and `server/Cargo.toml`, and moves the `[Unreleased]` notes under a new `## [X.Y.Z] - <date>` heading;
+4. commits `chore(release): vX.Y.Z`, tags `vX.Y.Z`, and pushes both;
+5. triggers `docker.yml`, which builds and pushes the multi-arch image (and updates `latest` for non-prerelease versions);
+6. creates a GitHub Release whose notes are the changelog section just written.
+
+Steps: **Actions → Release → Run workflow** → optionally type the version → **Run workflow**.
+
+> One-time setup: the tag push must use a personal access token, not `GITHUB_TOKEN` — GitHub does not re-trigger workflows from `GITHUB_TOKEN`-created events, so `docker.yml` would never run otherwise. Create a PAT with `repo` access (or fine-grained `contents: read & write`) and add it as the `RELEASE_PAT` secret under **Settings → Secrets and variables → Actions**.
+
+The same logic runs locally: `./deploy/release.sh` (full release), `./deploy/release.sh --dry-run v0.0.13` (preview the file diffs without touching the repo), or `./deploy/release.sh --self-check`.
+
 ## How It Works
 
 ### Architecture

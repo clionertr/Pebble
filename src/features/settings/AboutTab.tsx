@@ -4,8 +4,10 @@ import { useTranslation } from "react-i18next";
 import { Copy, RefreshCw, X } from "lucide-react";
 import iconUrl from "@/assets/app-icon.png";
 import { readAppLog, type AppLogSnapshot } from "@/lib/api";
+// 版本号构建时从 package.json 派生（发布流程只改 package.json，此处自动跟随，勿硬编码）
+import pkg from "../../../package.json";
 
-const APP_VERSION = "0.0.12";
+const APP_VERSION = pkg.version;
 
 const REPO = "clionertr/Pebble";
 const RELEASES_URL = `https://github.com/${REPO}/releases`;

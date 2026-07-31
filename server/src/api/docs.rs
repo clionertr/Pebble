@@ -31,7 +31,7 @@ fn build_spec() -> Value {
         "openapi": "3.0.3",
         "info": {
             "title": "Pebble Webmail API",
-            "version": "0.0.11",
+            "version": env!("CARGO_PKG_VERSION"),
             "description": "Single-user self-hosted Webmail REST API. Cookie-based auth via /api/auth/login."
         },
         "servers": [{ "url": "/", "description": "Same-origin" }],
