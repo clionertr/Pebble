@@ -16,6 +16,7 @@
 
 - **tag 推送必须用 PAT（`RELEASE_PAT`），不能用 `GITHUB_TOKEN`。**
   原因：GitHub 规定 `GITHUB_TOKEN` 引发的事件（除 `workflow_dispatch`/`repository_dispatch`）不会再次触发 workflow run；用 `GITHUB_TOKEN` 推 tag，`docker.yml` 永远不会执行，发布会"看似成功实则无镜像"。PAT 需要仓库 `contents` 读写权限，配置在 Settings → Secrets and variables → Actions。
+- **`actions/checkout` 会劫持推送认证（extraheader 坑）**：checkout 会在 git 配置写入 `http.https://github.com/.extraheader = AUTHORIZATION: basic <GITHUB_TOKEN>`，其优先级高于 push URL 里的 PAT。即使 push URL 带了 `RELEASE_PAT`，实际仍以 `github-actions[bot]` 身份认证，事件被静默丢弃、`docker.yml` 不触发。`deploy/release.sh` 的 `git_ops` 必须在 push 前执行 `git config --local --unset-all http.https://github.com/.extraheader`。判断是否踩坑：push 后到 GitHub 事件页看身份是 `github-actions[bot]` 还是 PAT 属主。
 - **版本号只有两个源头**：`package.json` 的 `version` 和 `server/Cargo.toml` 的 `[package]` version，二者必须等于发布 tag（去掉 `v`）。`docker.yml` 会在构建前二次校验。
 - **消费版本号的地方必须构建时派生，不得硬编码**：
   - 前端 About 页：`import pkg from "../../../package.json"` 读 `pkg.version`（配合 tsconfig `resolveJsonModule`）。
