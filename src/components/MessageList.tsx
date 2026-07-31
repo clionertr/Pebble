@@ -100,6 +100,8 @@ export default function MessageList({
     estimateSize: () => 76,
     measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 5,
+    // 行实例必须跟着邮件 id 走：按下标复用时，归档行的 removing 状态会错位到下一封邮件
+    getItemKey: (index) => messages[index].id,
   });
 
   // Scroll selected message into view on keyboard navigation
@@ -193,18 +195,19 @@ export default function MessageList({
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Batch toolbar */}
-      {batchMode && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            padding: "6px 10px",
-            borderBottom: "1px solid var(--color-border)",
-            backgroundColor: "var(--color-bg)",
-            flexShrink: 0,
-          }}
-        >
+      <div className="batch-toolbar-reveal" data-open={batchMode}>
+        <div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px 10px",
+              borderBottom: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-bg)",
+              flexShrink: 0,
+            }}
+          >
           <label className="batch-select-control">
             <input
               type="checkbox"
@@ -260,8 +263,9 @@ export default function MessageList({
             </>
           )}
           <BatchBtn icon={X} label={t("common.close")} onClick={toggleBatchMode} disabled={false} />
+          </div>
         </div>
-      )}
+      </div>
       <div
         ref={parentRef}
         className="scroll-region message-list-scroll"

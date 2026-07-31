@@ -269,6 +269,7 @@ export default function ContactAutocomplete({
 
       {showDropdown && (
         <div
+          className="popover-enter"
           id={`${instanceId}-listbox`}
           role="listbox"
           style={{

@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MessageSummary } from "../../src/lib/api";
 
 const mocks = vi.hoisted(() => ({
@@ -99,6 +99,10 @@ describe("MessageItem", () => {
     mocks.moveToFolder.mockResolvedValue(undefined);
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("labels the archive action as unarchive in the archive folder", () => {
     render(
       <MessageItem
@@ -116,6 +120,7 @@ describe("MessageItem", () => {
   });
 
   it("restores message lists when archive optimistic update fails", async () => {
+    vi.useFakeTimers();
     const snapshot = { messages: "before-archive" };
     mocks.snapshotMessagesCache.mockReturnValueOnce(snapshot);
     mocks.archiveMessage.mockRejectedValueOnce(new Error("archive failed"));
@@ -130,13 +135,17 @@ describe("MessageItem", () => {
 
     fireEvent.mouseEnter(screen.getByRole("option"));
     fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
 
     expect(mocks.snapshotMessagesCache).toHaveBeenCalledWith(mocks.queryClient);
     expect(mocks.patchMessagesCache).toHaveBeenCalledWith(mocks.queryClient, expect.any(Function));
-    await waitFor(() => expect(mocks.restoreMessagesCache).toHaveBeenCalledWith(mocks.queryClient, snapshot));
+    expect(mocks.restoreMessagesCache).toHaveBeenCalledWith(mocks.queryClient, snapshot);
   });
 
   it("restores message lists when spam optimistic update fails", async () => {
+    vi.useFakeTimers();
     const snapshot = { messages: "before-spam" };
     mocks.snapshotMessagesCache.mockReturnValueOnce(snapshot);
     mocks.moveToFolder.mockRejectedValueOnce(new Error("spam failed"));
@@ -152,13 +161,17 @@ describe("MessageItem", () => {
 
     fireEvent.mouseEnter(screen.getByRole("option"));
     fireEvent.click(screen.getByRole("button", { name: "Report spam" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
 
     expect(mocks.snapshotMessagesCache).toHaveBeenCalledWith(mocks.queryClient);
     expect(mocks.patchMessagesCache).toHaveBeenCalledWith(mocks.queryClient, expect.any(Function));
-    await waitFor(() => expect(mocks.restoreMessagesCache).toHaveBeenCalledWith(mocks.queryClient, snapshot));
+    expect(mocks.restoreMessagesCache).toHaveBeenCalledWith(mocks.queryClient, snapshot);
   });
 
   it("refreshes folder unread counts after a successful archive action", async () => {
+    vi.useFakeTimers();
     render(
       <MessageItem
         message={makeMessage()}
@@ -169,12 +182,16 @@ describe("MessageItem", () => {
 
     fireEvent.mouseEnter(screen.getByRole("option"));
     fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
 
-    await waitFor(() => expect(mocks.archiveMessage).toHaveBeenCalledWith("message-1"));
+    expect(mocks.archiveMessage).toHaveBeenCalledWith("message-1");
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["folder-unread-counts"] });
   });
 
   it("refreshes folder unread counts after a successful spam action", async () => {
+    vi.useFakeTimers();
     render(
       <MessageItem
         message={makeMessage()}
@@ -186,8 +203,11 @@ describe("MessageItem", () => {
 
     fireEvent.mouseEnter(screen.getByRole("option"));
     fireEvent.click(screen.getByRole("button", { name: "Report spam" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
 
-    await waitFor(() => expect(mocks.moveToFolder).toHaveBeenCalledWith("message-1", "folder-spam"));
+    expect(mocks.moveToFolder).toHaveBeenCalledWith("message-1", "folder-spam");
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["folder-unread-counts"] });
   });
 

@@ -223,7 +223,7 @@ export default function Sidebar() {
             fontWeight: 600,
             color: "var(--color-text-secondary)",
             textTransform: "uppercase",
-            letterSpacing: "0.5px",
+            letterSpacing: "0.04em",
           }}
         >
           {t("sidebar.mail", "Mail")}
@@ -452,6 +452,7 @@ function SidebarButton({
             color: "var(--color-accent)",
             minWidth: "18px",
             textAlign: "right",
+            letterSpacing: "0.04em",
           }}
         >
           {badge}

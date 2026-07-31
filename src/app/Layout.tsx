@@ -9,7 +9,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import { useConfirmStore } from "../stores/confirm.store";
 import { useComposeStore } from "../stores/compose.store";
 import { useUIStore } from "../stores/ui.store";
-import { useThemeStore, applyThemeToDom } from "../stores/theme.store";
+import { useThemeStore, applyThemeToDom, applyMotionToDom } from "../stores/theme.store";
 import { useSyncStore } from "../stores/sync.store";
 import { useCommandStore } from "../stores/command.store";
 import { useKanbanStore } from "../stores/kanban.store";
@@ -25,6 +25,7 @@ import { useRealtimeSyncTriggers } from "./useRealtimeSyncTriggers";
 import { useSseReconnectCatchup } from "./useSseReconnectCatchup";
 import { useNotificationClickRouting } from "./useNotificationClickRouting";
 import { useWebPushRegistration } from "./useWebPushRegistration";
+import { useDelayedUnmount } from "../hooks/useDelayedUnmount";
 
 const loadSettingsView = () => import("../features/settings/SettingsView");
 const loadComposeView = () => import("../features/compose/ComposeView");
@@ -65,12 +66,14 @@ function AuthenticatedLayout() {
   const composeKey = useComposeStore((s) => s.composeKey);
   const setActiveView = useUIStore((s) => s.setActiveView);
   const theme = useThemeStore((s) => s.theme);
+  const motion = useThemeStore((s) => s.motion);
   const isMobile = useUIStore((s) => s.isMobile);
   const setIsMobile = useUIStore((s) => s.setIsMobile);
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const drawerOpen = useUIStore((s) => s.drawerOpen);
   const setDrawerOpen = useUIStore((s) => s.setDrawerOpen);
+  const drawerMounted = useDelayedUnmount(drawerOpen, 240);
 
   useKeyboard();
 
@@ -151,20 +154,32 @@ function AuthenticatedLayout() {
     }
   }, [theme]);
 
+  useEffect(() => {
+    applyMotionToDom(motion);
+    if (motion === "system") {
+      const mql = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+      if (!mql) return;
+      const listener = () => applyMotionToDom("system");
+      mql.addEventListener("change", listener);
+      return () => mql.removeEventListener("change", listener);
+    }
+  }, [motion]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       <TitleBar />
       <div className="flex flex-1 min-h-0 relative">
         {!isMobile && <Sidebar />}
-        {isMobile && drawerOpen && (
+        {isMobile && drawerMounted && (
           <>
             <button
               type="button"
               aria-label={t("common.close", "Close")}
-              className="absolute inset-0 bg-black/20 z-40 transition-opacity fade-in"
+              className="absolute inset-0 bg-black/20 z-40 drawer-backdrop"
+              data-open={drawerOpen}
               onClick={() => setDrawerOpen(false)}
             />
-            <div className="absolute inset-y-0 left-0 z-50 shadow-2xl animate-slide-in-left">
+            <div className="absolute inset-y-0 left-0 z-50 shadow-2xl drawer-panel" data-open={drawerOpen}>
               <Sidebar />
             </div>
           </>
@@ -269,7 +284,7 @@ class ViewErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
             <pre
               style={{
                 fontSize: 11,
-                color: "#ef4444",
+                color: "var(--color-danger)",
                 maxWidth: "90%",
                 overflow: "auto",
                 whiteSpace: "pre-wrap",
@@ -339,7 +354,7 @@ function OfflineBanner() {
         padding: "6px 16px",
         backgroundColor: "rgba(239,68,68,0.1)",
         borderBottom: "1px solid rgba(239,68,68,0.2)",
-        color: "#ef4444",
+        color: "var(--color-danger)",
         fontSize: "12px",
       }}
     >

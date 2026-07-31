@@ -306,7 +306,7 @@ function ComposeViewInner({ accounts }: { accounts: Account[] }) {
   const sendDisabled = sendMutation.isPending || !fromAccountId || !hasToRecipient;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Header */}
       <div
         style={{

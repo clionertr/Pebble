@@ -54,7 +54,7 @@ function MessageItem({
 }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [showActions, setShowActions] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const fontWeight = message.is_read ? "normal" : "600";
   const inKanban = useKanbanStore((s) => s.cardIdSet.has(message.id));
   const archiveActionLabel =
@@ -74,6 +74,7 @@ function MessageItem({
   return (
     <div
       className={`message-list-row${message.is_read ? "" : " message-list-row--unread"}`}
+      data-removing={removing || undefined}
       onClick={onClick}
       tabIndex={0}
       role="option"
@@ -90,21 +91,6 @@ function MessageItem({
         boxSizing: "border-box",
         overflow: "hidden",
         transition: "background-color 0.12s ease",
-      }}
-      onMouseEnter={() => {
-        setShowActions(true);
-      }}
-      onMouseLeave={() => {
-        setShowActions(false);
-      }}
-      onFocus={() => {
-        setShowActions(true);
-      }}
-      onBlur={(e) => {
-        // Only hide if focus leaves this element entirely (not moving to a child)
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-          setShowActions(false);
-        }
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -160,6 +146,7 @@ function MessageItem({
             flex: 1,
             marginRight: "8px",
             minWidth: 0,
+            fontWeight: message.is_read ? 500 : 600,
           }}
         >
           <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -179,13 +166,16 @@ function MessageItem({
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
           {inKanban && <LayoutGrid size={13} color="var(--color-accent)" />}
-          {message.is_starred && <Star size={13} fill="#f59e0b" color="#f59e0b" />}
+          {message.is_starred && (
+            <Star size={13} fill="var(--color-star)" color="var(--color-star)" />
+          )}
           {message.has_attachments && <Paperclip size={13} color="var(--color-text-secondary)" />}
           <span
             style={{
               fontSize: "11px",
               color: "var(--color-text-secondary)",
               fontWeight: "normal",
+              fontVariantNumeric: "tabular-nums",
             }}
           >
             {formatDate(message.date)}
@@ -194,7 +184,7 @@ function MessageItem({
       </div>
       <div
         style={{
-          fontSize: "12.5px",
+          fontSize: "13px",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
@@ -236,52 +226,57 @@ function MessageItem({
             </span>
           ))}
       </div>
-      {showActions && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          role="presentation"
-          style={{
-            position: "absolute",
-            right: "8px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            display: "flex",
-            alignItems: "center",
-            gap: "2px",
-            backgroundColor: "var(--color-bg)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "6px",
-            padding: "2px",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-          }}
-        >
+      <div
+        className="row-actions"
+        onClick={(e) => e.stopPropagation()}
+        role="presentation"
+        style={{
+          position: "absolute",
+          right: "8px",
+          top: "50%",
+          transform: "translateY(-50%)",
+          display: "flex",
+          alignItems: "center",
+          gap: "2px",
+          backgroundColor: "var(--color-bg)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "6px",
+          padding: "2px",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+        }}
+      >
           <button
             onClick={(e) => {
               e.stopPropagation();
-              const previousLists = snapshotMessagesCache(queryClient);
-              patchMessagesCache(queryClient, (page) => page.filter((m) => m.id !== message.id));
-              archiveMessage(message.id)
-                .then((result) => {
-                  if (result === "skipped") {
+              setRemoving(true);
+              setTimeout(() => {
+                const previousLists = snapshotMessagesCache(queryClient);
+                patchMessagesCache(queryClient, (page) => page.filter((m) => m.id !== message.id));
+                archiveMessage(message.id)
+                  .then((result) => {
+                    if (result === "skipped") {
+                      restoreMessagesCache(queryClient, previousLists);
+                      setRemoving(false);
+                      return;
+                    }
+                    invalidateMessageViews(true);
+                    const msg =
+                      result === "unarchived"
+                        ? t("messageActions.unarchiveSuccess", "Message moved to inbox")
+                        : t("messageActions.archiveSuccess", "Message archived");
+                    useToastStore.getState().addToast({ message: msg, type: "success" });
+                  })
+                  .catch(() => {
                     restoreMessagesCache(queryClient, previousLists);
-                    return;
-                  }
-                  invalidateMessageViews(true);
-                  const msg =
-                    result === "unarchived"
-                      ? t("messageActions.unarchiveSuccess", "Message moved to inbox")
-                      : t("messageActions.archiveSuccess", "Message archived");
-                  useToastStore.getState().addToast({ message: msg, type: "success" });
-                })
-                .catch(() => {
-                  restoreMessagesCache(queryClient, previousLists);
-                  queryClient.invalidateQueries({ queryKey: ["messages"] });
-                  const msg =
-                    folderRole === "archive"
-                      ? t("messageActions.unarchiveFailed", "Failed to unarchive")
-                      : t("messageActions.archiveFailed", "Failed to archive");
-                  useToastStore.getState().addToast({ message: msg, type: "error" });
-                });
+                    setRemoving(false);
+                    queryClient.invalidateQueries({ queryKey: ["messages"] });
+                    const msg =
+                      folderRole === "archive"
+                        ? t("messageActions.unarchiveFailed", "Failed to unarchive")
+                        : t("messageActions.archiveFailed", "Failed to archive");
+                    useToastStore.getState().addToast({ message: msg, type: "error" });
+                  });
+              }, 200);
             }}
             aria-label={archiveActionLabel}
             title={archiveActionLabel}
@@ -302,24 +297,28 @@ function MessageItem({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                const previousLists = snapshotMessagesCache(queryClient);
-                patchMessagesCache(queryClient, (page) => page.filter((m) => m.id !== message.id));
-                moveToFolder(message.id, spamFolderId)
-                  .then(() => {
-                    invalidateMessageViews(true);
-                    useToastStore.getState().addToast({
-                      message: t("messageActions.spamSuccess", "Marked as spam"),
-                      type: "success",
+                setRemoving(true);
+                setTimeout(() => {
+                  const previousLists = snapshotMessagesCache(queryClient);
+                  patchMessagesCache(queryClient, (page) => page.filter((m) => m.id !== message.id));
+                  moveToFolder(message.id, spamFolderId)
+                    .then(() => {
+                      invalidateMessageViews(true);
+                      useToastStore.getState().addToast({
+                        message: t("messageActions.spamSuccess", "Marked as spam"),
+                        type: "success",
+                      });
+                    })
+                    .catch(() => {
+                      restoreMessagesCache(queryClient, previousLists);
+                      setRemoving(false);
+                      queryClient.invalidateQueries({ queryKey: ["messages"] });
+                      useToastStore.getState().addToast({
+                        message: t("messageActions.spamFailed", "Failed to mark as spam"),
+                        type: "error",
+                      });
                     });
-                  })
-                  .catch(() => {
-                    restoreMessagesCache(queryClient, previousLists);
-                    queryClient.invalidateQueries({ queryKey: ["messages"] });
-                    useToastStore.getState().addToast({
-                      message: t("messageActions.spamFailed", "Failed to mark as spam"),
-                      type: "error",
-                    });
-                  });
+                }, 200);
               }}
               aria-label={t("messageActions.reportSpam", "Report spam")}
               title={t("messageActions.reportSpam", "Report spam")}
@@ -394,17 +393,16 @@ function MessageItem({
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              color: message.is_starred ? "#f59e0b" : "var(--color-text-secondary)",
+              color: message.is_starred ? "var(--color-star)" : "var(--color-text-secondary)",
             }}
           >
             <Star
               size={14}
-              fill={message.is_starred ? "#f59e0b" : "none"}
-              color={message.is_starred ? "#f59e0b" : "currentColor"}
+              fill={message.is_starred ? "var(--color-star)" : "none"}
+              color={message.is_starred ? "var(--color-star)" : "currentColor"}
             />
           </button>
         </div>
-      )}
     </div>
   );
 }

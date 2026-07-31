@@ -60,7 +60,10 @@ export default function SettingsView() {
   const showTabContent = !isMobile || mobileTabActive;
 
   return (
-    <div style={{ display: "flex", height: "100%", flexDirection: isMobile ? "column" : "row" }}>
+    <div
+      className="fade-in"
+      style={{ display: "flex", height: "100%", flexDirection: isMobile ? "column" : "row" }}
+    >
       {/* Tab sidebar */}
       {showTabList && (
         <div

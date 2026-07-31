@@ -125,6 +125,7 @@ export default function KanbanView() {
 
   return (
     <div
+      className="fade-in"
       style={{
         display: "flex",
         gap: "8px",

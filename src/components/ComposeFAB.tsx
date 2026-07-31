@@ -12,6 +12,7 @@ export default function ComposeFAB() {
 
   return (
     <button
+      className="compose-fab"
       onClick={() => openCompose("new")}
       aria-label={t("sidebar.compose", "Compose")}
       title={t("sidebar.compose", "Compose")}
@@ -31,15 +32,6 @@ export default function ComposeFAB() {
         alignItems: "center",
         justifyContent: "center",
         boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-        transition: "transform 0.15s ease, box-shadow 0.15s ease",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "scale(1.08)";
-        e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.3)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "scale(1)";
-        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.2)";
       }}
     >
       <PenLine size={20} />

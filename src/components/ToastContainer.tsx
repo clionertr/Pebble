@@ -10,7 +10,7 @@ const iconMap = {
 
 const accentMap = {
   success: "var(--color-accent)",
-  error: "#c0392b",
+  error: "var(--color-danger)",
   info: "var(--color-text-secondary)",
 };
 
@@ -42,13 +42,14 @@ export default function ToastContainer() {
         return (
           <div
             key={toast.id}
+            className="toast-card"
+            data-leaving={toast.leaving ? "true" : undefined}
             role={toast.type === "error" ? "alert" : "status"}
             aria-live={toast.type === "error" ? "assertive" : "polite"}
             style={{
               display: "flex",
               alignItems: "center",
               gap: "10px",
-              padding: "12px 16px",
               borderRadius: "8px",
               backgroundColor: "var(--color-sidebar-bg)",
               border: "1px solid var(--color-border)",
@@ -57,7 +58,6 @@ export default function ToastContainer() {
               fontSize: "14px",
               color: "var(--color-text-primary)",
               pointerEvents: "auto",
-              animation: "toast-in 0.2s ease-out",
               minWidth: "280px",
               maxWidth: "420px",
             }}

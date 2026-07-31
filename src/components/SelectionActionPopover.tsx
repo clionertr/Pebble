@@ -45,6 +45,7 @@ export default function SelectionActionPopover({
 
   return (
     <div
+      className="popover-enter"
       role="toolbar"
       aria-label={t("selection.actions", "Selected text actions")}
       style={{
@@ -96,11 +97,13 @@ export default function SelectionActionPopover({
 
         {showSecondaryActions && (
           <div
+            className="popover-enter"
             role="menu"
             style={{
               position: "absolute",
               top: "calc(100% + 6px)",
               right: 0,
+              ["--popover-origin" as string]: "top right",
               minWidth: "140px",
               padding: "4px",
               borderRadius: "8px",

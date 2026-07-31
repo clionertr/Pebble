@@ -96,6 +96,7 @@ export default function ConfirmDialog({
 
   return (
     <div
+      className="dialog-backdrop-enter"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
@@ -111,6 +112,7 @@ export default function ConfirmDialog({
       }}
     >
       <div
+        className="dialog-panel-enter"
         ref={dialogRef}
         style={{
           width: "380px",
@@ -171,7 +173,7 @@ export default function ConfirmDialog({
               padding: "7px 16px",
               borderRadius: "6px",
               border: "none",
-              backgroundColor: destructive ? "#ef4444" : "var(--color-accent)",
+              backgroundColor: destructive ? "var(--color-danger)" : "var(--color-accent)",
               color: "#fff",
               fontSize: "13px",
               fontWeight: 600,

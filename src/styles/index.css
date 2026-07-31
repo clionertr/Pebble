@@ -11,12 +11,21 @@
   --color-text-primary: #1a1a1a;
   --color-text-secondary: #6b6b6b;
   --color-accent: #d4714e;
+  --color-star: #f59e0b;
+  --color-danger: #ef4444;
   --color-bg: #ffffff;
   --color-bg-hover: rgba(0, 0, 0, 0.05);
   --color-bg-secondary: rgba(0, 0, 0, 0.06);
   --color-scrollbar-track: transparent;
   --color-scrollbar-thumb: rgba(26, 26, 26, 0.22);
   --color-scrollbar-thumb-hover: rgba(26, 26, 26, 0.38);
+
+  /* 动效令牌：所有动画/过渡必须引用这些值，不许手写曲线和时长 */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --duration-fast: 140ms; /* hover / 颜色反馈 */
+  --duration-base: 180ms; /* 弹层、下拉、toast 入场 */
+  --duration-slow: 240ms; /* 抽屉、对话框 */
 }
 
 [data-theme="dark"] {
@@ -161,17 +170,42 @@ option {
 
 /* ─── Animations ──────────────────────────────────────────── */
 
-@keyframes slideInFromLeft {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
+/* 弹层入场：从触发点方向 0.97 缩放浮现。修改 --popover-origin 控制方向 */
+.popover-enter {
+  --popover-origin: top left;
+  transform-origin: var(--popover-origin);
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+}
+
+@starting-style {
+  .popover-enter {
+    opacity: 0;
+    transform: scale(0.97);
   }
 }
 
-.animate-slide-in-left {
-  animation: slideInFromLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+/* 对话框：遮罩淡入 + 面板轻微上浮缩放（面板居中出现，origin 保持 center 是正确的） */
+.dialog-backdrop-enter {
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+@starting-style {
+  .dialog-backdrop-enter {
+    opacity: 0;
+  }
+}
+
+.dialog-panel-enter {
+  transition:
+    opacity var(--duration-slow) var(--ease-out),
+    transform var(--duration-slow) var(--ease-out);
+}
+@starting-style {
+  .dialog-panel-enter {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
 }
 
 @keyframes fadeIn {
@@ -224,6 +258,32 @@ option {
   color: var(--color-text-secondary);
 }
 
+/* 移动端抽屉：transition 双向滑动（可中断，中途反向不重播） */
+.drawer-panel {
+  transform: translateX(-100%);
+  transition: transform var(--duration-slow) var(--ease-out);
+}
+.drawer-panel[data-open="true"] {
+  transform: translateX(0);
+}
+
+.drawer-backdrop {
+  opacity: 0;
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+.drawer-backdrop[data-open="true"] {
+  opacity: 1;
+}
+
+@starting-style {
+  .drawer-panel[data-open="true"] {
+    transform: translateX(-100%);
+  }
+  .drawer-backdrop[data-open="true"] {
+    opacity: 0;
+  }
+}
+
 .message-list-row,
 .thread-list-row {
   background: transparent;
@@ -243,62 +303,147 @@ option {
   background: var(--color-bg-hover);
 }
 
-/* Staggered fade-in for list items */
-.fade-in-item {
-  animation: fadeIn 0.25s ease-out both;
-}
-.fade-in-item:nth-child(1) {
-  animation-delay: 0ms;
-}
-.fade-in-item:nth-child(2) {
-  animation-delay: 30ms;
-}
-.fade-in-item:nth-child(3) {
-  animation-delay: 60ms;
-}
-.fade-in-item:nth-child(4) {
-  animation-delay: 90ms;
-}
-.fade-in-item:nth-child(5) {
-  animation-delay: 120ms;
-}
-.fade-in-item:nth-child(6) {
-  animation-delay: 150ms;
-}
-.fade-in-item:nth-child(7) {
-  animation-delay: 180ms;
-}
-.fade-in-item:nth-child(8) {
-  animation-delay: 210ms;
-}
-.fade-in-item:nth-child(9) {
-  animation-delay: 240ms;
-}
-.fade-in-item:nth-child(10) {
-  animation-delay: 270ms;
+/* 行内操作条：常驻 DOM，opacity 浮现；触屏无 hover 则常显 */
+.row-actions {
+  opacity: 0;
+  transform: translateX(4px);
+  pointer-events: none;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 
-/* Toast animation */
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.95);
-  }
-  to {
+.message-list-row:hover .row-actions,
+.message-list-row:focus-within .row-actions,
+.thread-list-row:hover .row-actions,
+.thread-list-row:focus-within .row-actions {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .row-actions {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: none;
+    pointer-events: auto;
   }
 }
 
-/* Respect reduced-motion preferences (WCAG 2.1 AA — SC 2.3.3) */
+/* 批量模式工具栏：grid-template-rows 0fr→1fr，天然支持双向过渡 */
+.batch-toolbar-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-base) var(--ease-out);
+}
+.batch-toolbar-reveal[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.batch-toolbar-reveal > div {
+  overflow: hidden;
+  min-height: 0;
+  visibility: hidden;
+  transition: visibility 0s linear var(--duration-base);
+}
+.batch-toolbar-reveal[data-open="true"] > div {
+  visibility: visible;
+  transition: none;
+}
+
+/* 行移除：折叠+淡出，虚拟列表随 ResizeObserver 逐帧跟进 */
+.message-list-row[data-removing] {
+  height: 0 !important;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
+  opacity: 0;
+  transition:
+    opacity 120ms var(--ease-out),
+    height 160ms var(--ease-out) 40ms,
+    padding 160ms var(--ease-out) 40ms,
+    border-bottom-width 160ms var(--ease-out) 40ms;
+}
+
+/* 写信 FAB：hover 仅限精确指针，按压缩小反馈 */
+.compose-fab {
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .compose-fab:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.compose-fab:active {
+  transform: scale(0.95);
+}
+
+.row-actions button:active {
+  transform: scale(0.88);
+}
+
+/* Toast：transition 进/退场（可中断），退场同时折叠高度让队列平滑合拢 */
+.toast-card {
+  max-height: 160px;
+  padding: 12px 16px;
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out),
+    max-height var(--duration-base) var(--ease-out),
+    padding var(--duration-base) var(--ease-out),
+    margin-bottom var(--duration-base) var(--ease-out);
+}
+
+@starting-style {
+  .toast-card {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+
+.toast-card[data-leaving="true"] {
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(6px) scale(0.97);
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-bottom: -8px; /* 抵消父容器 gap: 8px，兄弟才能滑动合拢而不是跳一格 */
+}
+
+/* 动画开关（WCAG 2.1 SC 2.3.3）：
+   - JS 未加载 / motion=system 时，跟随系统 prefers-reduced-motion（CSS 兜底首帧）
+   - 用户显式选 off 时无条件关闭
+   - .spinner 例外：加载指示是状态信息，冻结看起来像卡死 */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  html:not([data-motion="on"]) *,
+  html:not([data-motion="on"]) *::before,
+  html:not([data-motion="on"]) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  html:not([data-motion="on"]) .spinner {
+    animation-duration: 0.8s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+html[data-motion="off"] *,
+html[data-motion="off"] *::before,
+html[data-motion="off"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+html[data-motion="off"] .spinner {
+  animation-duration: 0.8s !important;
+  animation-iteration-count: infinite !important;
 }
 
 /* ─── Focus-visible ──────────────────────────────────────── */
@@ -390,9 +535,9 @@ textarea:focus-visible {
   font: inherit;
   line-height: 1;
   transition:
-    background-color 0.14s ease,
-    border-color 0.14s ease,
-    color 0.14s ease;
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .compose-format-button,
@@ -488,8 +633,8 @@ textarea:focus-visible {
   border-radius: 8px;
   background: var(--color-bg);
   transition:
-    border-color 0.14s ease,
-    box-shadow 0.14s ease;
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
 }
 
 .compose-editor-surface:focus-within {
@@ -613,8 +758,8 @@ textarea:focus-visible {
   font-weight: 500;
   text-align: left;
   transition:
-    background-color 0.14s ease,
-    color 0.14s ease;
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .compose-quoted-reply-toggle:hover {
@@ -705,9 +850,9 @@ textarea:focus-visible {
   background: var(--color-bg);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
   transition:
-    border-color 0.14s ease,
-    box-shadow 0.14s ease,
-    background-color 0.14s ease;
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease,
+    background-color var(--duration-fast) ease;
 }
 
 .search-input-shell:focus-within {
@@ -779,9 +924,9 @@ textarea:focus-visible {
   font: inherit;
   line-height: 1;
   transition:
-    background-color 0.14s ease,
-    border-color 0.14s ease,
-    color 0.14s ease;
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .inbox-toolbar-button:hover {
@@ -814,9 +959,9 @@ textarea:focus-visible {
   font-weight: 500;
   line-height: 1;
   transition:
-    background-color 0.14s ease,
-    border-color 0.14s ease,
-    color 0.14s ease;
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .search-toolbar-button:hover {
@@ -871,9 +1016,9 @@ textarea:focus-visible {
   box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
   cursor: pointer;
   transition:
-    background-color 0.14s ease,
-    border-color 0.14s ease,
-    box-shadow 0.14s ease;
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
 }
 
 .batch-checkbox::before {
@@ -951,9 +1096,9 @@ textarea:focus-visible {
   font-size: 13px;
   line-height: 20px;
   transition:
-    border-color 0.14s ease,
-    box-shadow 0.14s ease,
-    background-color 0.14s ease;
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease,
+    background-color var(--duration-fast) ease;
 }
 
 .search-filter-control:focus-visible {
@@ -978,9 +1123,9 @@ textarea:focus-visible {
   font-size: 13px;
   line-height: 1;
   transition:
-    border-color 0.14s ease,
-    background-color 0.14s ease,
-    color 0.14s ease;
+    border-color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .search-filter-toggle:hover {
@@ -1017,9 +1162,9 @@ textarea:focus-visible {
   font-size: 12px;
   font-weight: 500;
   transition:
-    background-color 0.14s ease,
-    border-color 0.14s ease,
-    color 0.14s ease;
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .search-filters-clear:hover {

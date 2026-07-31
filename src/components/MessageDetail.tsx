@@ -288,8 +288,10 @@ export default function MessageDetail({ messageId, onBack, folderRole }: Props) 
           </button>
           <h2
             style={{
-              fontSize: "15px",
+              fontSize: "17px",
               fontWeight: "600",
+              letterSpacing: "-0.01em",
+              lineHeight: 1.35,
               color: "var(--color-text-primary)",
               overflow: "hidden",
               textOverflow: "ellipsis",

@@ -75,6 +75,7 @@ function ThreadItem({ thread, isSelected, onClick }: Props) {
             flex: 1,
             marginRight: "8px",
             minWidth: 0,
+            fontWeight: hasUnread ? 600 : 500,
           }}
         >
           <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -104,10 +105,17 @@ function ThreadItem({ thread, isSelected, onClick }: Props) {
           )}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
-          {thread.is_starred && <Star size={13} fill="#f59e0b" color="#f59e0b" />}
+          {thread.is_starred && (
+            <Star size={13} fill="var(--color-star)" color="var(--color-star)" />
+          )}
           {thread.has_attachments && <Paperclip size={13} color="var(--color-text-secondary)" />}
           <span
-            style={{ fontSize: "11px", color: "var(--color-text-secondary)", fontWeight: "normal" }}
+            style={{
+              fontSize: "11px",
+              color: "var(--color-text-secondary)",
+              fontWeight: "normal",
+              fontVariantNumeric: "tabular-nums",
+            }}
           >
             {formatDate(thread.last_date)}
           </span>
@@ -115,7 +123,7 @@ function ThreadItem({ thread, isSelected, onClick }: Props) {
       </div>
       <div
         style={{
-          fontSize: "12.5px",
+          fontSize: "13px",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
