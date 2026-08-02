@@ -30,6 +30,10 @@ Pebble turns your server into a private webmail portal. You log in through a bro
 Think of it as a self-hosted Gmail. No third party sees your inbox. No ads. No tracking.
 
 **Pebble 是什么？** 它把你的服务器变成一个私人网页邮箱。在浏览器里登录，连接你的邮箱账户（支持 Gmail、IMAP、Outlook），在一个地方收发管理所有邮件。所有数据——邮件、附件、搜索索引、设置——都存在你自己的服务器上。
+<img width="2557" height="1173" alt="987fe60cc413e60018def29da223197b" src="https://github.com/user-attachments/assets/a1f1368a-cc72-45c4-85fc-b00c6683a311" />
+<img width="2560" height="1175" alt="image" src="https://github.com/user-attachments/assets/cbb5c670-68ea-4c07-928b-9a4b492f2370" />
+<img width="2560" height="1169" alt="de44c0a9c083f8eb190212eee4f57b60" src="https://github.com/user-attachments/assets/46120de6-38c5-40d5-9385-8bce7cd8ccab" />
+
 
 ## Quick Start
 
